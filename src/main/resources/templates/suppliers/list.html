@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{supplier.list.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{supplier.list.title}">Постачальники</h1>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-0">
+                    <div th:if="${suppliers.empty}" class="text-center text-muted py-5">
+                        <i class="bi bi-truck fs-1 d-block mb-2"></i>
+                        <span th:text="#{supplier.list.empty}">Постачальники не знайдено</span>
+                    </div>
+                    <table th:unless="${suppliers.empty}" class="table table-hover mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th th:text="#{supplier.form.name}">Назва</th>
+                            <th th:text="#{supplier.form.contactInfo}">Контакт</th>
+                            <th th:text="#{table.actions}">Дії</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="s : ${suppliers}">
+                            <td>
+                                <span class="fw-semibold"
+                                      th:text="${s.name}"
+                                      th:if="${s.notes == null or s.notes.isEmpty()}">
+                                </span>
+                                <span class="fw-semibold"
+                                      th:unless="${s.notes == null or s.notes.isEmpty()}"
+                                      th:text="${s.name}"
+                                      th:title="${s.notes}"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="right"
+                                      style="cursor: help; border-bottom: 1px dashed #6c757d;">
+                                </span>
+                            </td>
+                            <td th:text="${s.contactInfo}"></td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a th:href="@{/suppliers/{id}/edit(id=${s.id})}"
+                                       class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form th:action="@{/suppliers/{id}/delete(id=${s.id})}"
+                                          method="post"
+                                          onsubmit="return confirm('Видалити постачальника?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header" th:text="#{supplier.form.title.new}">Новий постачальник</div>
+                <div class="card-body">
+                    <form th:action="@{/suppliers}" th:object="${newSupplier}" method="post">
+                        <div class="mb-2">
+                            <input type="text" class="form-control" th:field="*{name}"
+                                   th:placeholder="#{supplier.form.name}"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                            <div class="invalid-feedback" th:errors="*{name}"></div>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control" th:field="*{contactInfo}"
+                                   th:placeholder="#{supplier.form.contactInfo}"/>
+                        </div>
+                        <div class="mb-2">
+                            <textarea class="form-control" th:field="*{notes}" rows="2"
+                                      th:placeholder="#{supplier.form.notes}"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-plus-lg me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipEls = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipEls.forEach(function (el) {
+            new bootstrap.Tooltip(el);
+        });
+    });
+</script>
+</body>
+</html>
