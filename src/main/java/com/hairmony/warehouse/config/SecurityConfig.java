@@ -25,6 +25,7 @@ public class SecurityConfig {
                         .requestMatchers("/login", "/logout").permitAll()
                         .requestMatchers(
                                 "/",
+                                "/favicon.svg",
                                 "/products/**",
                                 "/clients/**",
                                 "/suppliers/**",

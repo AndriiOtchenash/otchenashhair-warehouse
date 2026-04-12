@@ -3,6 +3,7 @@ package com.hairmony.warehouse.web.controller;
 import com.hairmony.warehouse.domain.product.Unit;
 import com.hairmony.warehouse.service.CategoryService;
 import com.hairmony.warehouse.service.ProductService;
+import com.hairmony.warehouse.service.StockService;
 import com.hairmony.warehouse.web.dto.ProductDto;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
@@ -19,10 +20,12 @@ public class ProductController {
 
     private final ProductService productService;
     private final CategoryService categoryService;
+    private final StockService stockService;
 
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("products", productService.findAllActive());
+    public String list(@RequestParam(defaultValue = "false") boolean showInactive, Model model) {
+        model.addAttribute("products", showInactive ? productService.findAll() : productService.findAllActive());
+        model.addAttribute("showInactive", showInactive);
         return "products/list";
     }
 
@@ -31,6 +34,9 @@ public class ProductController {
         ProductDto product = productService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         model.addAttribute("product", product);
+        model.addAttribute("stockItems", stockService.getStockItemsByProduct(id));
+        model.addAttribute("movements", stockService.getMovementsByProduct(id));
+        model.addAttribute("totalQuantity", stockService.getAvailableQuantity(id));
         return "products/detail";
     }
 
@@ -83,5 +89,11 @@ public class ProductController {
     public String deactivate(@PathVariable Long id) {
         productService.deactivate(id);
         return "redirect:/products";
+    }
+
+    @PostMapping("/{id}/restore")
+    public String restore(@PathVariable Long id) {
+        productService.restore(id);
+        return "redirect:/products?showInactive=true";
     }
 }

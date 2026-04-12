@@ -65,6 +65,12 @@ public class ProductService {
         // no save() needed — dirty checking handles it
     }
 
+    public void restore(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
+        product.setActive(true);
+    }
+
     @Transactional(readOnly = true)
     public List<ProductDto> search(String name) {
         return productRepository.findAllByActiveTrueAndNameContainingIgnoreCase(name).stream()

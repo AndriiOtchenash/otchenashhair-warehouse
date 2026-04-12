@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{dashboard.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{dashboard.title}">Склад</h1>
+        <div class="d-flex gap-2">
+            <a th:href="@{/movements/income}" class="btn btn-primary">
+                <i class="bi bi-arrow-down-circle me-1"></i>
+                <span th:text="#{stock.income.title}">Прихід</span>
+            </a>
+            <a th:href="@{/movements/expense}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-up-circle me-1"></i>
+                <span th:text="#{stock.expense.title}">Витрата</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="card text-center py-3">
+                <div class="fs-2 fw-bold text-success" th:text="${totalProducts}">0</div>
+                <div class="text-muted small" th:text="#{dashboard.totalProducts}">Товарів</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center py-3"
+                 data-bs-toggle="tooltip"
+                 data-bs-placement="right"
+                 th:title="#{dashboard.lowStock.hint}"
+                 style="cursor: help;">
+                <div class="fs-2 fw-bold"
+                     th:classappend="${lowStock > 0} ? 'text-warning' : 'text-success'"
+                     th:text="${lowStock}">0</div>
+                <div class="text-muted small" th:text="#{dashboard.lowStock}">Потребують уваги</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+        <!-- Status tabs -->
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="filterStatus('all', this)"
+                    th:text="#{dashboard.filter.all}">Всі</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary active"
+                    onclick="filterStatus('OK', this)"
+                    th:text="#{dashboard.filter.ok}">В наявності</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="filterStatus('attention', this)"
+                    th:text="#{dashboard.filter.attention}">Потребують уваги</button>
+        </div>
+
+        <!-- Category filter -->
+        <select class="form-select form-select-sm w-auto" onchange="filterCategory(this.value)">
+            <option value="" th:text="#{dashboard.filter.allCategories}">Всі категорії</option>
+            <option th:each="cat : ${categories}"
+                    th:value="${cat}"
+                    th:text="${cat}">
+            </option>
+        </select>
+
+        <!-- Search -->
+        <div class="ms-auto">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" style="width: 200px;"
+                       th:placeholder="#{dashboard.filter.search}"
+                       oninput="filterSearch(this.value)"/>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div th:if="${rows.empty}" class="text-center text-muted py-5">
+                <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+                <span th:text="#{dashboard.empty}">Товари не знайдено</span>
+            </div>
+            <table th:unless="${rows.empty}" class="table table-hover mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th th:text="#{product.form.name}">Назва</th>
+                    <th th:text="#{product.form.brand}">Бренд</th>
+                    <th th:text="#{product.form.category}">Категорія</th>
+                    <th th:text="#{dashboard.currentStock}">Залишок</th>
+                    <th th:text="#{dashboard.expiryDate}">Термін придатності</th>
+                    <th th:text="#{dashboard.status}">Статус</th>
+                    <th th:text="#{table.actions}">Дії</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${rows}"
+                    th:attr="data-status=${row.status.name()},data-category=${row.categoryName},data-name=${row.productName}"
+                    th:classappend="${row.status.name() == 'OUT'} ? 'table-danger' : (${row.status.name() == 'LOW'} ? 'table-warning' : '')">
+                    <td class="fw-semibold" th:text="${row.productName}"></td>
+                    <td th:text="${row.brand}"></td>
+                    <td th:text="${row.categoryName}"></td>
+                    <td>
+                        <span th:text="${row.currentQuantity}"></span>
+                        <span class="text-muted small" th:text="#{unit.__${row.unit}__}"></span>
+                    </td>
+                    <td>
+                        <span th:if="${row.nearestExpiryDate == null}" class="text-muted">—</span>
+                        <span th:unless="${row.nearestExpiryDate == null}"
+                              th:text="${#temporals.format(row.nearestExpiryDate, 'dd.MM.yyyy')}"
+                              th:classappend="${row.nearestExpiryDate.isBefore(#temporals.createToday().plusDays(30))} ? 'text-danger fw-semibold'">
+                        </span>
+                    </td>
+                    <td>
+                        <span th:if="${row.status.name() == 'OK'}"
+                              class="badge badge-active px-2 py-1 rounded-pill"
+                              th:text="#{dashboard.status.ok}">Норма</span>
+                        <span th:if="${row.status.name() == 'LOW'}"
+                              class="badge bg-warning text-dark px-2 py-1 rounded-pill"
+                              th:text="#{dashboard.status.low}">Мало</span>
+                        <span th:if="${row.status.name() == 'OUT'}"
+                              class="badge bg-danger px-2 py-1 rounded-pill"
+                              th:text="#{dashboard.status.out}">Немає</span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a th:href="@{/movements/income(productId=${row.productId})}"
+                               class="btn btn-sm btn-outline-success"
+                               th:title="#{stock.income.title}"
+                               data-bs-toggle="tooltip">
+                                <i class="bi bi-arrow-down-circle"></i>
+                            </a>
+                            <a th:href="@{/movements/expense(productId=${row.productId})}"
+                               class="btn btn-sm btn-outline-danger"
+                               th:title="#{stock.expense.title}"
+                               data-bs-toggle="tooltip">
+                                <i class="bi bi-arrow-up-circle"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Read initial filter from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        let activeStatus = urlParams.get('status') || 'OK';
+        let activeCategory = urlParams.get('category') || '';
+        let activeSearch = '';
+
+        // Set initial button state
+        document.querySelectorAll('.btn-group .btn').forEach(btn => {
+            btn.classList.remove('active');
+            const btnStatus = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+            if (btnStatus === activeStatus) btn.classList.add('active');
+        });
+
+        function applyFilters() {
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const status = row.dataset.status;
+                const category = row.dataset.category || '';
+                const name = row.dataset.name || '';
+
+                const statusMatch = activeStatus === 'all'
+                    || (activeStatus === 'attention' && (status === 'LOW' || status === 'OUT'))
+                    || status === activeStatus;
+
+                const categoryMatch = activeCategory === '' || category === activeCategory;
+                const searchMatch = activeSearch === '' || name.toLowerCase().includes(activeSearch.toLowerCase());
+
+                row.style.display = (statusMatch && categoryMatch && searchMatch) ? '' : 'none';
+            });
+        }
+
+        function updateUrl() {
+            const params = new URLSearchParams(window.location.search);
+            params.set('status', activeStatus);
+            if (activeCategory) params.set('category', activeCategory);
+            else params.delete('category');
+            const newUrl = window.location.pathname + '?' + params.toString();
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        function filterStatus(status, btn) {
+            activeStatus = status;
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateUrl();
+            applyFilters();
+        }
+
+        function filterCategory(value) {
+            activeCategory = value;
+            updateUrl();
+            applyFilters();
+        }
+
+        function filterSearch(value) {
+            activeSearch = value;
+            applyFilters();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set category select value from URL
+            const catSelect = document.querySelector('select[onchange="filterCategory(this.value)"]');
+            if (catSelect && activeCategory) catSelect.value = activeCategory;
+
+            applyFilters();
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
+        });
+
+    </script>
+</div>
+</body>
+</html>

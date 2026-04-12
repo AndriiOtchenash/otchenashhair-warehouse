@@ -5,10 +5,18 @@
 <div th:fragment="content">
     <div class="page-header">
         <h1 class="page-title" th:text="#{product.list.title}">Товари</h1>
-        <a th:href="@{/products/new}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>
-            <span th:text="#{product.list.new}">Додати товар</span>
-        </a>
+        <div class="d-flex gap-2">
+            <a th:href="@{/products(showInactive=${!showInactive})}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-eye me-1" th:if="${!showInactive}"></i>
+                <i class="bi bi-eye-slash me-1" th:unless="${!showInactive}"></i>
+                <span th:text="${showInactive} ? #{product.hideInactive} : #{product.showInactive}"></span>
+            </a>
+            <a th:href="@{/products/new}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>
+                <span th:text="#{product.list.new}">Додати товар</span>
+            </a>
+        </div>
     </div>
 
     <div class="card">
@@ -52,17 +60,33 @@
                     </td>
                     <td>
                         <div class="d-flex gap-1">
-                            <a th:href="@{/products/{id}/edit(id=${product.id})}"
-                               class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <form th:action="@{/products/{id}/deactivate(id=${product.id})}"
-                                  method="post" class="d-inline"
-                                  onsubmit="return confirm('Деактивувати товар?')">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-archive"></i>
-                                </button>
-                            </form>
+                            <th:block th:if="${product.active}">
+                                <a th:href="@{/products/{id}/edit(id=${product.id})}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   th:title="#{btn.edit}"
+                                   data-bs-toggle="tooltip">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form th:action="@{/products/{id}/deactivate(id=${product.id})}"
+                                      method="post" class="d-inline"
+                                      onsubmit="return confirm('Деактивувати товар?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            th:title="#{btn.deactivate}"
+                                            data-bs-toggle="tooltip">
+                                        <i class="bi bi-archive"></i>
+                                    </button>
+                                </form>
+                            </th:block>
+                            <th:block th:unless="${product.active}">
+                                <form th:action="@{/products/{id}/restore(id=${product.id})}"
+                                      method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-success"
+                                            th:title="#{btn.restore}"
+                                            data-bs-toggle="tooltip">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </form>
+                            </th:block>
                         </div>
                     </td>
                 </tr>
@@ -70,6 +94,13 @@
             </table>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
+        });
+    </script>
 </div>
 </body>
 </html>

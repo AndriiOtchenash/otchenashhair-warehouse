@@ -37,7 +37,9 @@
                                 <form th:action="@{/categories/{id}/delete(id=${cat.id})}"
                                       method="post"
                                       onsubmit="return confirm('Видалити категорію?')">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            th:title="#{btn.delete}"
+                                            data-bs-toggle="tooltip">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
@@ -70,6 +72,13 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
+        });
+    </script>
 </div>
 </body>
 </html>

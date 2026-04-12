@@ -43,13 +43,17 @@
                             <td>
                                 <div class="d-flex gap-1">
                                     <a th:href="@{/suppliers/{id}/edit(id=${s.id})}"
-                                       class="btn btn-sm btn-outline-secondary">
+                                       class="btn btn-sm btn-outline-secondary"
+                                       th:title="#{btn.edit}"
+                                       data-bs-toggle="tooltip">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form th:action="@{/suppliers/{id}/delete(id=${s.id})}"
                                           method="post"
                                           onsubmit="return confirm('Видалити постачальника?')">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                th:title="#{btn.delete}"
+                                                data-bs-toggle="tooltip">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
@@ -90,14 +94,13 @@
             </div>
         </div>
     </div>
-</div>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var tooltipEls = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipEls.forEach(function (el) {
-            new bootstrap.Tooltip(el);
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
         });
-    });
-</script>
+    </script>
+</div>
 </body>
 </html>

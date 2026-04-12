@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{stock.expense.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{stock.expense.title}">Витрата товару</h1>
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-3">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mb-3">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form th:action="@{/movements/expense}" th:object="${dto}" method="post">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
+                        <select class="form-select" th:field="*{productId}"
+                                th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'">
+                            <option value="">-- Оберіть товар --</option>
+                            <option th:each="p : ${products}"
+                                    th:value="${p.id}"
+                                    th:text="${p.name}">
+                            </option>
+                        </select>
+                        <div class="invalid-feedback" th:errors="*{productId}"></div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold" th:text="#{stock.form.movementType}">Тип операції</label>
+                        <select class="form-select" th:field="*{movementType}"
+                                th:classappend="${#fields.hasErrors('movementType')} ? 'is-invalid'">
+                            <option value="">-- Тип --</option>
+                            <option th:each="t : ${expenseTypes}"
+                                    th:value="${t}"
+                                    th:text="#{movementType.__${t}__}">
+                            </option>
+                        </select>
+                        <div class="invalid-feedback" th:errors="*{movementType}"></div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
+                        <input type="number" step="0.001" class="form-control"
+                               th:field="*{quantity}"
+                               th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"/>
+                        <div class="invalid-feedback" th:errors="*{quantity}"></div>
+                    </div>
+
+                    <div class="col-md-6" id="saleFields">
+                        <label class="form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
+                        <select class="form-select" th:field="*{clientId}">
+                            <option value="">-- Оберіть клієнта --</option>
+                            <option th:each="c : ${clients}"
+                                    th:value="${c.id}"
+                                    th:text="${c.name}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold" th:text="#{stock.form.salePrice}">Ціна продажу</label>
+                        <input type="number" step="0.01" class="form-control" th:field="*{unitPrice}"/>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
+                        <textarea class="form-control" rows="2" th:field="*{notes}"></textarea>
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-arrow-up-circle me-1"></i>
+                            <span th:text="#{stock.expense.submit}">Зареєструвати витрату</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
