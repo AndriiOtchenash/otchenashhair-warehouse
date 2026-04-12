@@ -61,7 +61,7 @@
                         <tr>
                             <td class="text-muted" th:text="#{dashboard.currentStock}">Залишок</td>
                             <td>
-                                <strong th:text="${totalQuantity}"></strong>
+                                <strong th:text="${@qf.format(totalQuantity, product.unit != null ? product.unit.name() : 'PCS')}"></strong>
                                 <span class="text-muted small" th:text="#{unit.__${product.unit}__}"></span>
                             </td>
                         </tr>
@@ -94,7 +94,7 @@
                         <tr th:each="item : ${stockItems}"
                             th:classappend="${item.quantity.compareTo(T(java.math.BigDecimal).ZERO) == 0} ? 'text-muted'">
                             <td>
-                                <span th:text="${item.quantity}"></span>
+                                <span th:text="${@qf.format(item.quantity, product.unit != null ? product.unit.name() : 'PCS')}"></span>
                                 <span class="small" th:text="#{unit.__${product.unit}__}"></span>
                             </td>
                             <td th:text="${item.purchasePrice}"></td>

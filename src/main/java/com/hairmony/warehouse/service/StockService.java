@@ -115,6 +115,11 @@ public class StockService {
     }
 
     @Transactional(readOnly = true)
+    public List<StockMovement> getMovementsByClient(Long clientId) {
+        return stockMovementRepository.findAllByClientIdOrderByCreatedAtDesc(clientId);
+    }
+
+    @Transactional(readOnly = true)
     public List<StockMovement> findAllMovements() {
         return stockMovementRepository.findAllByOrderByCreatedAtDesc();
     }

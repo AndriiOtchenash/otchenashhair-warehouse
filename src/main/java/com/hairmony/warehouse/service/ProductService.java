@@ -2,6 +2,7 @@ package com.hairmony.warehouse.service;
 
 import com.hairmony.warehouse.domain.product.Product;
 import com.hairmony.warehouse.repository.ProductRepository;
+import com.hairmony.warehouse.repository.StockItemRepository;
 import com.hairmony.warehouse.web.dto.ProductDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.Optional;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final StockItemRepository stockItemRepository;
 
     @Transactional(readOnly = true)
     public List<ProductDto> findAll() {
@@ -29,6 +31,15 @@ public class ProductService {
     public List<ProductDto> findAllActive() {
         return productRepository.findAllByActiveTrue().stream()
                 .map(this::toDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDto> findAllActiveWithStock() {
+        return productRepository.findAllByActiveTrue().stream()
+                .map(this::toDto)
+                .filter(p -> p.getCurrentQuantity() != null
+                        && p.getCurrentQuantity().compareTo(java.math.BigDecimal.ZERO) > 0)
                 .toList();
     }
 
@@ -91,6 +102,7 @@ public class ProductService {
                 .description(product.getDescription())
                 .imageUrl(product.getImageUrl())
                 .active(product.getActive())
+                .currentQuantity(stockItemRepository.getTotalQuantityByProductId(product.getId()))
                 .build();
     }
 

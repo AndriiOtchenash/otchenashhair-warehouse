@@ -101,7 +101,7 @@
                     <td th:text="${row.brand}"></td>
                     <td th:text="${row.categoryName}"></td>
                     <td>
-                        <span th:text="${row.currentQuantity}"></span>
+                        <span th:text="${@qf.format(row.currentQuantity, row.unit)}"></span>
                         <span class="text-muted small" th:text="#{unit.__${row.unit}__}"></span>
                     </td>
                     <td>

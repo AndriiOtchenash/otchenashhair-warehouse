@@ -40,4 +40,6 @@ public class ProductDto {
     private String imageUrl;
 
     private boolean active;
+
+    private java.math.BigDecimal currentQuantity;
 }

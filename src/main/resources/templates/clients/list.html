@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{client.list.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{client.list.title}">Клієнти</h1>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-0">
+                    <div th:if="${clients.empty}" class="text-center text-muted py-5">
+                        <i class="bi bi-people fs-1 d-block mb-2"></i>
+                        <span th:text="#{client.list.empty}">Клієнти не знайдено</span>
+                    </div>
+                    <table th:unless="${clients.empty}" class="table table-hover mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th th:text="#{client.form.name}">Ім'я</th>
+                            <th th:text="#{client.form.phone}">Телефон</th>
+                            <th th:text="#{table.actions}">Дії</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="c : ${clients}">
+                            <td>
+                                <a th:href="@{/clients/{id}(id=${c.id})}"
+                                   class="fw-semibold text-decoration-none text-dark"
+                                   th:text="${c.name}"
+                                   th:if="${c.notes == null or c.notes.isEmpty()}"></a>
+                                <a th:href="@{/clients/{id}(id=${c.id})}"
+                                   class="fw-semibold text-decoration-none text-dark"
+                                   th:text="${c.name}"
+                                   th:unless="${c.notes == null or c.notes.isEmpty()}"
+                                   th:title="${c.notes}"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-placement="right"
+                                   style="border-bottom: 1px dashed #6c757d;"></a>
+                            </td>
+                            <td th:text="${c.phone ?: '—'}"></td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a th:href="@{/clients/{id}/edit(id=${c.id})}"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       th:title="#{btn.edit}"
+                                       data-bs-toggle="tooltip">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form th:action="@{/clients/{id}/delete(id=${c.id})}"
+                                          method="post"
+                                          onsubmit="return confirm('Видалити клієнта?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                th:title="#{btn.delete}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header" th:text="#{client.form.title.new}">Новий клієнт</div>
+                <div class="card-body">
+                    <form th:action="@{/clients}" th:object="${newClient}" method="post">
+                        <div class="mb-2">
+                            <input type="text" class="form-control" th:field="*{name}"
+                                   th:placeholder="#{client.form.name}"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                            <div class="invalid-feedback" th:errors="*{name}"></div>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control" th:field="*{phone}"
+                                   th:placeholder="#{client.form.phone}"/>
+                        </div>
+                        <div class="mb-2">
+                            <textarea class="form-control" th:field="*{notes}" rows="2"
+                                      th:placeholder="#{client.form.notes}"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-plus-lg me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
+        });
+    </script>
+</div>
+</body>
+</html>

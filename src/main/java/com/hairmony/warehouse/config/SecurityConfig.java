@@ -29,6 +29,7 @@ public class SecurityConfig {
                                 "/products/**",
                                 "/clients/**",
                                 "/suppliers/**",
+                                "/categories/**",
                                 "/movements/**",
                                 "/reports/**"
                         ).permitAll()

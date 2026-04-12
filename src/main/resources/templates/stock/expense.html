@@ -23,13 +23,17 @@
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
                         <select class="form-select" th:field="*{productId}"
-                                th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'">
-                            <option value="">-- Оберіть товар --</option>
+                                th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
+                                id="productSelect"
+                                onchange="updateStockHint(this)">
+                            <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
                             <option th:each="p : ${products}"
                                     th:value="${p.id}"
-                                    th:text="${p.name}">
+                                    th:text="${p.name}"
+                                    th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit}">
                             </option>
                         </select>
+                        <div id="stockHint" class="form-text text-muted mt-1"></div>
                         <div class="invalid-feedback" th:errors="*{productId}"></div>
                     </div>
 
@@ -37,7 +41,7 @@
                         <label class="form-label fw-semibold" th:text="#{stock.form.movementType}">Тип операції</label>
                         <select class="form-select" th:field="*{movementType}"
                                 th:classappend="${#fields.hasErrors('movementType')} ? 'is-invalid'">
-                            <option value="">-- Тип --</option>
+                            <option value="" th:text="#{stock.form.selectType}">-- Тип --</option>
                             <option th:each="t : ${expenseTypes}"
                                     th:value="${t}"
                                     th:text="#{movementType.__${t}__}">
@@ -57,7 +61,7 @@
                     <div class="col-md-6" id="saleFields">
                         <label class="form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
                         <select class="form-select" th:field="*{clientId}">
-                            <option value="">-- Оберіть клієнта --</option>
+                            <option value="" th:text="#{stock.form.selectClient}">-- Оберіть клієнта --</option>
                             <option th:each="c : ${clients}"
                                     th:value="${c.id}"
                                     th:text="${c.name}">
@@ -85,6 +89,32 @@
             </form>
         </div>
     </div>
+    <script th:inline="javascript">
+        const inStockLabel = /*[[#{stock.hint.available}]]*/ 'В наявності';
+        const unitLabels = {
+            'ML': /*[[#{unit.ML}]]*/ 'мл',
+            'G': /*[[#{unit.G}]]*/ 'гр',
+            'PCS': /*[[#{unit.PCS}]]*/ 'шт'
+        };
+
+        function updateStockHint(select) {
+            const option = select.options[select.selectedIndex];
+            const hint = document.getElementById('stockHint');
+            if (option && option.dataset.qty) {
+                const qty = option.dataset.qty;
+                const unit = option.dataset.unit;
+                hint.textContent = inStockLabel + ': ' + qty + ' ' + (unitLabels[unit] || unit);
+                hint.className = 'form-text text-success mt-1';
+            } else {
+                hint.textContent = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const select = document.getElementById('productSelect');
+            if (select && select.value) updateStockHint(select);
+        });
+    </script>
 </div>
 </body>
 </html>

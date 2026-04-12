@@ -55,7 +55,7 @@ public class StockController {
         StockExpenseDto dto = new StockExpenseDto();
         if (productId != null) dto.setProductId(productId);
         model.addAttribute("dto", dto);
-        model.addAttribute("products", productService.findAllActive());
+        model.addAttribute("products", productService.findAllActiveWithStock());
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("expenseTypes", new MovementType[]{
                 MovementType.SALE, MovementType.WRITE_OFF, MovementType.ADJUSTMENT
@@ -69,7 +69,7 @@ public class StockController {
                                   Model model,
                                   RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
-            model.addAttribute("products", productService.findAllActive());
+            model.addAttribute("products", productService.findAllActiveWithStock());
             model.addAttribute("clients", clientService.findAll());
             model.addAttribute("expenseTypes", new MovementType[]{
                     MovementType.SALE, MovementType.WRITE_OFF, MovementType.ADJUSTMENT
@@ -79,9 +79,15 @@ public class StockController {
         try {
             stockService.registerExpense(dto);
             redirectAttributes.addFlashAttribute("successMessage", "Витрату зареєстровано");
+            return "redirect:/movements/expense";
         } catch (IllegalStateException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("products", productService.findAllActiveWithStock());
+            model.addAttribute("clients", clientService.findAll());
+            model.addAttribute("expenseTypes", new MovementType[]{
+                    MovementType.SALE, MovementType.WRITE_OFF, MovementType.ADJUSTMENT
+            });
+            return "stock/expense";
         }
-        return "redirect:/movements/expense";
     }
 }

@@ -41,7 +41,7 @@
                         <label class="form-label fw-semibold" th:text="#{product.form.category}">Категорія</label>
                         <select class="form-select" th:field="*{category.id}"
                                 th:classappend="${#fields.hasErrors('category')} ? 'is-invalid'">
-                            <option value="">-- Категорія --</option>
+                            <option value="" th:text="#{stock.form.selectCategory}">-- Категорія --</option>
                             <option th:each="cat : ${categories}"
                                     th:value="${cat.id}"
                                     th:text="${cat.name}">
@@ -55,7 +55,7 @@
                         <label class="form-label fw-semibold" th:text="#{product.form.unit}">Одиниця</label>
                         <select class="form-select" th:field="*{unit}"
                                 th:classappend="${#fields.hasErrors('unit')} ? 'is-invalid'">
-                            <option value="" th:text="'-- ' + #{product.form.unit} + ' --'"></option>
+                            <option value="" th:text="#{stock.form.selectUnit}">-- Одиниця виміру --</option>
                             <option th:each="u : ${units}"
                                     th:value="${u}"
                                     th:text="#{unit.__${u}__}">
