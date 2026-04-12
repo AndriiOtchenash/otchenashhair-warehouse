@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body th:fragment="layout(title, content)">
+<div id="app">
+    <!-- Injected head content -->
+    <th:block>
+        <title th:text="${title} + ' | Hairmony'">Hairmony</title>
+    </th:block>
+
+    <div class="d-flex">
+        <nav class="sidebar">
+            <a class="sidebar-brand" th:href="@{/}">🌿 Hair<span>mony</span></a>
+            <div class="sidebar-nav">
+                <div class="nav-label">Склад</div>
+                <a th:href="@{/products}"
+                   th:classappend="${currentUri != null and currentUri.startsWith('/products')} ? 'active'"
+                   class="nav-link">
+                    <i class="bi bi-box-seam"></i>
+                    <span th:text="#{nav.products}">Товари</span>
+                </a>
+                <a th:href="@{/movements/income}"
+                   th:classappend="${currentUri != null and currentUri.startsWith('/movements/income')} ? 'active'"
+                   class="nav-link">
+                    <i class="bi bi-arrow-down-circle"></i>
+                    <span th:text="#{nav.stock.income}">Прихід</span>
+                </a>
+                <a th:href="@{/movements/expense}"
+                   th:classappend="${currentUri != null and currentUri.startsWith('/movements/expense')} ? 'active'"
+                   class="nav-link">
+                    <i class="bi bi-arrow-up-circle"></i>
+                    <span th:text="#{nav.stock.expense}">Витрата</span>
+                </a>
+                <div class="nav-label">Довідники</div>
+                <a th:href="@{/clients}"
+                   th:classappend="${currentUri != null and currentUri.startsWith('/clients')} ? 'active'"
+                   class="nav-link">
+                    <i class="bi bi-people"></i>
+                    <span th:text="#{nav.clients}">Клієнти</span>
+                </a>
+                <a th:href="@{/suppliers}"
+                   th:classappend="${currentUri != null and currentUri.startsWith('/suppliers')} ? 'active'"
+                   class="nav-link">
+                    <i class="bi bi-truck"></i>
+                    <span th:text="#{nav.suppliers}">Постачальники</span>
+                </a>
+                <a th:href="@{/categories}"
+                   th:classappend="${currentUri != null and currentUri.startsWith('/categories')} ? 'active'"
+                   class="nav-link">
+                    <i class="bi bi-tags"></i>
+                    <span th:text="#{nav.categories}">Категорії</span>
+                </a>
+                <div class="nav-label">Аналітика</div>
+                <a th:href="@{/reports}"
+                   th:classappend="${currentUri != null and currentUri.startsWith('/reports')} ? 'active'"
+                   class="nav-link">
+                    <i class="bi bi-bar-chart-line"></i>
+                    <span th:text="#{nav.reports}">Звіти</span>
+                </a>
+            </div>
+            <div class="lang-switcher">
+                <a th:href="@{''(lang=uk)}" class="lang-btn">🇺🇦 UA</a>
+                <a th:href="@{''(lang=pl)}" class="lang-btn">🇵🇱 PL</a>
+                <a th:href="@{''(lang=en)}" class="lang-btn">🇬🇧 EN</a>
+            </div>
+        </nav>
+        <main class="main-content w-100">
+            <div th:replace="${content}">Content here</div>
+        </main>
+    </div>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        :root {
+            --sidebar-width: 240px;
+            --accent: #4a7c59;
+            --accent-light: #e8f5e9;
+            --sidebar-bg: #1e2d24;
+            --sidebar-text: #c8d8cb;
+            --sidebar-hover: #2e4a35;
+            --sidebar-active: #4a7c59;
+        }
+        body { background: #f4f6f4; }
+        .sidebar {
+            width: var(--sidebar-width);
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            position: fixed;
+            top: 0; left: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar-brand {
+            padding: 1.5rem 1.25rem 1rem;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            border-bottom: 1px solid #2e4a35;
+            text-decoration: none;
+            display: block;
+        }
+        .sidebar-brand span { color: var(--accent); }
+        .sidebar-nav { padding: 1rem 0; flex: 1; }
+        .nav-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #6b8c74;
+            padding: 0.75rem 1.25rem 0.25rem;
+        }
+        .sidebar-nav .nav-link {
+            color: var(--sidebar-text);
+            padding: 0.55rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 0.9rem;
+            transition: background 0.15s;
+        }
+        .sidebar-nav .nav-link:hover { background: var(--sidebar-hover); color: #fff; }
+        .sidebar-nav .nav-link.active { background: var(--sidebar-active); color: #fff; }
+        .sidebar-nav .nav-link i { font-size: 1rem; width: 1.1rem; }
+        .lang-switcher {
+            padding: 0.75rem 1.25rem;
+            border-top: 1px solid #2e4a35;
+            display: flex;
+            gap: 0.4rem;
+        }
+        .lang-btn {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            border: 1px solid #3a5a42;
+            transition: all 0.15s;
+        }
+        .lang-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .page-title { font-size: 1.4rem; font-weight: 600; color: #1e2d24; margin: 0; }
+        .card { border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.07); border-radius: 10px; }
+        .card-header { background: #fff; border-bottom: 1px solid #f0f0f0; font-weight: 600; }
+        .table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6c757d; font-weight: 600; }
+        .table td { vertical-align: middle; }
+        .table tbody tr:hover { background: var(--accent-light); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); }
+        .btn-primary:hover { background: #3d6b4a; border-color: #3d6b4a; }
+        .btn-outline-primary { color: var(--accent); border-color: var(--accent); }
+        .btn-outline-primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .badge-active { background: #d4edda; color: #155724; font-weight: 500; }
+        .badge-inactive { background: #f8d7da; color: #721c24; font-weight: 500; }
+    </style>
+</div>
+</body>
+</html>

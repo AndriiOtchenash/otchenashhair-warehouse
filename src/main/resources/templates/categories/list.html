@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{category.list.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{category.list.title}">Категорії</h1>
+    </div>
+
+    <div class="row g-3">
+        <!-- Existing categories -->
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Назва</th>
+                            <th th:text="#{table.actions}">Дії</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="cat : ${categories}">
+                            <td th:text="${cat.sortOrder}"></td>
+                            <td>
+                                <form th:action="@{/categories/{id}/rename(id=${cat.id})}"
+                                      method="post" class="d-flex gap-2">
+                                    <input type="text" class="form-control form-control-sm"
+                                           th:value="${cat.name}" name="name"/>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-check"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <form th:action="@{/categories/{id}/delete(id=${cat.id})}"
+                                      method="post"
+                                      onsubmit="return confirm('Видалити категорію?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add new -->
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header">Нова категорія</div>
+                <div class="card-body">
+                    <form th:action="@{/categories}" th:object="${newCategory}" method="post">
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control"
+                                   th:field="*{name}"
+                                   placeholder="Назва категорії"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
+                        <div class="invalid-feedback" th:errors="*{name}"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

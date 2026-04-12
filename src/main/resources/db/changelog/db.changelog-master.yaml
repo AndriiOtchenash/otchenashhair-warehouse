@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/migrations/001-create-users.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/002-create-suppliers.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/003-create-clients.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/004-create-products.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/005-create-stock-items.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/006-create-stock-movements.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/007-create-categories.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/008-fix-categories.sql
+      relativeToChangelogFile: false

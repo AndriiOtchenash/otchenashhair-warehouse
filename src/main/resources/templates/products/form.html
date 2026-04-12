@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{product.form.title.new}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title"
+            th:text="${product.id != null} ? #{product.form.title.edit} : #{product.form.title.new}">
+            Товар
+        </h1>
+        <a th:href="@{/products}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span th:text="#{btn.back}">Назад</span>
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form th:action="${product.id != null} ? @{/products/{id}/edit(id=${product.id})} : @{/products/new}"
+                  th:object="${product}"
+                  method="post">
+
+                <div class="row g-3">
+                    <!-- Name -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" th:text="#{product.form.name}">Назва</label>
+                        <input type="text" class="form-control"
+                               th:field="*{name}"
+                               th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                        <div class="invalid-feedback" th:errors="*{name}"></div>
+                    </div>
+
+                    <!-- Brand -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" th:text="#{product.form.brand}">Бренд</label>
+                        <input type="text" class="form-control" th:field="*{brand}"/>
+                    </div>
+
+                    <!-- Category -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold" th:text="#{product.form.category}">Категорія</label>
+                        <select class="form-select" th:field="*{category.id}"
+                                th:classappend="${#fields.hasErrors('category')} ? 'is-invalid'">
+                            <option value="">-- Категорія --</option>
+                            <option th:each="cat : ${categories}"
+                                    th:value="${cat.id}"
+                                    th:text="${cat.name}">
+                            </option>
+                        </select>
+                        <div class="invalid-feedback" th:errors="*{category}"></div>
+                    </div>
+
+                    <!-- Unit -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold" th:text="#{product.form.unit}">Одиниця</label>
+                        <select class="form-select" th:field="*{unit}"
+                                th:classappend="${#fields.hasErrors('unit')} ? 'is-invalid'">
+                            <option value="" th:text="'-- ' + #{product.form.unit} + ' --'"></option>
+                            <option th:each="u : ${units}"
+                                    th:value="${u}"
+                                    th:text="#{unit.__${u}__}">
+                            </option>
+                        </select>
+                        <div class="invalid-feedback" th:errors="*{unit}"></div>
+                    </div>
+
+                    <!-- Barcode -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold" th:text="#{product.form.barcode}">Штрихкод</label>
+                        <input type="text" class="form-control" th:field="*{barcode}"/>
+                    </div>
+
+                    <!-- Unit Size -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold" th:text="#{product.form.unitSize}">Обсяг</label>
+                        <input type="number" step="0.001" class="form-control"
+                               th:field="*{unitSize}"
+                               th:classappend="${#fields.hasErrors('unitSize')} ? 'is-invalid'"/>
+                        <div class="invalid-feedback" th:errors="*{unitSize}"></div>
+                    </div>
+
+                    <!-- Min Stock Level -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold" th:text="#{product.form.minStockLevel}">Мін. залишок</label>
+                        <input type="number" step="0.001" class="form-control"
+                               th:field="*{minStockLevel}"
+                               th:classappend="${#fields.hasErrors('minStockLevel')} ? 'is-invalid'"/>
+                        <div class="invalid-feedback" th:errors="*{minStockLevel}"></div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="col-12">
+                        <label class="form-label fw-semibold" th:text="#{product.form.description}">Опис</label>
+                        <textarea class="form-control" rows="3" th:field="*{description}"></textarea>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="col-12 d-flex gap-2 pt-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
+                        <a th:href="@{/products}" class="btn btn-outline-secondary"
+                           th:text="#{btn.cancel}">Скасувати</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
