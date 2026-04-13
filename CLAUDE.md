@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-## Project: Hairmony Warehouse
+## Project: OtchenashHair Warehouse
 Inventory management for a trichology salon. Java 21, Spring Boot 3.4.5, Thymeleaf, PostgreSQL, Liquibase, Spring Security, Lombok, DevTools.
 
 ## Package: com.hairmony.warehouse

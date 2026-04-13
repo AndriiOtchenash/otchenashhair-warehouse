@@ -23,3 +23,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/008-fix-categories.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/009-insert-admin-user.sql
+      relativeToChangelogFile: false
