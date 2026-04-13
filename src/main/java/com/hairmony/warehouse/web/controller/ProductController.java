@@ -45,6 +45,7 @@ public class ProductController {
         model.addAttribute("product", new ProductDto());
         model.addAttribute("categories", categoryService.findAll());
         model.addAttribute("units", Unit.values());
+        model.addAttribute("existingBrands", productService.findAllBrands());
         return "products/form";
     }
 
@@ -55,6 +56,7 @@ public class ProductController {
         if (result.hasErrors()) {
             model.addAttribute("categories", categoryService.findAll());
             model.addAttribute("units", Unit.values());
+            model.addAttribute("existingBrands", productService.findAllBrands());
             return "products/form";
         }
         productService.save(dto);
@@ -68,6 +70,7 @@ public class ProductController {
         model.addAttribute("product", product);
         model.addAttribute("categories", categoryService.findAll());
         model.addAttribute("units", Unit.values());
+        model.addAttribute("existingBrands", productService.findAllBrands());
         return "products/form";
     }
 
@@ -79,6 +82,7 @@ public class ProductController {
         if (result.hasErrors()) {
             model.addAttribute("categories", categoryService.findAll());
             model.addAttribute("units", Unit.values());
+            model.addAttribute("existingBrands", productService.findAllBrands());
             return "products/form";
         }
         productService.update(id, dto);

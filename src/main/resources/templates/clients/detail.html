@@ -49,6 +49,20 @@
         <div class="col-md-9">
             <div class="card">
                 <div class="card-header" th:text="#{client.detail.history}">Історія операцій</div>
+                <div th:unless="${movements.empty}" class="d-flex gap-2 align-items-center p-2 border-bottom flex-wrap">
+                    <div class="input-group input-group-sm w-auto">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" style="width: 180px;"
+                               th:placeholder="#{product.form.name}"
+                               oninput="applyHistoryFilters()"/>
+                    </div>
+                    <select class="form-select form-select-sm w-auto" onchange="applyHistoryFilters()">
+                        <option value="">— Всі типи —</option>
+                        <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
+                        <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
+                        <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
+                    </select>
+                </div>
                 <div class="card-body p-0">
                     <div th:if="${movements.empty}" class="text-center text-muted py-4">
                         <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
@@ -66,7 +80,8 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="m : ${movements}">
+                        <tr th:each="m : ${movements}"
+                            th:attr="data-type=${m.movementType.name()},data-name=${m.product.name}">
                             <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
                             <td>
                                 <a th:href="@{/products/{id}(id=${m.product.id})}"
@@ -95,6 +110,19 @@
     </div>
 
     <script>
+        function applyHistoryFilters() {
+            const controls = document.querySelectorAll('.border-bottom input[type="text"], .border-bottom select');
+            const q    = (controls[0]?.value || '').toLowerCase();
+            const type = controls[1]?.value || '';
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const rowName = (row.dataset.name || '').toLowerCase();
+                const rowType = row.dataset.type || '';
+                const nameMatch = !q    || rowName.includes(q);
+                const typeMatch = !type || rowType === type;
+                row.style.display = (nameMatch && typeMatch) ? '' : 'none';
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);

@@ -83,6 +83,11 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
+    public List<String> findAllBrands() {
+        return productRepository.findDistinctBrands();
+    }
+
+    @Transactional(readOnly = true)
     public List<ProductDto> search(String name) {
         return productRepository.findAllByActiveTrueAndNameContainingIgnoreCase(name).stream()
                 .map(this::toDto)

@@ -19,28 +19,28 @@
 
     <!-- Summary cards -->
     <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <div class="card text-center py-3">
-                <div class="fs-2 fw-bold text-success" th:text="${totalProducts}">0</div>
-                <div class="text-muted small" th:text="#{dashboard.totalProducts}">Товарів</div>
+        <div class="col-6 col-md-3">
+            <div class="card px-2 py-2 text-center">
+                <span class="fs-5 fw-bold text-success" th:text="${totalProducts}">0</span>
+                <span class="text-muted small d-block" th:text="#{dashboard.totalProducts}">Товарів</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center py-3"
+        <div class="col-6 col-md-3">
+            <div class="card px-2 py-2 text-center"
                  data-bs-toggle="tooltip"
                  data-bs-placement="right"
                  th:title="#{dashboard.lowStock.hint}"
                  style="cursor: help;">
-                <div class="fs-2 fw-bold"
-                     th:classappend="${lowStock > 0} ? 'text-warning' : 'text-success'"
-                     th:text="${lowStock}">0</div>
-                <div class="text-muted small" th:text="#{dashboard.lowStock}">Потребують уваги</div>
+                <span class="fs-5 fw-bold"
+                      th:classappend="${lowStock > 0} ? 'text-warning' : 'text-success'"
+                      th:text="${lowStock}">0</span>
+                <span class="text-muted small d-block" th:text="#{dashboard.lowStock}">Потребують уваги</span>
             </div>
         </div>
     </div>
 
     <!-- Filters -->
-    <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+    <div class="d-flex gap-2 mb-3 align-items-center flex-wrap justify-content-center justify-content-md-start">
         <!-- Status tabs -->
         <div class="btn-group" role="group">
             <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -55,7 +55,7 @@
         </div>
 
         <!-- Category filter -->
-        <select class="form-select form-select-sm w-auto" onchange="filterCategory(this.value)">
+        <select class="form-select form-select-sm w-100 w-sm-auto" onchange="filterCategory(this.value)">
             <option value="" th:text="#{dashboard.filter.allCategories}">Всі категорії</option>
             <option th:each="cat : ${categories}"
                     th:value="${cat}"
@@ -64,10 +64,10 @@
         </select>
 
         <!-- Search -->
-        <div class="ms-auto">
+        <div class="w-100 mt-1">
             <div class="input-group input-group-sm">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" style="width: 200px;"
+                <input type="text" class="form-control"
                        th:placeholder="#{dashboard.filter.search}"
                        oninput="filterSearch(this.value)"/>
             </div>
@@ -85,12 +85,12 @@
                 <thead class="table-light">
                 <tr>
                     <th th:text="#{product.form.name}">Назва</th>
-                    <th th:text="#{product.form.brand}">Бренд</th>
-                    <th th:text="#{product.form.category}">Категорія</th>
                     <th th:text="#{dashboard.currentStock}">Залишок</th>
-                    <th th:text="#{dashboard.expiryDate}">Термін придатності</th>
                     <th th:text="#{dashboard.status}">Статус</th>
                     <th th:text="#{table.actions}">Дії</th>
+                    <th th:text="#{product.form.brand}">Бренд</th>
+                    <th th:text="#{product.form.category}">Категорія</th>
+                    <th th:text="#{dashboard.expiryDate}">Термін придатності</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -98,18 +98,9 @@
                     th:attr="data-status=${row.status.name()},data-category=${row.categoryName},data-name=${row.productName}"
                     th:classappend="${row.status.name() == 'OUT'} ? 'table-danger' : (${row.status.name() == 'LOW'} ? 'table-warning' : '')">
                     <td class="fw-semibold" th:text="${row.productName}"></td>
-                    <td th:text="${row.brand}"></td>
-                    <td th:text="${row.categoryName}"></td>
                     <td>
                         <span th:text="${@qf.format(row.currentQuantity, row.unit)}"></span>
                         <span class="text-muted small" th:text="#{unit.__${row.unit}__}"></span>
-                    </td>
-                    <td>
-                        <span th:if="${row.nearestExpiryDate == null}" class="text-muted">—</span>
-                        <span th:unless="${row.nearestExpiryDate == null}"
-                              th:text="${#temporals.format(row.nearestExpiryDate, 'dd.MM.yyyy')}"
-                              th:classappend="${row.nearestExpiryDate.isBefore(#temporals.createToday().plusDays(30))} ? 'text-danger fw-semibold'">
-                        </span>
                     </td>
                     <td>
                         <span th:if="${row.status.name() == 'OK'}"
@@ -132,11 +123,22 @@
                             </a>
                             <a th:href="@{/movements/expense(productId=${row.productId})}"
                                class="btn btn-sm btn-outline-danger"
+                               th:classappend="${row.status.name() == 'OUT'} ? ' disabled'"
+                               th:attr="tabindex=${row.status.name() == 'OUT'} ? '-1' : null, aria-disabled=${row.status.name() == 'OUT'} ? 'true' : null"
                                th:title="#{stock.expense.title}"
                                data-bs-toggle="tooltip">
                                 <i class="bi bi-arrow-up-circle"></i>
                             </a>
                         </div>
+                    </td>
+                    <td th:text="${row.brand}"></td>
+                    <td th:text="${row.categoryName}"></td>
+                    <td>
+                        <span th:if="${row.nearestExpiryDate == null}" class="text-muted">—</span>
+                        <span th:unless="${row.nearestExpiryDate == null}"
+                              th:text="${#temporals.format(row.nearestExpiryDate, 'dd.MM.yyyy')}"
+                              th:classappend="${row.nearestExpiryDate.isBefore(#temporals.createToday().plusDays(30))} ? 'text-danger fw-semibold'">
+                        </span>
                     </td>
                 </tr>
                 </tbody>

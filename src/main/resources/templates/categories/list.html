@@ -5,11 +5,37 @@
 <div th:fragment="content">
     <div class="page-header">
         <h1 class="page-title" th:text="#{category.list.title}">Категорії</h1>
+        <button class="btn btn-primary btn-sm" type="button"
+                data-bs-toggle="collapse" data-bs-target="#newCategoryForm"
+                aria-expanded="false">
+            <i class="bi bi-plus-lg me-1"></i>
+            Нова категорія
+        </button>
+    </div>
+
+    <!-- Collapsible new-category form -->
+    <div class="collapse mb-3" id="newCategoryForm">
+        <div class="card">
+            <div class="card-header">Нова категорія</div>
+            <div class="card-body">
+                <form th:action="@{/categories}" th:object="${newCategory}" method="post">
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control"
+                               th:field="*{name}"
+                               placeholder="Назва категорії"
+                               th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback" th:errors="*{name}"></div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <div class="row g-3">
-        <!-- Existing categories -->
-        <div class="col-md-7">
+        <div class="col-12">
             <div class="card">
                 <div class="card-body p-0">
                     <table class="table table-hover mb-0">
@@ -23,26 +49,27 @@
                         <tbody>
                         <tr th:each="cat : ${categories}">
                             <td th:text="${cat.sortOrder}"></td>
+                            <td th:text="${cat.name}"></td>
                             <td>
-                                <form th:action="@{/categories/{id}/rename(id=${cat.id})}"
-                                      method="post" class="d-flex gap-2">
-                                    <input type="text" class="form-control form-control-sm"
-                                           th:value="${cat.name}" name="name"/>
-                                    <button type="submit" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-check"></i>
+                                <div class="d-flex gap-1">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            th:title="#{btn.edit}"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editCategoryModal"
+                                            th:attr="data-id=${cat.id},data-name=${cat.name}">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
-                                </form>
-                            </td>
-                            <td>
-                                <form th:action="@{/categories/{id}/delete(id=${cat.id})}"
-                                      method="post"
-                                      onsubmit="return confirm('Видалити категорію?')">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                                            th:title="#{btn.delete}"
-                                            data-bs-toggle="tooltip">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                    <form th:action="@{/categories/{id}/delete(id=${cat.id})}"
+                                          method="post"
+                                          onsubmit="return confirm('Видалити категорію?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                th:title="#{btn.delete}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         </tbody>
@@ -50,33 +77,52 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Add new -->
-        <div class="col-md-5">
-            <div class="card">
-                <div class="card-header">Нова категорія</div>
-                <div class="card-body">
-                    <form th:action="@{/categories}" th:object="${newCategory}" method="post">
-                        <div class="d-flex gap-2">
-                            <input type="text" class="form-control"
-                                   th:field="*{name}"
-                                   placeholder="Назва категорії"
-                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-plus-lg"></i>
-                            </button>
-                        </div>
-                        <div class="invalid-feedback" th:errors="*{name}"></div>
-                    </form>
+    <!-- Edit category modal -->
+    <div class="modal fade" id="editCategoryModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{btn.edit}">Редагувати</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+                <form id="editCategoryForm" method="post">
+                    <div class="modal-body">
+                        <input type="text" class="form-control"
+                               id="editCategoryName" name="name" required/>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal"
+                                th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                th:text="#{btn.save}">Зберегти</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+
+    <style>
+        .table { min-width: 0 !important; }
+    </style>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);
             });
+
+            const editModal = document.getElementById('editCategoryModal');
+            if (editModal) {
+                editModal.addEventListener('show.bs.modal', function(event) {
+                    const btn = event.relatedTarget;
+                    const id = btn.getAttribute('data-id');
+                    const name = btn.getAttribute('data-name');
+                    document.getElementById('editCategoryName').value = name;
+                    document.getElementById('editCategoryForm').action = '/categories/' + id + '/rename';
+                });
+            }
         });
     </script>
 </div>

@@ -5,10 +5,58 @@
 <div th:fragment="content">
     <div class="page-header">
         <h1 class="page-title" th:text="#{client.list.title}">Клієнти</h1>
+        <button class="btn btn-primary btn-sm" type="button"
+                data-bs-toggle="collapse" data-bs-target="#newClientForm"
+                aria-expanded="false">
+            <i class="bi bi-plus-lg me-1"></i>
+            <span th:text="#{client.form.title.new}">Новий клієнт</span>
+        </button>
+    </div>
+
+    <!-- Collapsible new-client form -->
+    <div class="collapse mb-3" id="newClientForm">
+        <div class="card">
+            <div class="card-header" th:text="#{client.form.title.new}">Новий клієнт</div>
+            <div class="card-body">
+                <form th:action="@{/clients}" th:object="${newClient}" method="post">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" th:field="*{name}"
+                                   th:placeholder="#{client.form.name}"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                            <div class="invalid-feedback" th:errors="*{name}"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" th:field="*{phone}"
+                                   th:placeholder="#{client.form.phone}"/>
+                        </div>
+                        <div class="col-md-4">
+                            <textarea class="form-control" th:field="*{notes}" rows="1"
+                                      th:placeholder="#{client.form.notes}"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-check-lg me-1"></i>
+                                <span th:text="#{btn.save}">Зберегти</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <div class="input-group input-group-sm" style="max-width:300px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control"
+                   th:placeholder="#{common.search}"
+                   oninput="filterSearch(this.value)"/>
+        </div>
     </div>
 
     <div class="row g-3">
-        <div class="col-md-8">
+        <div class="col-12">
             <div class="card">
                 <div class="card-body p-0">
                     <div th:if="${clients.empty}" class="text-center text-muted py-5">
@@ -24,7 +72,10 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="c : ${clients}">
+                        <tr th:each="c : ${clients}"
+                            th:attr="data-name=${c.name},data-phone=${c.phone ?: ''}"
+                            th:onclick="|window.location='@{/clients/{id}(id=${c.id})}'|"
+                            style="cursor:pointer">
                             <td>
                                 <a th:href="@{/clients/{id}(id=${c.id})}"
                                    class="fw-semibold text-decoration-none text-dark"
@@ -40,7 +91,7 @@
                                    style="border-bottom: 1px dashed #6c757d;"></a>
                             </td>
                             <td th:text="${c.phone ?: '—'}"></td>
-                            <td>
+                            <td onclick="event.stopPropagation()">
                                 <div class="d-flex gap-1">
                                     <a th:href="@{/clients/{id}/edit(id=${c.id})}"
                                        class="btn btn-sm btn-outline-secondary"
@@ -65,37 +116,18 @@
                 </div>
             </div>
         </div>
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header" th:text="#{client.form.title.new}">Новий клієнт</div>
-                <div class="card-body">
-                    <form th:action="@{/clients}" th:object="${newClient}" method="post">
-                        <div class="mb-2">
-                            <input type="text" class="form-control" th:field="*{name}"
-                                   th:placeholder="#{client.form.name}"
-                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
-                            <div class="invalid-feedback" th:errors="*{name}"></div>
-                        </div>
-                        <div class="mb-2">
-                            <input type="text" class="form-control" th:field="*{phone}"
-                                   th:placeholder="#{client.form.phone}"/>
-                        </div>
-                        <div class="mb-2">
-                            <textarea class="form-control" th:field="*{notes}" rows="2"
-                                      th:placeholder="#{client.form.notes}"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-plus-lg me-1"></i>
-                            <span th:text="#{btn.save}">Зберегти</span>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
+        function filterSearch(value) {
+            const q = value.toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const name = (row.dataset.name || '').toLowerCase();
+                const phone = (row.dataset.phone || '').toLowerCase();
+                row.style.display = (!q || name.includes(q) || phone.includes(q)) ? '' : 'none';
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);

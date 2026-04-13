@@ -5,7 +5,7 @@
 <div th:fragment="content">
     <div class="page-header">
         <h1 class="page-title" th:text="#{product.list.title}">Товари</h1>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <a th:href="@{/products(showInactive=${!showInactive})}"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-eye me-1" th:if="${!showInactive}"></i>
@@ -16,6 +16,15 @@
                 <i class="bi bi-plus-lg me-1"></i>
                 <span th:text="#{product.list.new}">Додати товар</span>
             </a>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <div class="input-group input-group-sm" style="max-width:300px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control"
+                   th:placeholder="#{common.search}"
+                   oninput="filterSearch(this.value)"/>
         </div>
     </div>
 
@@ -30,26 +39,25 @@
                 <thead class="table-light">
                 <tr>
                     <th th:text="#{product.form.name}">Назва</th>
-                    <th th:text="#{product.form.brand}">Бренд</th>
-                    <th th:text="#{product.form.category}">Категорія</th>
-                    <th th:text="#{product.form.unit}">Од. виміру</th>
-                    <th th:text="#{product.form.minStockLevel}">Мін. залишок</th>
                     <th th:text="#{product.active}">Статус</th>
+                    <th th:text="#{product.form.category}">Категорія</th>
+                    <th class="d-none d-md-table-cell" th:text="#{product.form.brand}">Бренд</th>
+                    <th class="d-none d-md-table-cell" th:text="#{product.form.unit}">Од. виміру</th>
+                    <th class="d-none d-md-table-cell" th:text="#{product.form.minStockLevel}">Мін. залишок</th>
                     <th th:text="#{table.actions}">Дії</th>
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="product : ${products}">
+                <tr th:each="product : ${products}"
+                    th:attr="data-name=${product.name},data-brand=${product.brand ?: ''},data-category=${product.category != null ? product.category.name : ''}"
+                    th:onclick="|window.location='@{/products/{id}(id=${product.id})}'|"
+                    style="cursor:pointer">
                     <td>
                         <a th:href="@{/products/{id}(id=${product.id})}"
                            th:text="${product.name}"
                            class="fw-semibold text-decoration-none text-dark">
                         </a>
                     </td>
-                    <td th:text="${product.brand}"></td>
-                    <td th:text="${product.category != null ? product.category.name : ''}"></td>
-                    <td th:text="#{unit.__${product.unit}__}"></td>
-                    <td th:text="${@qf.format(product.minStockLevel, product.unit != null ? product.unit.name() : 'PCS')}"></td>
                     <td>
                         <span th:if="${product.active}"
                               class="badge badge-active px-2 py-1 rounded-pill"
@@ -58,7 +66,11 @@
                               class="badge badge-inactive px-2 py-1 rounded-pill"
                               th:text="#{product.inactive}">Неактивний</span>
                     </td>
-                    <td>
+                    <td th:text="${product.category != null ? product.category.name : ''}"></td>
+                    <td class="d-none d-md-table-cell" th:text="${product.brand}"></td>
+                    <td class="d-none d-md-table-cell" th:text="#{unit.__${product.unit}__}"></td>
+                    <td class="d-none d-md-table-cell" th:text="${@qf.format(product.minStockLevel, product.unit != null ? product.unit.name() : 'PCS')}"></td>
+                    <td onclick="event.stopPropagation()">
                         <div class="d-flex gap-1">
                             <th:block th:if="${product.active}">
                                 <a th:href="@{/products/{id}/edit(id=${product.id})}"
@@ -95,6 +107,16 @@
         </div>
     </div>
     <script>
+        function filterSearch(value) {
+            const q = value.toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const name = (row.dataset.name || '').toLowerCase();
+                const brand = (row.dataset.brand || '').toLowerCase();
+                const category = (row.dataset.category || '').toLowerCase();
+                row.style.display = (!q || name.includes(q) || brand.includes(q) || category.includes(q)) ? '' : 'none';
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);

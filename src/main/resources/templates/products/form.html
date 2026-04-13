@@ -33,7 +33,11 @@
                     <!-- Brand -->
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{product.form.brand}">Бренд</label>
-                        <input type="text" class="form-control" th:field="*{brand}"/>
+                        <input type="text" class="form-control" th:field="*{brand}"
+                               list="brandList" autocomplete="off"/>
+                        <datalist id="brandList">
+                            <option th:each="b : ${existingBrands}" th:value="${b}"/>
+                        </datalist>
                     </div>
 
                     <!-- Category -->

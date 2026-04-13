@@ -116,6 +116,23 @@
             <!-- Movement history -->
             <div class="card">
                 <div class="card-header" th:text="#{product.detail.history}">Історія операцій</div>
+                <div th:unless="${movements.empty}" class="d-flex gap-2 align-items-center p-2 border-bottom flex-wrap">
+                    <select class="form-select form-select-sm w-auto" onchange="applyHistoryFilters()">
+                        <option value="">— Всі типи —</option>
+                        <option value="PURCHASE" th:text="#{movementType.PURCHASE}">Purchase</option>
+                        <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
+                        <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
+                        <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
+                    </select>
+                    <div class="input-group input-group-sm w-auto">
+                        <span class="input-group-text">від</span>
+                        <input type="date" class="form-control" id="histDateFrom" onchange="applyHistoryFilters()"/>
+                    </div>
+                    <div class="input-group input-group-sm w-auto">
+                        <span class="input-group-text">до</span>
+                        <input type="date" class="form-control" id="histDateTo" onchange="applyHistoryFilters()"/>
+                    </div>
+                </div>
                 <div class="card-body p-0">
                     <div th:if="${movements.empty}" class="text-center text-muted py-3">
                         <span th:text="#{product.detail.noHistory}">Операцій немає</span>
@@ -132,7 +149,8 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="m : ${movements}">
+                        <tr th:each="m : ${movements}"
+                            th:attr="data-type=${m.movementType.name()},data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')}">
                             <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
                             <td>
                                 <span class="badge rounded-pill"
@@ -159,6 +177,20 @@
     </div>
 
     <script>
+        function applyHistoryFilters() {
+            const type = document.querySelector('.card:last-of-type select').value;
+            const from = document.getElementById('histDateFrom').value;
+            const to   = document.getElementById('histDateTo').value;
+            document.querySelectorAll('.card:last-of-type tbody tr').forEach(row => {
+                const rowType = row.dataset.type || '';
+                const rowDate = row.dataset.date || '';
+                const typeMatch = !type || rowType === type;
+                const fromMatch = !from || rowDate >= from;
+                const toMatch   = !to   || rowDate <= to;
+                row.style.display = (typeMatch && fromMatch && toMatch) ? '' : 'none';
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);
