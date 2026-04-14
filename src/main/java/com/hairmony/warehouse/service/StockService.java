@@ -70,8 +70,10 @@ public class StockService {
         BigDecimal remaining = dto.getQuantity();
         List<StockItem> batches = stockItemRepository.findAvailableByProductIdFifo(dto.getProductId());
 
+        StockItem firstBatch = null;
         for (StockItem batch : batches) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+            if (firstBatch == null) firstBatch = batch;
 
             if (batch.getQuantity().compareTo(remaining) <= 0) {
                 remaining = remaining.subtract(batch.getQuantity());
@@ -85,6 +87,7 @@ public class StockService {
         // Record movement
         StockMovement movement = StockMovement.builder()
                 .product(product)
+                .stockItem(firstBatch)
                 .movementType(dto.getMovementType())
                 .quantity(dto.getQuantity())
                 .unitPrice(dto.getUnitPrice())
