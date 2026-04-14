@@ -7,146 +7,135 @@
         <h1 class="page-title" th:text="#{nav.reports}">Звіти</h1>
     </div>
 
+    <!-- Expiry control -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span th:text="#{report.expiry.label}">Термін придатності менше ніж (днів):</span>
+                <select class="form-select form-select-sm w-auto"
+                        onchange="const p = new URLSearchParams(window.location.search); p.set('expiryDays', this.value); window.location.href = '?' + p.toString();">
+                    <option th:value="30" th:selected="${expiryDays == 30}">30</option>
+                    <option th:value="60" th:selected="${expiryDays == 60}">60</option>
+                    <option th:value="90" th:selected="${expiryDays == 90}">90</option>
+                </select>
+            </div>
+            <div class="mt-2">
+                <span th:if="${expiringItems.empty}" class="text-success">
+                    <i class="bi bi-check-circle-fill me-1"></i>
+                    <span th:text="#{report.expiry.empty}">Всі товари в порядку</span>
+                </span>
+                <span th:unless="${expiringItems.empty}" class="text-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <span th:each="item, i : ${expiringItems}">
+                        <a th:href="@{/products/{id}(id=${item.product.id})}"
+                           th:text="${item.product.name}"
+                           class="fw-semibold text-decoration-none"></a>
+                        (<span th:text="${#temporals.format(item.expiryDate, 'dd.MM.yyyy')}"></span>)<span th:unless="${i.last}">, </span>
+                    </span>
+                </span>
+            </div>
+        </div>
+    </div>
+
     <!-- Period selector -->
     <div class="card mb-3">
+        <div class="card-header fw-semibold text-center" th:text="#{report.period.title}">Період</div>
         <div class="card-body">
-            <form th:action="@{/reports}" method="get" class="row g-2 align-items-end">
-                <div class="col-auto">
-                    <div class="btn-group btn-group-sm">
-                        <a th:href="@{/reports(preset='THIS_MONTH')}"
-                           th:classappend="${period.preset == 'THIS_MONTH'} ? 'active'"
-                           class="btn btn-outline-secondary"
-                           th:text="#{report.thisMonth}">Цей місяць</a>
-                        <a th:href="@{/reports(preset='LAST_MONTH')}"
-                           th:classappend="${period.preset == 'LAST_MONTH'} ? 'active'"
-                           class="btn btn-outline-secondary"
-                           th:text="#{report.lastMonth}">Минулий місяць</a>
-                    </div>
+            <form th:action="@{/reports}" method="get" class="d-flex flex-wrap gap-2 align-items-center justify-content-center">
+                <div class="btn-group btn-group-sm">
+                    <a th:href="@{/reports(preset='THIS_MONTH',expiryDays=${expiryDays})}"
+                       th:classappend="${period.preset == 'THIS_MONTH'} ? 'active'"
+                       class="btn btn-outline-secondary"
+                       th:text="#{report.thisMonth}">Цей місяць</a>
+                    <a th:href="@{/reports(preset='LAST_MONTH',expiryDays=${expiryDays})}"
+                       th:classappend="${period.preset == 'LAST_MONTH'} ? 'active'"
+                       class="btn btn-outline-secondary"
+                       th:text="#{report.lastMonth}">Минулий місяць</a>
                 </div>
-                <div class="col-auto">
-                    <input type="hidden" name="preset" value="CUSTOM"/>
-                    <input type="date" class="form-control form-control-sm"
-                           name="from"
-                           th:value="${#temporals.format(period.from, 'yyyy-MM-dd')}"/>
-                </div>
-                <div class="col-auto">
-                    <input type="date" class="form-control form-control-sm"
-                           name="to"
-                           th:value="${#temporals.format(period.to, 'yyyy-MM-dd')}"/>
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary btn-sm"
-                            th:text="#{report.apply}">Застосувати</button>
-                </div>
-                <div class="col-auto ms-auto">
-                    <label class="form-label mb-0 small" th:text="#{report.expiryDays}">Термін (днів):</label>
-                    <select class="form-select form-select-sm d-inline w-auto"
-                            name="expiryDays"
-                            onchange="this.form.submit()">
-                        <option th:value="30" th:selected="${expiryDays == 30}">30</option>
-                        <option th:value="60" th:selected="${expiryDays == 60}">60</option>
-                        <option th:value="90" th:selected="${expiryDays == 90}">90</option>
-                    </select>
-                </div>
+                <input type="hidden" name="preset" value="CUSTOM"/>
+                <input type="hidden" name="expiryDays" th:value="${expiryDays}"/>
+                <input type="date" class="form-control form-control-sm w-auto"
+                       name="from" lang="uk"
+                       th:value="${#temporals.format(period.from, 'yyyy-MM-dd')}"/>
+                <input type="date" class="form-control form-control-sm w-auto"
+                       name="to" lang="uk"
+                       th:value="${#temporals.format(period.to, 'yyyy-MM-dd')}"/>
+                <button type="submit" class="btn btn-primary btn-sm"
+                        th:text="#{report.apply}">Застосувати</button>
             </form>
         </div>
     </div>
 
-    <div class="row g-3">
-        <!-- Expiry alerts -->
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span th:text="#{report.expiry.title}">Термін придатності</span>
-                    <span class="badge bg-danger" th:text="${expiringItems.size()}"></span>
-                </div>
+    <!-- Row 1: Margin — left aligned, 50% width -->
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+            <div class="card">
+                <div class="card-header fw-semibold text-center" th:text="#{report.margin.title}">Маржинальність</div>
                 <div class="card-body p-0">
-                    <div th:if="${expiringItems.empty}" class="text-center text-muted py-4">
-                        <i class="bi bi-check-circle text-success fs-2 d-block mb-1"></i>
-                        <span th:text="#{report.expiry.empty}">Всі товари в порядку</span>
-                    </div>
-                    <table th:unless="${expiringItems.empty}" class="table table-sm mb-0">
-                        <thead class="table-light">
-                        <tr>
-                            <th th:text="#{product.form.name}">Товар</th>
-                            <th th:text="#{stock.form.quantity}">Кількість</th>
-                            <th th:text="#{stock.form.expiryDate}">Термін</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="item : ${expiringItems}"
-                            th:classappend="${item.expiryDate.isBefore(#temporals.createToday().plusDays(7))} ? 'table-danger' : 'table-warning'">
-                            <td>
-                                <a th:href="@{/products/{id}(id=${item.product.id})}"
-                                   th:text="${item.product.name}"
-                                   class="text-decoration-none text-dark fw-semibold"></a>
-                            </td>
-                            <td th:text="${@qf.format(item.quantity, item.product.unit.name())}"></td>
-                            <td th:text="${#temporals.format(item.expiryDate, 'dd.MM.yyyy')}"></td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Top sales -->
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header" th:text="#{report.sales.title}">Топ продажів</div>
-                <div class="card-body p-0">
-                    <div th:if="${topSales.empty}" class="text-center text-muted py-4">
+                    <div th:if="${marginAnalysis.empty}" class="text-center text-muted py-4">
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
-                    <table th:unless="${topSales.empty}" class="table table-sm mb-0">
+                    <table th:unless="${marginAnalysis.empty}" class="table table-hover mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th th:text="#{product.form.name}">Товар</th>
-                            <th th:text="#{stock.form.quantity}">К-сть</th>
-                            <th>Сума, zł</th>
+                            <th class="text-center" th:text="#{product.form.name}">Товар</th>
+                            <th class="text-center">Закупка, zł</th>
+                            <th class="text-center">Продаж, zł</th>
+                            <th class="text-center">Маржа %</th>
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="row : ${topSales}">
-                            <td th:text="${row.productName}" class="fw-semibold"></td>
-                            <td th:text="${@qf.format(row.totalQty, row.unit)}"></td>
-                            <td th:text="${#numbers.formatDecimal(row.totalRevenue, 1, 2)}"></td>
+                        <tr th:each="row : ${marginAnalysis}">
+                            <td class="text-center fw-semibold" th:text="${row.productName}"></td>
+                            <td class="text-center" th:text="${#numbers.formatDecimal(row.avgPurchasePrice, 1, 2)}"></td>
+                            <td class="text-center" th:text="${#numbers.formatDecimal(row.avgSalePrice, 1, 2)}"></td>
+                            <td class="text-center">
+                                <span th:text="${row.marginPct} + '%'"
+                                      th:classappend="${row.marginPct > 20} ? 'text-success fw-semibold' :
+                                                     (${row.marginPct > 0} ? 'text-warning' : 'text-danger')">
+                                </span>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Purchases summary -->
-        <div class="col-md-6">
+    <!-- Row 2: Purchases + Sales side by side -->
+    <div class="row g-3">
+        <!-- Purchases -->
+        <div class="col-12 col-lg-6">
             <div class="card h-100">
-                <div class="card-header" th:text="#{report.purchases.title}">Закупки</div>
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                    <span class="mx-auto" th:text="#{report.purchases.title}">Закупки за період</span>
+                    <span th:unless="${purchasesSummary.empty or purchasesSummary[0].count == 0}"
+                          class="text-muted small fw-normal">
+                        <span th:text="#{report.purchases.total}">Всього витрачено:</span>
+                        <strong class="ms-1 text-dark"
+                                th:text="${#numbers.formatDecimal(purchasesSummary[0].totalSpent, 1, 2)} + ' zł'"></strong>
+                    </span>
+                </div>
                 <div class="card-body p-0">
                     <div th:if="${purchasesSummary.empty or purchasesSummary[0].count == 0}"
                          class="text-center text-muted py-4">
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
                     <div th:unless="${purchasesSummary.empty or purchasesSummary[0].count == 0}">
-                        <div class="px-3 pt-3 pb-2 border-bottom">
-                            <span class="text-muted small" th:text="#{report.purchases.total}">Всього витрачено:</span>
-                            <strong class="ms-2"
-                                    th:text="${#numbers.formatDecimal(purchasesSummary[0].totalSpent, 1, 2)} + ' zł'">
-                            </strong>
-                        </div>
-                        <table class="table table-sm mb-0">
+                        <table class="table table-hover mb-0">
                             <thead class="table-light">
                             <tr>
-                                <th th:text="#{supplier.form.name}">Постачальник</th>
-                                <th th:text="#{report.purchases.ops}">Операцій</th>
-                                <th>Сума, zł</th>
+                                <th class="text-center" th:text="#{supplier.form.name}">Постачальник</th>
+                                <th class="text-center" th:text="#{report.purchases.ops}">Операцій</th>
+                                <th class="text-center">Сума, zł</th>
                             </tr>
                             </thead>
                             <tbody>
                             <tr th:each="row : ${purchasesSummary[0].bySupplier}">
-                                <td th:text="${row.supplierName}" class="fw-semibold"></td>
-                                <td th:text="${row.count}"></td>
-                                <td th:text="${#numbers.formatDecimal(row.total, 1, 2)}"></td>
+                                <td class="text-center" th:text="${row.supplierName}"></td>
+                                <td class="text-center" th:text="${row.count}"></td>
+                                <td class="text-center" th:text="${#numbers.formatDecimal(row.total, 1, 2)}"></td>
                             </tr>
                             </tbody>
                         </table>
@@ -155,34 +144,27 @@
             </div>
         </div>
 
-        <!-- Margin analysis -->
-        <div class="col-md-6">
+        <!-- Top sales -->
+        <div class="col-12 col-lg-6">
             <div class="card h-100">
-                <div class="card-header" th:text="#{report.margin.title}">Маржинальність</div>
+                <div class="card-header fw-semibold text-center" th:text="#{report.sales.title}">Топ продажів за період</div>
                 <div class="card-body p-0">
-                    <div th:if="${marginAnalysis.empty}" class="text-center text-muted py-4">
+                    <div th:if="${topSales.empty}" class="text-center text-muted py-4">
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
-                    <table th:unless="${marginAnalysis.empty}" class="table table-sm mb-0">
+                    <table th:unless="${topSales.empty}" class="table table-hover mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th th:text="#{product.form.name}">Товар</th>
-                            <th>Закупка, zł</th>
-                            <th>Продаж, zł</th>
-                            <th>Маржа %</th>
+                            <th class="text-center" th:text="#{product.form.name}">Товар</th>
+                            <th class="text-center" th:text="#{stock.form.quantity}">К-сть</th>
+                            <th class="text-center">Сума, zł</th>
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="row : ${marginAnalysis}">
-                            <td th:text="${row.productName}" class="fw-semibold"></td>
-                            <td th:text="${#numbers.formatDecimal(row.avgPurchasePrice, 1, 2)}"></td>
-                            <td th:text="${#numbers.formatDecimal(row.avgSalePrice, 1, 2)}"></td>
-                            <td>
-                                <span th:text="${row.marginPct} + '%'"
-                                      th:classappend="${row.marginPct > 20} ? 'text-success fw-semibold' :
-                                                     (${row.marginPct > 0} ? 'text-warning' : 'text-danger')">
-                                </span>
-                            </td>
+                        <tr th:each="row : ${topSales}">
+                            <td class="text-center fw-semibold" th:text="${row.productName}"></td>
+                            <td class="text-center" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
+                            <td class="text-center" th:text="${#numbers.formatDecimal(row.totalRevenue, 1, 2)}"></td>
                         </tr>
                         </tbody>
                     </table>
