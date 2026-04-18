@@ -18,7 +18,7 @@ service/ — business logic (ProductService, StockService, ClientService,
 web/controller/ — MVC controllers (thin):
   DashboardController, ProductController, ClientController,
   SupplierController, CategoryController, StockController,
-  MovementController, ProfileController, LoginController, ReportsController
+  MovementController, ProfileController, LoginController, ReportController
 web/dto/ — form objects and filter DTOs
 web/interceptor/ — CurrentUriInterceptor
 web/formatter/ — QuantityFormatter (@qf bean)
@@ -51,7 +51,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - StockDashboardRowDto with status OK/LOW/OUT
 - Movement journal (/movements/history) with server-side filtering,
   pagination, date range, type and product filters
-- Reports page (/reports) — stub, to be implemented
+- Reports page (/reports) — expiry alerts, top sales by revenue,
+  purchases summary by supplier, margin analysis with %; period presets
+  (THIS_MONTH, LAST_MONTH, CUSTOM) and configurable expiry window
 - i18n: uk (primary), pl, en
 - QuantityFormatter — integers for PCS, decimals for ML/G
 - CurrentUriInterceptor — active nav highlighting
@@ -85,7 +87,6 @@ Run with VM option: -Dspring.profiles.active=dev
 DB credentials in application-dev.properties (gitignored)
 
 ## TODO
-- Reports page with real analytics
 - Spring Session for multi-machine session sharing (if needed)
 - Favicon fix
 - User management page (if multiple users needed)
