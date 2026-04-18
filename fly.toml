@@ -15,11 +15,11 @@ primary_region = 'ams'
   processes = ['app']
 
   [[http_service.checks]]
-    grace_period = "30s"
-    interval = "10s"
-    method = "GET"
-    path = "/login"
-    timeout = "5s"
+  grace_period = "360s"
+  interval = "15s"
+  method = "GET"
+  path = "/login"
+  timeout = "10s"
 
 [[vm]]
   memory = '512mb'
