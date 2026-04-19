@@ -14,11 +14,12 @@ domain/ — JPA entities (category, client, product, stock, supplier, user)
 repository/ — Spring Data JPA + JpaSpecificationExecutor for movements
 service/ — business logic (ProductService, StockService, ClientService,
            SupplierService, CategoryService, MovementHistoryService,
-           UserService, UserDetailsServiceImpl)
+           ReportService, AiAssistantService, UserService, UserDetailsServiceImpl)
 web/controller/ — MVC controllers (thin):
   DashboardController, ProductController, ClientController,
   SupplierController, CategoryController, StockController,
-  MovementController, ProfileController, LoginController, ReportController
+  MovementController, ProfileController, LoginController, ReportController,
+  AiController
 web/dto/ — form objects and filter DTOs
 web/interceptor/ — CurrentUriInterceptor
 web/formatter/ — QuantityFormatter (@qf bean)
@@ -67,11 +68,15 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Collapsible create forms on list pages
 - Clickable table rows on mobile
 - DevTools enabled (dev profile only)
+- AI Assistant page (/ai) — chat widget backed by Google Gemini 1.5 Flash;
+  builds warehouse context (stock levels + last 30-day movements) and asks
+  Gemini via REST (RestClient); responds in Ukrainian; AJAX, no page reload;
+  quick-question buttons; API key via GEMINI_API_KEY env var
 
 ## Security
 - DB-based authentication via UserDetailsServiceImpl
 - BCrypt password encoding
-- All routes protected except /login, /logout, static resources
+- All routes protected except /login, /logout, /reports/**, static resources (/favicon.svg, /css/**, /js/**, /images/**, /webjars/**)
 - Default user: admin (change password after first login)
 
 ## Deploy
@@ -80,7 +85,7 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Database: Neon PostgreSQL (eu-central-1, Frankfurt)
 - CI/CD: GitHub Actions on push to master branch
 - Secrets managed via Fly.io secrets (DB_URL, DB_USERNAME, DB_PASSWORD,
-  SPRING_PROFILES_ACTIVE)
+  SPRING_PROFILES_ACTIVE, GEMINI_API_KEY)
 
 ## Local development
 Run with VM option: -Dspring.profiles.active=dev
@@ -88,5 +93,5 @@ DB credentials in application-dev.properties (gitignored)
 
 ## TODO
 - Spring Session for multi-machine session sharing (if needed)
-- Favicon fix
 - User management page (if multiple users needed)
+- AI: conversation history / multi-turn chat (currently stateless per request)

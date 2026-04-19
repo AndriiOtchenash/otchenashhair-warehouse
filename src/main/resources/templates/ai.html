@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{nav.ai}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="bi bi-robot me-2"></i>
+            <span th:text="#{nav.ai}">AI Асистент</span>
+        </h1>
+    </div>
+
+    <!-- Quick question buttons -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <p class="mb-2 text-muted" style="font-size:0.85rem;" th:text="#{ai.quickQuestions}">Швидкі питання:</p>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-primary btn-sm quick-btn"
+                        th:data-question="#{ai.q.purchase}"
+                        th:text="#{ai.q.purchase}">Що закупити?</button>
+                <button class="btn btn-outline-primary btn-sm quick-btn"
+                        th:data-question="#{ai.q.low}"
+                        th:text="#{ai.q.low}">Що закінчується?</button>
+                <button class="btn btn-outline-primary btn-sm quick-btn"
+                        th:data-question="#{ai.q.summary}"
+                        th:text="#{ai.q.summary}">Саммарі за місяць</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Question input -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <textarea id="questionInput" class="form-control mb-2" rows="3"
+                      th:placeholder="#{ai.placeholder}"></textarea>
+            <button id="askBtn" class="btn btn-primary">
+                <i class="bi bi-send me-1"></i>
+                <span id="askBtnText" th:text="#{ai.ask}">Запитати</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Response area (hidden initially) -->
+    <div class="card" id="responseCard" style="display:none;">
+        <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-robot"></i>
+            <span th:text="#{ai.response}">Відповідь AI</span>
+        </div>
+        <div class="card-body">
+            <div id="responseText" style="white-space: pre-wrap; line-height: 1.6;"></div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        const MSG_WAITING = /*[[#{ai.waiting}]]*/ 'Зачекайте, AI аналізує дані складу...';
+        const MSG_ASK     = /*[[#{ai.ask}]]*/ 'Запитати';
+        const MSG_PROCESSING = /*[[#{ai.processing}]]*/ 'Обробка...';
+        const MSG_ERROR   = /*[[#{ai.error}]]*/ 'Помилка з\'єднання. Спробуйте пізніше.';
+
+        document.querySelectorAll('.quick-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('questionInput').value = btn.dataset.question;
+                sendQuestion();
+            });
+        });
+
+        document.getElementById('askBtn').addEventListener('click', sendQuestion);
+
+        function sendQuestion() {
+            const input = document.getElementById('questionInput');
+            const question = input.value.trim();
+            if (!question) return;
+
+            const btn = document.getElementById('askBtn');
+            const btnText = document.getElementById('askBtnText');
+            const responseCard = document.getElementById('responseCard');
+            const responseText = document.getElementById('responseText');
+
+            btn.disabled = true;
+            btnText.textContent = MSG_PROCESSING;
+
+            responseCard.style.display = 'block';
+            responseText.textContent = MSG_WAITING;
+
+            fetch('/ai/ask', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'question=' + encodeURIComponent(question)
+            })
+            .then(r => r.text())
+            .then(text => {
+                responseText.textContent = text;
+            })
+            .catch(() => {
+                responseText.textContent = MSG_ERROR;
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btnText.textContent = MSG_ASK;
+            });
+        }
+    </script>
+</div>
+</body>
+</html>
