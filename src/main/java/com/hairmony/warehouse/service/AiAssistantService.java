@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Slf4j
@@ -30,11 +31,12 @@ public class AiAssistantService {
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
-    public String askAssistant(String userQuestion) {
+    public String askAssistant(String userQuestion, Locale locale) {
         log.info("Gemini API key present: {}", geminiApiKey != null && !geminiApiKey.isBlank());
         try {
             String context = buildContext();
-            String fullPrompt = buildPrompt(context, userQuestion);
+            String language = resolveLanguage(locale);
+            String fullPrompt = buildPrompt(context, userQuestion, language);
 
             Map<String, Object> requestBody = Map.of(
                     "contents", List.of(Map.of(
@@ -99,19 +101,24 @@ public class AiAssistantService {
         return sb.toString();
     }
 
-    private String buildPrompt(String context, String question) {
-        return """
-                Ти — розумний асистент складу косметологічного салону OtchenashHair (трихологія).
-                Твоя задача — допомагати менеджеру складу приймати рішення щодо закупівель,
-                контролю залишків та управління запасами.
+    private String resolveLanguage(Locale locale) {
+        return switch (locale.getLanguage()) {
+            case "uk" -> "Ukrainian";
+            case "pl" -> "Polish";
+            default  -> "English";
+        };
+    }
 
-                Відповідай виключно українською мовою. Будь конкретним і корисним.
-                Використовуй надані дані складу для відповіді. Якщо даних недостатньо — скажи про це.
-
-                """ + context + """
-
-                === ПИТАННЯ МЕНЕДЖЕРА ===
-                """ + question;
+    private String buildPrompt(String context, String question, String language) {
+        return "You are a smart warehouse assistant for OtchenashHair, a trichology salon.\n"
+                + "Your task is to help the warehouse manager make decisions about purchasing,\n"
+                + "stock control, and inventory management.\n\n"
+                + "Always respond in " + language + ". Be specific and helpful.\n"
+                + "Use the provided warehouse data to answer the question.\n"
+                + "If data is insufficient, say so.\n\n"
+                + context
+                + "\n=== MANAGER'S QUESTION ===\n"
+                + question;
     }
 
     private String translateStatus(StockDashboardRowDto.StockStatus status) {

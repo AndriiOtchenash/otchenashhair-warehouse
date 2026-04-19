@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Locale;
+
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/ai")
@@ -19,10 +21,10 @@ public class AiController {
 
     @PostMapping("/ask")
     @ResponseBody
-    public String ask(@RequestParam String question) {
+    public String ask(@RequestParam String question, Locale locale) {
         if (question == null || question.isBlank()) {
             return "Будь ласка, введіть питання.";
         }
-        return aiAssistantService.askAssistant(question.trim());
+        return aiAssistantService.askAssistant(question.trim(), locale);
     }
 }
