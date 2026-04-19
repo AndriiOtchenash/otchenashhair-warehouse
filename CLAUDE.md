@@ -68,10 +68,12 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Collapsible create forms on list pages
 - Clickable table rows on mobile
 - DevTools enabled (dev profile only)
-- AI Assistant page (/ai) — chat widget backed by Google Gemini 1.5 Flash;
-  builds warehouse context (stock levels + last 30-day movements) and asks
-  Gemini via REST (RestClient); responds in Ukrainian; AJAX, no page reload;
-  quick-question buttons; API key via GEMINI_API_KEY env var
+- AI Assistant page (/ai) — chat widget backed by Google Gemini 2.5 Flash
+  (v1beta endpoint); builds warehouse context (stock levels + last 30-day
+  movements) and calls Gemini via RestClient (no extra deps); response
+  language follows active locale (uk→Ukrainian, pl→Polish, en→English);
+  AJAX, no page reload; 3 quick-question buttons; fully i18n'd UI;
+  API key via GEMINI_API_KEY env var / gemini.api.key in dev properties
 
 ## Security
 - DB-based authentication via UserDetailsServiceImpl
