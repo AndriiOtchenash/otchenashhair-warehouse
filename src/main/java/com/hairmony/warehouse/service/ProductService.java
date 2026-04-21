@@ -4,6 +4,7 @@ import com.hairmony.warehouse.domain.product.Product;
 import com.hairmony.warehouse.repository.ProductRepository;
 import com.hairmony.warehouse.repository.StockItemRepository;
 import com.hairmony.warehouse.web.dto.ProductDto;
+import com.hairmony.warehouse.web.dto.ProductLookupDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -92,6 +93,40 @@ public class ProductService {
         return productRepository.findAllByActiveTrueAndNameContainingIgnoreCase(name).stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ProductLookupDto> findByBarcode(String code) {
+        return productRepository.findByBarcode(code).map(this::toLookupDto);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductLookupDto> searchForScan(String q) {
+        return productRepository.findAllByActiveTrueAndNameContainingIgnoreCase(q).stream()
+                .map(this::toLookupDto)
+                .toList();
+    }
+
+    public ProductLookupDto assignBarcode(Long productId, String code) {
+        productRepository.findByBarcode(code).ifPresent(existing -> {
+            if (!existing.getId().equals(productId)) {
+                throw new IllegalArgumentException("scan.error.barcodeInUse");
+            }
+        });
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found: " + productId));
+        product.setBarcode(code);
+        return toLookupDto(product); // dirty checking handles save
+    }
+
+    private ProductLookupDto toLookupDto(Product product) {
+        return ProductLookupDto.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .brand(product.getBrand())
+                .unit(product.getUnit() != null ? product.getUnit().name() : null)
+                .barcode(product.getBarcode())
+                .build();
     }
 
     private ProductDto toDto(Product product) {

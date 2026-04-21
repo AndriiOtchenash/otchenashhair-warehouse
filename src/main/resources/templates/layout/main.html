@@ -237,6 +237,12 @@
                 <i class="bi bi-arrow-up-circle"></i>
                 <span th:text="#{nav.stock.expense}">Витрата</span>
             </a>
+            <a th:href="@{/scan}"
+               th:classappend="${currentUri != null and currentUri.startsWith('/scan')} ? 'active'"
+               class="nav-link">
+                <i class="bi bi-upc-scan"></i>
+                <span th:text="#{nav.scan}">Сканер</span>
+            </a>
 
             <div class="nav-label" th:text="#{nav.section.directory}">Довідники</div>
             <a th:href="@{/products}"
