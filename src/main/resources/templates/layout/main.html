@@ -332,6 +332,14 @@
     function switchLang(lang) {
         const params = new URLSearchParams(window.location.search);
         params.set('lang', lang);
+        // Preserve values currently in any GET filter form even if not yet submitted
+        document.querySelectorAll('form').forEach(function (form) {
+            if (form.method === 'get') {
+                new FormData(form).forEach(function (value, key) {
+                    if (value !== '') params.set(key, value);
+                });
+            }
+        });
         window.location.href = window.location.pathname + '?' + params.toString();
     }
 
