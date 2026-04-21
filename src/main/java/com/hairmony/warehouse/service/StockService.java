@@ -154,6 +154,7 @@ public class StockService {
                     .unit(p.getUnit() != null ? p.getUnit().name() : "")
                     .currentQuantity(qty)
                     .minStockLevel(p.getMinStockLevel())
+                    .description(p.getDescription())
                     .nearestExpiryDate(nearestExpiry)
                     .build();
         }).toList();

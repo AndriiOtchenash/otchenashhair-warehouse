@@ -5,13 +5,17 @@ import com.hairmony.warehouse.service.CategoryService;
 import com.hairmony.warehouse.service.ProductService;
 import com.hairmony.warehouse.service.StockService;
 import com.hairmony.warehouse.web.dto.ProductDto;
+import com.hairmony.warehouse.web.dto.ProductLookupDto;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -41,26 +45,65 @@ public class ProductController {
     }
 
     @GetMapping("/new")
-    public String newForm(Model model) {
-        model.addAttribute("product", new ProductDto());
+    public String newForm(Model model,
+                          @RequestParam(required = false) String barcode,
+                          @RequestParam(required = false) String returnTo,
+                          @RequestParam(required = false) String mode) {
+        ProductDto dto = new ProductDto();
+        if (barcode != null) dto.setBarcode(barcode);
+        model.addAttribute("product", dto);
         model.addAttribute("categories", categoryService.findAll());
         model.addAttribute("units", Unit.values());
         model.addAttribute("existingBrands", productService.findAllBrands());
+        if (returnTo != null) model.addAttribute("returnTo", returnTo);
+        if (mode != null) model.addAttribute("mode", mode);
         return "products/form";
     }
 
     @PostMapping("/new")
     public String save(@Valid @ModelAttribute("product") ProductDto dto,
                        BindingResult result,
-                       Model model) {
+                       Model model,
+                       @RequestParam(required = false) String returnTo,
+                       @RequestParam(required = false) String mode) {
         if (result.hasErrors()) {
             model.addAttribute("categories", categoryService.findAll());
             model.addAttribute("units", Unit.values());
             model.addAttribute("existingBrands", productService.findAllBrands());
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
+            if (mode != null) model.addAttribute("mode", mode);
             return "products/form";
         }
-        productService.save(dto);
+        ProductDto saved = productService.save(dto);
+        if ("scan".equals(returnTo) && mode != null) {
+            String path = "income".equals(mode) ? "/movements/income" : "/movements/expense";
+            return "redirect:" + path + "?productId=" + saved.getId();
+        }
         return "redirect:/products";
+    }
+
+    @GetMapping("/search")
+    @ResponseBody
+    public ResponseEntity<List<ProductLookupDto>> search(@RequestParam String q) {
+        return ResponseEntity.ok(productService.searchForScan(q));
+    }
+
+    @GetMapping("/by-barcode")
+    @ResponseBody
+    public ResponseEntity<ProductLookupDto> byBarcode(@RequestParam String code) {
+        return productService.findByBarcode(code)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/assign-barcode")
+    @ResponseBody
+    public ResponseEntity<?> assignBarcode(@PathVariable Long id, @RequestParam String code) {
+        try {
+            return ResponseEntity.ok(productService.assignBarcode(id, code));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/{id}/edit")

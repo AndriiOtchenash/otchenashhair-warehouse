@@ -17,6 +17,7 @@ public class StockDashboardRowDto {
     private String unit;
     private BigDecimal currentQuantity;
     private BigDecimal minStockLevel;
+    private String description;
     private LocalDate nearestExpiryDate;
 
     public StockStatus getStatus() {

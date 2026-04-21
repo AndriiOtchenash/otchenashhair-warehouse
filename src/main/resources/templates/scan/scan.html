@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{scan.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="bi bi-upc-scan me-2"></i>
+            <span th:text="#{scan.title}">Сканер штрихкодів</span>
+        </h1>
+    </div>
+
+    <div class="scan-container">
+
+        <!-- Mode selector -->
+        <div class="mode-buttons mb-4">
+            <button id="btnIncome" class="btn-mode active" data-mode="income">
+                <i class="bi bi-arrow-down-circle me-1"></i>
+                <span th:text="#{scan.mode.income}">Прихід</span>
+            </button>
+            <button id="btnExpense" class="btn-mode" data-mode="expense">
+                <i class="bi bi-arrow-up-circle me-1"></i>
+                <span th:text="#{scan.mode.expense}">Витрата</span>
+            </button>
+        </div>
+
+        <!-- Scanner area -->
+        <div class="card mb-3">
+            <div class="card-body p-2">
+                <div id="reader"></div>
+            </div>
+        </div>
+
+        <!-- Status message -->
+        <div id="scanStatus" class="scan-status text-center text-muted mb-3"
+             th:text="#{scan.scanning}">Наведіть камеру на штрихкод</div>
+
+        <!-- Manual entry fallback -->
+        <div class="text-center">
+            <a id="manualLink" href="/movements/income" class="text-decoration-none"
+               style="font-size: 0.9rem; color: var(--accent);">
+                <i class="bi bi-pencil me-1"></i>
+                <span th:text="#{scan.manual}">Відкрити без сканування</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Not-found modal -->
+    <div class="modal fade" id="notFoundModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{scan.notFound.title}">Штрихкод не знайдено</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="notFoundCode" class="text-muted small mb-3"
+                       style="word-break: break-all;"></p>
+
+                    <!-- Option A: search existing product -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold"
+                               th:text="#{scan.notFound.assign}">Знайти товар та призначити штрихкод</label>
+                        <input type="text" id="productSearch" class="form-control"
+                               th:placeholder="#{common.search}" autocomplete="off"/>
+                        <div id="searchResults" class="list-group mt-2"></div>
+                    </div>
+
+                    <div class="text-center text-muted my-2">
+                        <span th:text="#{scan.notFound.manual}">або</span>
+                    </div>
+
+                    <!-- Option B: create new product -->
+                    <div class="d-grid">
+                        <a id="createNewBtn" href="#" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            <span th:text="#{scan.notFound.createNew}">Створити новий товар</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .scan-container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .mode-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+        .btn-mode {
+            flex: 1;
+            padding: 0.9rem 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--accent);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .btn-mode.active {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-mode:hover:not(.active) {
+            background: var(--accent-light);
+        }
+        #reader {
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 200px;
+        }
+        /* Override html5-qrcode default styles for cleaner look */
+        #reader video {
+            border-radius: 8px;
+        }
+        #reader img {
+            display: none;
+        }
+        #searchResults .list-group-item {
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        #searchResults .list-group-item:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+        .scan-status {
+            font-size: 0.85rem;
+        }
+    </style>
+
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script th:inline="javascript">
+        const incomeUrl = /*[[@{/movements/income}]]*/ '/movements/income';
+        const expenseUrl = /*[[@{/movements/expense}]]*/ '/movements/expense';
+        const byBarcodeUrl = /*[[@{/products/by-barcode}]]*/ '/products/by-barcode';
+        const searchUrl = /*[[@{/products/search}]]*/ '/products/search';
+        const newProductUrl = /*[[@{/products/new}]]*/ '/products/new';
+
+        let selectedMode = 'income';
+        let scannedCode = null;
+        let html5QrCode = null;
+        let searchTimeout = null;
+        let notFoundModalInstance = null;
+
+        // Mode toggle
+        document.querySelectorAll('.btn-mode').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedMode = this.dataset.mode;
+                updateManualLink();
+            });
+        });
+
+        function getStockUrl(productId) {
+            const base = selectedMode === 'income' ? incomeUrl : expenseUrl;
+            return base + '?productId=' + productId;
+        }
+
+        function updateManualLink() {
+            const base = selectedMode === 'income' ? incomeUrl : expenseUrl;
+            document.getElementById('manualLink').href = base;
+        }
+
+        // Barcode scan success handler
+        function onScanSuccess(decodedText) {
+            if (scannedCode === decodedText) return; // debounce duplicates
+            scannedCode = decodedText;
+
+            if (html5QrCode) {
+                html5QrCode.stop().catch(() => {});
+            }
+
+            document.getElementById('scanStatus').textContent = decodedText;
+
+            fetch(byBarcodeUrl + '?code=' + encodeURIComponent(decodedText))
+                .then(r => {
+                    if (r.ok) {
+                        return r.json().then(p => { window.location.href = getStockUrl(p.id); });
+                    } else {
+                        showNotFoundModal(decodedText);
+                    }
+                })
+                .catch(() => showNotFoundModal(decodedText));
+        }
+
+        function showNotFoundModal(code) {
+            document.getElementById('notFoundCode').textContent = code;
+            document.getElementById('productSearch').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('createNewBtn').href =
+                newProductUrl + '?barcode=' + encodeURIComponent(code) +
+                '&returnTo=scan&mode=' + selectedMode;
+
+            notFoundModalInstance = new bootstrap.Modal(document.getElementById('notFoundModal'));
+            notFoundModalInstance.show();
+
+            document.getElementById('notFoundModal').addEventListener('hidden.bs.modal', function () {
+                scannedCode = null;
+                startScanner();
+            }, { once: true });
+        }
+
+        // Product search autocomplete
+        document.getElementById('productSearch').addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            const q = this.value.trim();
+            if (q.length < 2) {
+                document.getElementById('searchResults').innerHTML = '';
+                return;
+            }
+            searchTimeout = setTimeout(() => doSearch(q), 300);
+        });
+
+        function doSearch(q) {
+            fetch(searchUrl + '?q=' + encodeURIComponent(q))
+                .then(r => r.json())
+                .then(items => {
+                    const el = document.getElementById('searchResults');
+                    el.innerHTML = '';
+                    items.slice(0, 10).forEach(p => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'list-group-item list-group-item-action';
+                        btn.textContent = p.name + (p.brand ? ' \u2014 ' + p.brand : '');
+                        btn.addEventListener('click', () => assignBarcode(p.id));
+                        el.appendChild(btn);
+                    });
+                })
+                .catch(() => {});
+        }
+
+        function assignBarcode(productId) {
+            fetch('/products/' + productId + '/assign-barcode?code=' + encodeURIComponent(scannedCode), {
+                method: 'POST'
+            })
+            .then(r => {
+                if (r.ok) {
+                    r.json().then(p => {
+                        if (notFoundModalInstance) notFoundModalInstance.hide();
+                        window.location.href = getStockUrl(p.id);
+                    });
+                } else {
+                    r.text().then(msg => alert(msg));
+                }
+            })
+            .catch(() => {});
+        }
+
+        function startScanner() {
+            const readerEl = document.getElementById('reader');
+            readerEl.innerHTML = '';
+            html5QrCode = new Html5Qrcode('reader');
+            html5QrCode.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                onScanSuccess,
+                () => {}
+            ).catch(err => {
+                document.getElementById('scanStatus').textContent = err;
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            updateManualLink();
+            startScanner();
+        });
+    </script>
+</div>
+</body>
+</html>

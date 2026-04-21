@@ -18,7 +18,10 @@
         <div class="card-body">
             <form th:action="${product.id != null} ? @{/products/{id}/edit(id=${product.id})} : @{/products/new}"
                   th:object="${product}"
-                  method="post">
+                  method="post"
+                  th:attr="data-autosave-key=${product.id == null} ? 'product_new' : null">
+                <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
+                <input th:if="${mode != null}" type="hidden" name="mode" th:value="${mode}"/>
 
                 <div class="row g-3">
                     <!-- Name -->
@@ -81,6 +84,7 @@
                                th:field="*{unitSize}"
                                th:classappend="${#fields.hasErrors('unitSize')} ? 'is-invalid'"/>
                         <div class="invalid-feedback" th:errors="*{unitSize}"></div>
+                        <div class="form-text text-muted" th:text="#{product.unitSize.hint}"></div>
                     </div>
 
                     <!-- Min Stock Level -->

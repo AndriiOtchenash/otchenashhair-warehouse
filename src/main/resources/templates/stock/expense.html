@@ -18,12 +18,13 @@
 
     <div class="card">
         <div class="card-body">
-            <form th:action="@{/movements/expense}" th:object="${dto}" method="post">
+            <form th:action="@{/movements/expense}" th:object="${dto}" method="post" data-autosave-key="expense_form">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
                         <select class="form-select" th:field="*{productId}"
                                 th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
+                                th:disabled="${dto.productId != null}"
                                 id="productSelect"
                                 onchange="updateStockHint(this)">
                             <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
@@ -33,6 +34,7 @@
                                     th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit}">
                             </option>
                         </select>
+                        <input th:if="${dto.productId != null}" type="hidden" name="productId" th:value="${dto.productId}"/>
                         <div id="stockHint" class="form-text text-muted mt-1"></div>
                         <div class="invalid-feedback" th:errors="*{productId}"></div>
                     </div>
