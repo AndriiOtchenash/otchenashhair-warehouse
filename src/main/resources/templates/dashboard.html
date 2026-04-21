@@ -98,7 +98,12 @@
                 <tr th:each="row : ${rows}"
                     th:attr="data-status=${row.status.name()},data-category=${row.categoryName},data-name=${row.productName}"
                     th:classappend="${row.status.name() == 'OUT'} ? 'table-danger' : (${row.status.name() == 'LOW'} ? 'table-warning' : '')">
-                    <td class="fw-semibold" th:text="${row.productName}"></td>
+                    <td class="fw-semibold">
+                        <span th:text="${row.productName}"></span>
+                        <small th:if="${!#strings.isEmpty(row.description)}"
+                               class="d-block d-md-none text-muted fw-normal"
+                               th:text="${row.description}"></small>
+                    </td>
                     <td>
                         <span th:text="${@qf.format(row.currentQuantity, row.unit)}"></span>
                         <span class="text-muted small" th:text="#{unit.__${row.unit}__}"></span>
@@ -214,9 +219,11 @@
             if (catSelect && activeCategory) catSelect.value = activeCategory;
 
             applyFilters();
-            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-                new bootstrap.Tooltip(el);
-            });
+            if (!('ontouchstart' in window)) {
+                document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                    new bootstrap.Tooltip(el);
+                });
+            }
         });
 
     </script>

@@ -57,7 +57,7 @@
                         </tr>
                         <tr>
                             <td class="text-muted" th:text="#{product.form.minStockLevel}">Мін. залишок</td>
-                            <td th:text="${product.minStockLevel}"></td>
+                            <td th:text="${@qf.format(product.minStockLevel, product.unit != null ? product.unit.name() : 'PCS')}"></td>
                         </tr>
                         <tr>
                             <td class="text-muted" th:text="#{dashboard.currentStock}">Залишок</td>
