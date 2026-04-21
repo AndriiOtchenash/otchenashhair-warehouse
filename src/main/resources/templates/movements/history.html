@@ -153,6 +153,9 @@
     </nav>
 
     <style>
+        .filter-active {
+            border: 2px solid var(--accent) !important;
+        }
         .table th {
             font-size: 0.65rem !important;
             white-space: normal;
@@ -172,6 +175,68 @@
             .table th, .table td { font-size: 0.8rem; padding: 0.35rem 0.25rem; }
         }
     </style>
+
+    <script>
+        (function () {
+            var form = document.querySelector('form[action="/movements/history"]');
+            if (!form) return;
+
+            var fields = form.querySelectorAll('input[name], select[name]');
+            var submitBtn = form.querySelector('button[type="submit"]');
+
+            function updateFilters() {
+                var count = 0;
+                fields.forEach(function (el) {
+                    if (el.value !== '') {
+                        el.classList.add('filter-active');
+                        count++;
+                    } else {
+                        el.classList.remove('filter-active');
+                    }
+                });
+
+                if (!submitBtn) return;
+                var badge = submitBtn.querySelector('.filter-count-badge');
+                if (count > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'badge rounded-pill bg-white text-dark ms-1 filter-count-badge';
+                        submitBtn.appendChild(badge);
+                    }
+                    badge.textContent = count;
+                } else {
+                    if (badge) badge.remove();
+                }
+            }
+
+            fields.forEach(function (el) {
+                el.addEventListener('input', updateFilters);
+                el.addEventListener('change', updateFilters);
+            });
+
+            updateFilters();
+
+            // Auto-submit: selects → immediately on change
+            form.querySelectorAll('select[name]').forEach(function (el) {
+                el.addEventListener('change', function () { form.submit(); });
+            });
+
+            // Auto-submit: date inputs → on blur (when user leaves the field)
+            form.querySelectorAll('input[type="date"]').forEach(function (el) {
+                el.addEventListener('blur', function () { form.submit(); });
+            });
+
+            // Auto-submit: counterparty text → debounced 500ms
+            var counterpartyInput = form.querySelector('input[name="counterparty"]');
+            if (counterpartyInput) {
+                var counterpartyTimer;
+                counterpartyInput.addEventListener('input', function () {
+                    clearTimeout(counterpartyTimer);
+                    counterpartyTimer = setTimeout(function () { form.submit(); }, 500);
+                });
+            }
+        })();
+    </script>
 </div>
 </body>
 </html>
