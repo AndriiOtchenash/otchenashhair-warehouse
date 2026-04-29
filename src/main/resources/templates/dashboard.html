@@ -17,48 +17,49 @@
         </div>
     </div>
 
-    <!-- Summary cards -->
-    <div class="row g-3 mb-3">
-        <div class="col-6 col-md-3">
-            <div class="card px-2 py-2 text-center"
-                 style="cursor:pointer"
-                 onclick="var btn=document.querySelector('.btn-group .btn[onclick*=\'all\']');filterStatus('all',btn)">
-                <span class="fs-5 fw-bold text-success" th:text="${totalProducts}">0</span>
-                <span class="text-muted small d-block" th:text="#{dashboard.totalProducts}">Товарів</span>
+    <!-- KPI cards — click to filter by status -->
+    <div class="col-12 col-md-4 px-0 mb-3">
+        <div class="row g-3 align-items-stretch">
+            <div class="col-4">
+                <div class="card px-2 py-2 text-center kpi-card h-100 w-100"
+                     data-kpi-status="all"
+                     th:classappend="${activeStatus == 'all'} ? 'kpi-active'"
+                     style="cursor:pointer"
+                     onclick="filterStatus('all')">
+                    <span class="fs-5 fw-bold text-secondary" th:text="${totalProducts}">0</span>
+                    <span class="text-muted small d-block" th:text="#{dashboard.filter.all}">Всі</span>
+                </div>
             </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card px-2 py-2 text-center"
-                 data-bs-toggle="tooltip"
-                 data-bs-placement="right"
-                 th:title="#{dashboard.lowStock.hint}"
-                 style="cursor:pointer"
-                 onclick="var btn=document.querySelector('.btn-group .btn[onclick*=\'attention\']');filterStatus('attention',btn)">
-                <span class="fs-5 fw-bold"
-                      th:classappend="${lowStock > 0} ? 'text-warning' : 'text-success'"
-                      th:text="${lowStock}">0</span>
-                <span class="text-muted small d-block" th:text="#{dashboard.lowStock}">Потребують уваги</span>
+            <div class="col-4">
+                <div class="card px-2 py-2 text-center kpi-card h-100 w-100"
+                     data-kpi-status="OK"
+                     th:classappend="${activeStatus == 'OK'} ? 'kpi-active'"
+                     style="cursor:pointer"
+                     onclick="filterStatus('OK')">
+                    <span class="fs-5 fw-bold text-success" th:text="${countOk}">0</span>
+                    <span class="text-muted small d-block" th:text="#{dashboard.filter.ok}">В наявності</span>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card px-2 py-2 text-center kpi-card h-100 w-100"
+                     data-kpi-status="attention"
+                     th:classappend="${activeStatus == 'attention'} ? 'kpi-active'"
+                     data-bs-toggle="tooltip"
+                     data-bs-placement="right"
+                     th:title="#{dashboard.lowStock.hint}"
+                     style="cursor:pointer"
+                     onclick="filterStatus('attention')">
+                    <span class="fs-5 fw-bold"
+                          th:classappend="${lowStock > 0} ? 'text-warning' : 'text-success'"
+                          th:text="${lowStock}">0</span>
+                    <span class="text-muted small d-block" th:text="#{dashboard.lowStock}">Потребують уваги</span>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Filters -->
     <div class="mb-3">
-        <!-- Status tabs -->
-        <div class="d-flex mb-2 justify-content-center justify-content-md-start">
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        onclick="filterStatus('all', this)"
-                        th:text="#{dashboard.filter.all}">Всі</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary active"
-                        onclick="filterStatus('OK', this)"
-                        th:text="#{dashboard.filter.ok}">В наявності</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        onclick="filterStatus('attention', this)"
-                        th:text="#{dashboard.filter.attention}">Потребують уваги</button>
-            </div>
-        </div>
-
         <!-- Category, Brand, Search -->
         <div class="d-flex flex-column flex-md-row gap-2">
             <select id="categorySelect" class="form-select form-select-sm" onchange="filterCategory(this.value)">
@@ -173,6 +174,10 @@
         .filter-active {
             border: 2px solid var(--accent) !important;
         }
+        .kpi-active {
+            border: 2px solid var(--accent) !important;
+            box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.15);
+        }
     </style>
 
     <script>
@@ -182,13 +187,6 @@
         let activeCategory = urlParams.get('category') || '';
         let activeBrand = urlParams.get('brand') || '';
         let activeSearch = '';
-
-        // Set initial button state
-        document.querySelectorAll('.btn-group .btn').forEach(btn => {
-            btn.classList.remove('active');
-            const btnStatus = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
-            if (btnStatus === activeStatus) btn.classList.add('active');
-        });
 
         function applyFilters() {
             const rows = document.querySelectorAll('tbody tr');
@@ -221,11 +219,16 @@
             window.history.replaceState({}, '', newUrl);
         }
 
-        function filterStatus(status, btn) {
+        function updateKpiCards() {
+            document.querySelectorAll('.kpi-card').forEach(card => {
+                card.classList.toggle('kpi-active', card.dataset.kpiStatus === activeStatus);
+            });
+        }
+
+        function filterStatus(status) {
             activeStatus = status;
-            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
             updateUrl();
+            updateKpiCards();
             applyFilters();
         }
 
@@ -264,8 +267,9 @@
             if (brandSelect && activeBrand) brandSelect.value = activeBrand;
 
             updateFilterActive();
-
+            updateKpiCards();
             applyFilters();
+
             if (!('ontouchstart' in window)) {
                 document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                     new bootstrap.Tooltip(el);

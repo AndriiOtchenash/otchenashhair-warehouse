@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequiredArgsConstructor
@@ -16,13 +17,18 @@ public class DashboardController {
     private final CategoryService categoryService;
 
     @GetMapping("/")
-    public String dashboard(Model model) {
+    public String dashboard(@RequestParam(defaultValue = "OK") String status, Model model) {
         var rows = stockService.getDashboard();
         model.addAttribute("rows", rows);
         model.addAttribute("totalProducts", rows.size());
+        model.addAttribute("countOk", rows.stream()
+                .filter(r -> r.getStatus() == StockDashboardRowDto.StockStatus.OK
+                          || r.getStatus() == StockDashboardRowDto.StockStatus.LOW)
+                .count());
         model.addAttribute("lowStock", rows.stream()
                 .filter(r -> r.getStatus() != StockDashboardRowDto.StockStatus.OK)
                 .count());
+        model.addAttribute("activeStatus", status);
         model.addAttribute("categories", categoryService.findAll()
                 .stream()
                 .map(c -> c.getName())
