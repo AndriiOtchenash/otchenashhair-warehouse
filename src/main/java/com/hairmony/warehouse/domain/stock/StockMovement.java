@@ -57,6 +57,9 @@ public class StockMovement {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "original_movement_id")
+    private Long originalMovementId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
