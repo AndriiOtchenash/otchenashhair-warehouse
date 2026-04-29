@@ -28,6 +28,9 @@ public class DashboardController {
         model.addAttribute("lowStock", rows.stream()
                 .filter(r -> r.getStatus() != StockDashboardRowDto.StockStatus.OK)
                 .count());
+        model.addAttribute("countOut", rows.stream()
+                .filter(r -> r.getStatus() == StockDashboardRowDto.StockStatus.OUT)
+                .count());
         model.addAttribute("activeStatus", status);
         model.addAttribute("categories", categoryService.findAll()
                 .stream()

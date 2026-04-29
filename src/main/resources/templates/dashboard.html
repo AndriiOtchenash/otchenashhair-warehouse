@@ -18,9 +18,9 @@
     </div>
 
     <!-- KPI cards — click to filter by status -->
-    <div class="col-12 col-md-4 px-0 mb-3">
-        <div class="row g-3 align-items-stretch">
-            <div class="col-4">
+    <div class="col-12 col-md-5 px-0 mb-3">
+        <div class="row g-2 align-items-stretch">
+            <div class="col-3">
                 <div class="card px-2 py-2 text-center kpi-card h-100 w-100"
                      data-kpi-status="all"
                      th:classappend="${activeStatus == 'all'} ? 'kpi-active'"
@@ -30,7 +30,7 @@
                     <span class="text-muted small d-block" th:text="#{dashboard.filter.all}">Всі</span>
                 </div>
             </div>
-            <div class="col-4">
+            <div class="col-3">
                 <div class="card px-2 py-2 text-center kpi-card h-100 w-100"
                      data-kpi-status="OK"
                      th:classappend="${activeStatus == 'OK'} ? 'kpi-active'"
@@ -40,7 +40,7 @@
                     <span class="text-muted small d-block" th:text="#{dashboard.filter.ok}">В наявності</span>
                 </div>
             </div>
-            <div class="col-4">
+            <div class="col-3">
                 <div class="card px-2 py-2 text-center kpi-card h-100 w-100"
                      data-kpi-status="attention"
                      th:classappend="${activeStatus == 'attention'} ? 'kpi-active'"
@@ -52,7 +52,19 @@
                     <span class="fs-5 fw-bold"
                           th:classappend="${lowStock > 0} ? 'text-warning' : 'text-success'"
                           th:text="${lowStock}">0</span>
-                    <span class="text-muted small d-block" th:text="#{dashboard.lowStock}">Потребують уваги</span>
+                    <span class="text-muted small d-block" th:text="#{dashboard.lowStock}">Потребує уваги</span>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="card px-2 py-2 text-center kpi-card h-100 w-100"
+                     data-kpi-status="out"
+                     th:classappend="${activeStatus == 'out'} ? 'kpi-active'"
+                     style="cursor:pointer"
+                     onclick="filterStatus('out')">
+                    <span class="fs-5 fw-bold"
+                          th:classappend="${countOut > 0} ? 'text-danger' : 'text-success'"
+                          th:text="${countOut}">0</span>
+                    <span class="text-muted small d-block" th:text="#{dashboard.filter.out}">Відсутні</span>
                 </div>
             </div>
         </div>
@@ -178,6 +190,13 @@
             border: 2px solid var(--accent) !important;
             box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.15);
         }
+        .kpi-card .small {
+            line-height: 1.2;
+        }
+        .kpi-card {
+            padding-left: 0.4rem !important;
+            padding-right: 0.4rem !important;
+        }
     </style>
 
     <script>
@@ -198,7 +217,8 @@
 
                 const statusMatch = activeStatus === 'all'
                     || (activeStatus === 'attention' && (status === 'LOW' || status === 'OUT'))
-                    || (activeStatus === 'OK' && (status === 'OK' || status === 'LOW'));
+                    || (activeStatus === 'OK' && (status === 'OK' || status === 'LOW'))
+                    || (activeStatus === 'out' && status === 'OUT');
 
                 const categoryMatch = activeCategory === '' || category === activeCategory;
                 const brandMatch = activeBrand === '' || brand === activeBrand;
