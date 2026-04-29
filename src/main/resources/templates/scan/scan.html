@@ -269,6 +269,12 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            const urlMode = new URLSearchParams(window.location.search).get('mode');
+            if (urlMode === 'expense') {
+                document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+                document.querySelector('.btn-mode[data-mode="expense"]').classList.add('active');
+                selectedMode = 'expense';
+            }
             updateManualLink();
             startScanner();
         });
