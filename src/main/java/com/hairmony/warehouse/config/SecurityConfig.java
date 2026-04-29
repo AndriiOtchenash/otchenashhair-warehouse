@@ -25,7 +25,6 @@ public class SecurityConfig {
         provider.setPasswordEncoder(passwordEncoder());
 
         http
-                .csrf(csrf -> csrf.disable())
                 .authenticationProvider(provider)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/logout").permitAll()

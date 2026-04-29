@@ -148,6 +148,8 @@
         let html5QrCode = null;
         let searchTimeout = null;
         let notFoundModalInstance = null;
+        const csrfToken  = document.querySelector('meta[name="_csrf"]')?.content;
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
 
         // Mode toggle
         document.querySelectorAll('.btn-mode').forEach(btn => {
@@ -239,7 +241,8 @@
 
         function assignBarcode(productId) {
             fetch('/products/' + productId + '/assign-barcode?code=' + encodeURIComponent(scannedCode), {
-                method: 'POST'
+                method: 'POST',
+                headers: csrfHeader && csrfToken ? {[csrfHeader]: csrfToken} : {}
             })
             .then(r => {
                 if (r.ok) {

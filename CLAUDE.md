@@ -43,8 +43,10 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             010-add-movement-cancel (adds original_movement_id FK on stock_movements)
 
 ## What's done
-- Dashboard (/) with stock status, KPI cards, filters (status/category/brand/search),
+- Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
+  activeStatus param + client-side toggle; filters (status/category/brand/search),
   clickable rows → product detail, active filter highlight (.filter-active)
+  KPI "countOk" = OK+LOW, "lowStock" = LOW+OUT, "countOut" = OUT only
 - Products CRUD with soft delete, restore, detail page, brand autocomplete
 - Stock batch (StockItem) edit modal on product detail — expiry date, batch number, price
 - Categories CRUD with modal editing
@@ -77,9 +79,12 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Change password page (/profile/change-password)
 - Logout in sidebar
 - Mobile responsive layout with burger menu and topbar
-- Client-side search on all list pages
+- Client-side search on all list pages with × clear button (mobile only, appears on input)
 - Collapsible create forms on list pages
 - Clickable table rows on mobile
+- Cancel buttons on stock income/expense forms (back to dashboard)
+- Mobile nav: Income/Expense links → scanner (/scan?mode=income/expense) on mobile,
+  form pages (/movements/income/expense) on desktop (Bootstrap d-none/d-flex split)
 - DevTools enabled (dev profile only)
 - AI Assistant page (/ai) — chat widget backed by Google Gemini 2.5 Flash
   (v1beta endpoint); builds warehouse context (stock levels + last 30-day
@@ -108,7 +113,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Production: https://otchenashhair-warehouse.fly.dev/
 - Platform: Fly.io (Amsterdam region, 1 shared machine, 512MB RAM)
 - Database: Neon PostgreSQL (eu-central-1, Frankfurt)
-- CI/CD: GitHub Actions on push to master branch
+- CI/CD: GitHub Actions
+  - deploy.yml — triggers on push to master, builds Docker image with flyctl --remote-only, deploys to Fly.io
+  - deploy-on-comment.yml — triggers on PR comment "/deploy" by repo owner, same deploy flow
 - Secrets managed via Fly.io secrets (DB_URL, DB_USERNAME, DB_PASSWORD,
   SPRING_PROFILES_ACTIVE, GEMINI_API_KEY)
 
@@ -117,6 +124,22 @@ Run with VM option: -Dspring.profiles.active=dev
 DB credentials in application-dev.properties (gitignored)
 
 ## TODO
-- Spring Session for multi-machine session sharing (if needed)
-- User management page (if multiple users needed)
+
+### Features
+- Low stock email notifications — daily digest when items drop below minStockLevel;
+  Spring @Scheduled + spring-boot-starter-mail
+- Export to Excel — reports page + movement history; Apache POI (xlsx)
+- Inventory count / stock-take — formal workflow: enter physical counts per product,
+  system auto-generates ADJUSTMENT movements for the differences
+- User roles (ADMIN/OPERATOR) — Role entity already exists; @PreAuthorize on
+  delete/cancel/deactivate endpoints to restrict to ADMIN only
+- Supplier detail page — /suppliers/{id} with purchase history (mirrors client detail)
+- Print barcode labels — printable label with product name + barcode from product detail page
 - AI: conversation history / multi-turn chat (currently stateless per request)
+
+### Infrastructure
+- Spring Session for multi-machine session sharing (if needed when scaling beyond 1 machine)
+- User management page (if multiple users needed)
+
+### Quality
+- Unit tests for StockService — FIFO deduction logic, cancel guards, KPI counts
