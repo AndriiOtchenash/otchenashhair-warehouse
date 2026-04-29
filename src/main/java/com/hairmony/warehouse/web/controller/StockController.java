@@ -46,7 +46,8 @@ public class StockController {
         }
         try {
             stockService.registerIncome(dto);
-            redirectAttributes.addFlashAttribute("successMessage", "Прихід товару зареєстровано");
+            redirectAttributes.addFlashAttribute("successMessage",
+                    messageSource.getMessage("stock.income.success", null, LocaleContextHolder.getLocale()));
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
@@ -81,7 +82,8 @@ public class StockController {
         }
         try {
             stockService.registerExpense(dto);
-            redirectAttributes.addFlashAttribute("successMessage", "Витрату зареєстровано");
+            redirectAttributes.addFlashAttribute("successMessage",
+                    messageSource.getMessage("stock.expense.success", null, LocaleContextHolder.getLocale()));
             return "redirect:/movements/expense";
         } catch (IllegalStateException e) {
             model.addAttribute("errorMessage", e.getMessage());

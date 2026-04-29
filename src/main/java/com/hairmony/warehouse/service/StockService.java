@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +38,6 @@ public class StockService {
         Product product = productRepository.findById(dto.getProductId())
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + dto.getProductId()));
 
-        // Create stock item (batch)
         StockItem stockItem = StockItem.builder()
                 .product(product)
                 .quantity(dto.getQuantity())
@@ -49,7 +47,6 @@ public class StockService {
                 .build();
         stockItemRepository.save(stockItem);
 
-        // Record movement
         StockMovement movement = StockMovement.builder()
                 .product(product)
                 .stockItem(stockItem)
@@ -59,7 +56,7 @@ public class StockService {
                 .supplier(supplierRepository.findById(dto.getSupplierId())
                         .orElseThrow(() -> new EntityNotFoundException("Supplier not found")))
                 .notes(dto.getNotes())
-                .createdAt(LocalDateTime.now())
+                .performedBy(getCurrentUser())
                 .build();
         stockMovementRepository.save(movement);
     }
@@ -93,7 +90,6 @@ public class StockService {
             }
         }
 
-        // Record movement
         StockMovement movement = StockMovement.builder()
                 .product(product)
                 .stockItem(firstBatch)
@@ -101,7 +97,7 @@ public class StockService {
                 .quantity(dto.getQuantity())
                 .unitPrice(dto.getUnitPrice())
                 .notes(dto.getNotes())
-                .createdAt(LocalDateTime.now())
+                .performedBy(getCurrentUser())
                 .build();
 
         if (dto.getMovementType() == MovementType.SALE && dto.getClientId() != null) {
@@ -166,9 +162,7 @@ public class StockService {
                     "movement.cancel.error.alreadyCancelled", null, LocaleContextHolder.getLocale()));
         }
 
-        // Resolve current user
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByUsername(username).orElse(null);
+        User currentUser = getCurrentUser();
 
         // Restore stock: create a new StockItem batch with the returned quantity
         StockItem restored = StockItem.builder()
@@ -203,7 +197,6 @@ public class StockService {
                 .notes(note)
                 .originalMovementId(movementId)
                 .performedBy(currentUser)
-                .createdAt(LocalDateTime.now())
                 .build();
         stockMovementRepository.save(cancellation);
     }
@@ -223,32 +216,30 @@ public class StockService {
     public List<StockDashboardRowDto> getDashboard() {
         List<Product> products = productRepository.findAllByActiveTrue();
 
-        // Build quantity map
         Map<Long, BigDecimal> quantityMap = new HashMap<>();
         stockItemRepository.getTotalQuantityPerProduct()
                 .forEach(row -> quantityMap.put((Long) row[0], (BigDecimal) row[1]));
 
-        return products.stream().map(p -> {
-            BigDecimal qty = quantityMap.getOrDefault(p.getId(), BigDecimal.ZERO);
+        Map<Long, LocalDate> expiryMap = new HashMap<>();
+        stockItemRepository.findEarliestExpiryPerProduct()
+                .forEach(row -> expiryMap.put((Long) row[0], (LocalDate) row[1]));
 
-            LocalDate nearestExpiry = stockItemRepository
-                    .findEarliestExpiryByProductId(p.getId())
-                    .stream()
-                    .findFirst()
-                    .map(si -> si.getExpiryDate())
-                    .orElse(null);
+        return products.stream().map(p -> StockDashboardRowDto.builder()
+                .productId(p.getId())
+                .productName(p.getName())
+                .brand(p.getBrand())
+                .categoryName(p.getCategory() != null ? p.getCategory().getName() : "")
+                .unit(p.getUnit() != null ? p.getUnit().name() : "")
+                .currentQuantity(quantityMap.getOrDefault(p.getId(), BigDecimal.ZERO))
+                .minStockLevel(p.getMinStockLevel())
+                .description(p.getDescription())
+                .nearestExpiryDate(expiryMap.get(p.getId()))
+                .build()
+        ).toList();
+    }
 
-            return StockDashboardRowDto.builder()
-                    .productId(p.getId())
-                    .productName(p.getName())
-                    .brand(p.getBrand())
-                    .categoryName(p.getCategory() != null ? p.getCategory().getName() : "")
-                    .unit(p.getUnit() != null ? p.getUnit().name() : "")
-                    .currentQuantity(qty)
-                    .minStockLevel(p.getMinStockLevel())
-                    .description(p.getDescription())
-                    .nearestExpiryDate(nearestExpiry)
-                    .build();
-        }).toList();
+    private User getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsername(username).orElse(null);
     }
 }

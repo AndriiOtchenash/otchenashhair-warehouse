@@ -56,6 +56,8 @@
         const MSG_ASK     = /*[[#{ai.ask}]]*/ 'Запитати';
         const MSG_PROCESSING = /*[[#{ai.processing}]]*/ 'Обробка...';
         const MSG_ERROR   = /*[[#{ai.error}]]*/ 'Помилка з\'єднання. Спробуйте пізніше.';
+        const csrfToken  = document.querySelector('meta[name="_csrf"]')?.content;
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
 
         document.querySelectorAll('.quick-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -84,7 +86,10 @@
 
             fetch('/ai/ask', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    ...(csrfHeader && csrfToken ? {[csrfHeader]: csrfToken} : {})
+                },
                 body: 'question=' + encodeURIComponent(question)
             })
             .then(r => r.text())

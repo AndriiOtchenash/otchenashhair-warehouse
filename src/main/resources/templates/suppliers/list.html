@@ -107,7 +107,8 @@
                                     </a>
                                     <form th:action="@{/suppliers/{id}/delete(id=${s.id})}"
                                           method="post"
-                                          onsubmit="return confirm('Видалити постачальника?')">
+                                          th:attr="data-confirm=#{confirm.delete.supplier}"
+                                          onsubmit="return confirm(this.dataset.confirm)">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"
                                                 th:title="#{btn.delete}"
                                                 data-bs-toggle="tooltip">

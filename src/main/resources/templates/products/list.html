@@ -86,7 +86,8 @@
                                 </a>
                                 <form th:action="@{/products/{id}/deactivate(id=${product.id})}"
                                       method="post" class="d-inline"
-                                      onsubmit="return confirm('Деактивувати товар?')">
+                                      th:attr="data-confirm=#{confirm.deactivate.product}"
+                                      onsubmit="return confirm(this.dataset.confirm)">
                                     <button type="submit" class="btn btn-sm btn-outline-danger"
                                             th:title="#{btn.deactivate}"
                                             data-bs-toggle="tooltip">
