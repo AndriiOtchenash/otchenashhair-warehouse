@@ -7,12 +7,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long>,
         JpaSpecificationExecutor<StockMovement> {
     List<StockMovement> findAllByOrderByCreatedAtDesc();
     List<StockMovement> findAllByProductIdOrderByCreatedAtDesc(Long productId);
     List<StockMovement> findAllByClientIdOrderByCreatedAtDesc(Long clientId);
+    boolean existsByOriginalMovementId(Long originalMovementId);
+
+    @Query("SELECT m.originalMovementId FROM StockMovement m WHERE m.originalMovementId IN :ids")
+    Set<Long> findCancelledMovementIds(@Param("ids") Set<Long> ids);
 
     @Query("SELECT m FROM StockMovement m WHERE m.movementType = 'SALE' AND m.createdAt >= :from AND m.createdAt <= :to ORDER BY m.createdAt DESC")
     List<StockMovement> findSalesBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);

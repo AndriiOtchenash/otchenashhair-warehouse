@@ -4,5 +4,6 @@ public enum MovementType {
     PURCHASE,
     SALE,
     WRITE_OFF,
-    ADJUSTMENT
+    ADJUSTMENT,
+    CANCELLATION
 }

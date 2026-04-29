@@ -5,6 +5,8 @@ import com.hairmony.warehouse.service.*;
 import com.hairmony.warehouse.web.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -20,6 +22,7 @@ public class StockController {
     private final ProductService productService;
     private final SupplierService supplierService;
     private final ClientService clientService;
+    private final MessageSource messageSource;
 
     @GetMapping("/income")
     public String incomeForm(@RequestParam(required = false) Long productId, Model model) {
@@ -89,5 +92,17 @@ public class StockController {
             });
             return "stock/expense";
         }
+    }
+
+    @PostMapping("/{id}/cancel")
+    public String cancelMovement(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            stockService.cancelMovement(id);
+            redirectAttributes.addFlashAttribute("successMessage",
+                    messageSource.getMessage("movement.cancel.success", null, LocaleContextHolder.getLocale()));
+        } catch (IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        return "redirect:/movements/history";
     }
 }

@@ -2,21 +2,25 @@ package com.hairmony.warehouse.service;
 
 import com.hairmony.warehouse.domain.product.Product;
 import com.hairmony.warehouse.domain.stock.*;
+import com.hairmony.warehouse.domain.user.User;
 import com.hairmony.warehouse.repository.*;
 import com.hairmony.warehouse.web.dto.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ public class StockService {
     private final ProductRepository productRepository;
     private final SupplierRepository supplierRepository;
     private final ClientRepository clientRepository;
+    private final UserRepository userRepository;
     private final MessageSource messageSource;
 
     public void registerIncome(StockIncomeDto dto) {
@@ -137,6 +142,76 @@ public class StockService {
         item.setExpiryDate(expiryDate);
         item.setBatchNumber(batchNumber != null && !batchNumber.isBlank() ? batchNumber : null);
         item.setPurchasePrice(purchasePrice);
+    }
+
+    public void cancelMovement(Long movementId) {
+        StockMovement original = stockMovementRepository.findById(movementId)
+                .orElseThrow(() -> new EntityNotFoundException("Movement not found: " + movementId));
+
+        // Only expense-type movements can be cancelled
+        if (original.getMovementType() == MovementType.PURCHASE) {
+            throw new IllegalStateException(messageSource.getMessage(
+                    "movement.cancel.error.notAllowed", null, LocaleContextHolder.getLocale()));
+        }
+
+        // A cancellation movement itself cannot be cancelled again
+        if (original.getOriginalMovementId() != null) {
+            throw new IllegalStateException(messageSource.getMessage(
+                    "movement.cancel.error.notAllowed", null, LocaleContextHolder.getLocale()));
+        }
+
+        // Cannot cancel if already cancelled
+        if (stockMovementRepository.existsByOriginalMovementId(movementId)) {
+            throw new IllegalStateException(messageSource.getMessage(
+                    "movement.cancel.error.alreadyCancelled", null, LocaleContextHolder.getLocale()));
+        }
+
+        // Resolve current user
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(username).orElse(null);
+
+        // Restore stock: create a new StockItem batch with the returned quantity
+        StockItem restored = StockItem.builder()
+                .product(original.getProduct())
+                .quantity(original.getQuantity())
+                .purchasePrice(original.getUnitPrice())
+                .build();
+        stockItemRepository.save(restored);
+
+        // Build cancellation note in Ukrainian (data field, not i18n)
+        String productName = original.getProduct().getName();
+        String unitLabel = switch (original.getProduct().getUnit()) {
+            case ML -> "мл";
+            case G -> "г";
+            case PCS -> "шт";
+        };
+        BigDecimal qty = original.getQuantity();
+        String qtyFormatted = (qty.scale() == 0 || qty.stripTrailingZeros().scale() <= 0)
+                ? qty.toBigInteger().toString()
+                : qty.stripTrailingZeros().toPlainString();
+        String originalDate = original.getCreatedAt()
+                .format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        String note = "Скасування: " + productName + ", " + qtyFormatted + " " + unitLabel + ", " + originalDate;
+
+        // Record the reverse movement
+        StockMovement cancellation = StockMovement.builder()
+                .product(original.getProduct())
+                .stockItem(restored)
+                .movementType(MovementType.CANCELLATION)
+                .quantity(original.getQuantity())
+                .unitPrice(original.getUnitPrice())
+                .notes(note)
+                .originalMovementId(movementId)
+                .performedBy(currentUser)
+                .createdAt(LocalDateTime.now())
+                .build();
+        stockMovementRepository.save(cancellation);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Long> getCancelledMovementIds(Set<Long> movementIds) {
+        if (movementIds.isEmpty()) return Set.of();
+        return stockMovementRepository.findCancelledMovementIds(movementIds);
     }
 
     @Transactional(readOnly = true)
