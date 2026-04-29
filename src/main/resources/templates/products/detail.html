@@ -91,6 +91,7 @@
                             <th th:text="#{stock.form.expiryDate}">Термін придатності</th>
                             <th th:text="#{stock.form.batchNumber}">Партія</th>
                             <th th:text="#{product.detail.received}">Отримано</th>
+                            <th th:text="#{table.actions}">Дії</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -110,6 +111,16 @@
                             </td>
                             <td th:text="${item.batchNumber ?: '—'}"></td>
                             <td th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
+                            <td>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        th:title="#{stock.item.edit}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editStockItemModal"
+                                        th:attr="data-id=${item.id},data-expiry=${item.expiryDate},data-batch=${item.batchNumber ?: ''},data-price=${item.purchasePrice ?: ''}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
@@ -182,6 +193,44 @@
         </div>
     </div>
 
+    <!-- Edit stock item modal -->
+    <div class="modal fade" id="editStockItemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{stock.item.editTitle}">Редагування партії</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editStockItemForm" method="post">
+                    <input type="hidden" name="productId" th:value="${product.id}"/>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" th:text="#{stock.form.expiryDate}">Термін придатності</label>
+                                <input type="date" class="form-control" id="editItemExpiry" name="expiryDate"/>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" th:text="#{stock.form.batchNumber}">Номер партії</label>
+                                <input type="text" class="form-control" id="editItemBatch" name="batchNumber"/>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" th:text="#{stock.form.purchasePrice}">Ціна закупки</label>
+                                <input type="number" step="0.01" class="form-control" id="editItemPrice" name="purchasePrice"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal"
+                                th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                th:text="#{btn.save}">Зберегти</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         function applyHistoryFilters() {
             const type = document.querySelector('.card:last-of-type select').value;
@@ -201,6 +250,18 @@
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);
             });
+
+            const editItemModal = document.getElementById('editStockItemModal');
+            if (editItemModal) {
+                editItemModal.addEventListener('show.bs.modal', function(event) {
+                    const btn = event.relatedTarget;
+                    document.getElementById('editItemExpiry').value = btn.getAttribute('data-expiry') || '';
+                    document.getElementById('editItemBatch').value = btn.getAttribute('data-batch') || '';
+                    document.getElementById('editItemPrice').value = btn.getAttribute('data-price') || '';
+                    document.getElementById('editStockItemForm').action =
+                        '/stock/items/' + btn.getAttribute('data-id') + '/edit';
+                });
+            }
         });
     </script>
 </div>

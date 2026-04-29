@@ -20,7 +20,9 @@
     <!-- Summary cards -->
     <div class="row g-3 mb-3">
         <div class="col-6 col-md-3">
-            <div class="card px-2 py-2 text-center">
+            <div class="card px-2 py-2 text-center"
+                 style="cursor:pointer"
+                 onclick="var btn=document.querySelector('.btn-group .btn[onclick*=\'all\']');filterStatus('all',btn)">
                 <span class="fs-5 fw-bold text-success" th:text="${totalProducts}">0</span>
                 <span class="text-muted small d-block" th:text="#{dashboard.totalProducts}">Товарів</span>
             </div>
@@ -30,7 +32,8 @@
                  data-bs-toggle="tooltip"
                  data-bs-placement="right"
                  th:title="#{dashboard.lowStock.hint}"
-                 style="cursor: help;">
+                 style="cursor:pointer"
+                 onclick="var btn=document.querySelector('.btn-group .btn[onclick*=\'attention\']');filterStatus('attention',btn)">
                 <span class="fs-5 fw-bold"
                       th:classappend="${lowStock > 0} ? 'text-warning' : 'text-success'"
                       th:text="${lowStock}">0</span>
@@ -40,36 +43,47 @@
     </div>
 
     <!-- Filters -->
-    <div class="d-flex gap-2 mb-3 align-items-center flex-wrap justify-content-center justify-content-md-start">
+    <div class="mb-3">
         <!-- Status tabs -->
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-sm btn-outline-secondary"
-                    onclick="filterStatus('all', this)"
-                    th:text="#{dashboard.filter.all}">Всі</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary active"
-                    onclick="filterStatus('OK', this)"
-                    th:text="#{dashboard.filter.ok}">В наявності</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary"
-                    onclick="filterStatus('attention', this)"
-                    th:text="#{dashboard.filter.attention}">Потребують уваги</button>
+        <div class="d-flex mb-2 justify-content-center justify-content-md-start">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        onclick="filterStatus('all', this)"
+                        th:text="#{dashboard.filter.all}">Всі</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary active"
+                        onclick="filterStatus('OK', this)"
+                        th:text="#{dashboard.filter.ok}">В наявності</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        onclick="filterStatus('attention', this)"
+                        th:text="#{dashboard.filter.attention}">Потребують уваги</button>
+            </div>
         </div>
 
-        <!-- Category filter -->
-        <select class="form-select form-select-sm w-100 w-sm-auto" onchange="filterCategory(this.value)">
-            <option value="" th:text="#{dashboard.filter.allCategories}">Всі категорії</option>
-            <option th:each="cat : ${categories}"
-                    th:value="${cat}"
-                    th:text="${cat}">
-            </option>
-        </select>
+        <!-- Category, Brand, Search -->
+        <div class="d-flex flex-column flex-md-row gap-2">
+            <select id="categorySelect" class="form-select form-select-sm" onchange="filterCategory(this.value)">
+                <option value="" th:text="#{dashboard.filter.allCategories}">Всі категорії</option>
+                <option th:each="cat : ${categories}"
+                        th:value="${cat}"
+                        th:text="${cat}">
+                </option>
+            </select>
 
-        <!-- Search -->
-        <div class="w-100 mt-1">
-            <div class="input-group input-group-sm">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control"
-                       th:placeholder="#{dashboard.filter.search}"
-                       oninput="filterSearch(this.value)"/>
+            <select id="brandSelect" class="form-select form-select-sm" onchange="filterBrand(this.value)">
+                <option value="" th:text="#{dashboard.filter.allBrands}">Всі бренди</option>
+                <option th:each="br : ${brands}"
+                        th:value="${br}"
+                        th:text="${br}">
+                </option>
+            </select>
+
+            <div class="flex-grow-1">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control"
+                           th:placeholder="#{dashboard.filter.search}"
+                           oninput="filterSearch(this.value)"/>
+                </div>
             </div>
         </div>
     </div>
@@ -96,8 +110,10 @@
                 </thead>
                 <tbody>
                 <tr th:each="row : ${rows}"
-                    th:attr="data-status=${row.status.name()},data-category=${row.categoryName},data-name=${row.productName}"
-                    th:classappend="${row.status.name() == 'OUT'} ? 'table-danger' : (${row.status.name() == 'LOW'} ? 'table-warning' : '')">
+                    th:attr="data-status=${row.status.name()},data-category=${row.categoryName},data-name=${row.productName},data-brand=${row.brand}"
+                    th:classappend="${row.status.name() == 'OUT'} ? 'table-danger' : (${row.status.name() == 'LOW'} ? 'table-warning' : '')"
+                    th:onclick="|window.location='@{/products/{id}(id=${row.productId})}'|"
+                    style="cursor:pointer">
                     <td class="fw-semibold">
                         <span th:text="${row.productName}"></span>
                         <small th:if="${!#strings.isEmpty(row.description)}"
@@ -119,7 +135,7 @@
                               class="badge bg-danger px-2 py-1 rounded-pill"
                               th:text="#{dashboard.status.out}">Немає</span>
                     </td>
-                    <td>
+                    <td onclick="event.stopPropagation()">
                         <div class="d-flex gap-1">
                             <a th:href="@{/movements/income(productId=${row.productId})}"
                                class="btn btn-sm btn-outline-success"
@@ -153,11 +169,18 @@
         </div>
     </div>
 
+    <style>
+        .filter-active {
+            border: 2px solid var(--accent) !important;
+        }
+    </style>
+
     <script>
         // Read initial filter from URL
         const urlParams = new URLSearchParams(window.location.search);
         let activeStatus = urlParams.get('status') || 'OK';
         let activeCategory = urlParams.get('category') || '';
+        let activeBrand = urlParams.get('brand') || '';
         let activeSearch = '';
 
         // Set initial button state
@@ -172,16 +195,18 @@
             rows.forEach(row => {
                 const status = row.dataset.status;
                 const category = row.dataset.category || '';
+                const brand = row.dataset.brand || '';
                 const name = row.dataset.name || '';
 
                 const statusMatch = activeStatus === 'all'
                     || (activeStatus === 'attention' && (status === 'LOW' || status === 'OUT'))
-                    || status === activeStatus;
+                    || (activeStatus === 'OK' && (status === 'OK' || status === 'LOW'));
 
                 const categoryMatch = activeCategory === '' || category === activeCategory;
+                const brandMatch = activeBrand === '' || brand === activeBrand;
                 const searchMatch = activeSearch === '' || name.toLowerCase().includes(activeSearch.toLowerCase());
 
-                row.style.display = (statusMatch && categoryMatch && searchMatch) ? '' : 'none';
+                row.style.display = (statusMatch && categoryMatch && brandMatch && searchMatch) ? '' : 'none';
             });
         }
 
@@ -190,6 +215,8 @@
             params.set('status', activeStatus);
             if (activeCategory) params.set('category', activeCategory);
             else params.delete('category');
+            if (activeBrand) params.set('brand', activeBrand);
+            else params.delete('brand');
             const newUrl = window.location.pathname + '?' + params.toString();
             window.history.replaceState({}, '', newUrl);
         }
@@ -202,10 +229,25 @@
             applyFilters();
         }
 
+        function updateFilterActive() {
+            var catSelect = document.getElementById('categorySelect');
+            var brandSelect = document.getElementById('brandSelect');
+            if (catSelect) catSelect.classList.toggle('filter-active', catSelect.value !== '');
+            if (brandSelect) brandSelect.classList.toggle('filter-active', brandSelect.value !== '');
+        }
+
         function filterCategory(value) {
             activeCategory = value;
             updateUrl();
             applyFilters();
+            updateFilterActive();
+        }
+
+        function filterBrand(value) {
+            activeBrand = value;
+            updateUrl();
+            applyFilters();
+            updateFilterActive();
         }
 
         function filterSearch(value) {
@@ -214,9 +256,14 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Set category select value from URL
-            const catSelect = document.querySelector('select[onchange="filterCategory(this.value)"]');
+            // Restore select values from URL params
+            const catSelect = document.getElementById('categorySelect');
             if (catSelect && activeCategory) catSelect.value = activeCategory;
+
+            const brandSelect = document.getElementById('brandSelect');
+            if (brandSelect && activeBrand) brandSelect.value = activeBrand;
+
+            updateFilterActive();
 
             applyFilters();
             if (!('ontouchstart' in window)) {

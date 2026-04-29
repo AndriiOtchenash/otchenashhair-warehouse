@@ -31,12 +31,22 @@
                             <option th:each="p : ${products}"
                                     th:value="${p.id}"
                                     th:text="${p.name}"
-                                    th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit}">
+                                    th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity}">
                             </option>
                         </select>
                         <input th:if="${dto.productId != null}" type="hidden" name="productId" th:value="${dto.productId}"/>
                         <div id="stockHint" class="form-text text-muted mt-1"></div>
                         <div class="invalid-feedback" th:errors="*{productId}"></div>
+                        <div th:if="${dto.productId == null}">
+                            <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                                <input type="text" id="barcodeInput" class="form-control"
+                                       th:placeholder="#{scan.barcode.placeholder}"
+                                       autocomplete="off"/>
+                            </div>
+                            <div id="barcodeError" class="form-text mt-1" style="display:none"></div>
+                        </div>
                     </div>
 
                     <div class="col-md-3">
@@ -54,9 +64,12 @@
 
                     <div class="col-md-3">
                         <label class="form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
-                        <input type="number" step="0.001" class="form-control"
+                        <input type="number" step="1" class="form-control"
+                               id="quantity"
                                th:field="*{quantity}"
-                               th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"/>
+                               th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"
+                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"
+                               onblur="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"/>
                         <div class="invalid-feedback" th:errors="*{quantity}"></div>
                     </div>
 
@@ -105,13 +118,25 @@
         function updateStockHint(select) {
             const option = select.options[select.selectedIndex];
             const hint = document.getElementById('stockHint');
+            const quantityInput = document.getElementById('quantity');
             if (option && option.dataset.qty) {
                 const qty = option.dataset.qty;
                 const unit = option.dataset.unit;
                 hint.textContent = inStockLabel + ': ' + qty + ' ' + (unitLabels[unit] || unit);
                 hint.className = 'form-text text-success mt-1';
+                if (quantityInput) {
+                    if (option.dataset.rawQty) quantityInput.max = option.dataset.rawQty;
+                    quantityInput.step = unit === 'PCS' ? '1' : '0.001';
+                    if (unit === 'PCS' && quantityInput.value) {
+                        quantityInput.value = Math.floor(parseFloat(quantityInput.value));
+                    }
+                }
             } else {
                 hint.textContent = '';
+                if (quantityInput) {
+                    quantityInput.removeAttribute('max');
+                    quantityInput.step = '1';
+                }
             }
         }
 
@@ -119,6 +144,62 @@
             const select = document.getElementById('productSelect');
             if (select && select.value) updateStockHint(select);
         });
+
+        (function () {
+            var barcodeInput = document.getElementById('barcodeInput');
+            var barcodeError = document.getElementById('barcodeError');
+            var productSelect = document.getElementById('productSelect');
+            var notFoundMsg = /*[[#{scan.notFound.title}]]*/ 'Штрихкод не знайдено';
+            var createNewMsg = /*[[#{scan.notFound.createNew}]]*/ 'Створити новий товар';
+
+            if (!barcodeInput || !productSelect) return;
+
+            var barcodeTimer;
+            barcodeInput.addEventListener('input', function () {
+                clearTimeout(barcodeTimer);
+                var code = this.value.trim();
+                if (code.length < 8) {
+                    barcodeError.style.display = 'none';
+                    return;
+                }
+                barcodeTimer = setTimeout(function () { lookupBarcode(code); }, 600);
+            });
+
+            function showBarcodeNotFound(code) {
+                barcodeError.innerHTML = '';
+                var span = document.createElement('span');
+                span.className = 'text-danger';
+                span.textContent = notFoundMsg + ' ';
+                var a = document.createElement('a');
+                a.href = '/products/new?barcode=' + encodeURIComponent(code) + '&returnTo=expense';
+                a.textContent = createNewMsg + ' \u2192';
+                a.className = 'fw-semibold text-decoration-none';
+                a.style.color = 'var(--accent)';
+                barcodeError.appendChild(span);
+                barcodeError.appendChild(a);
+                barcodeError.style.display = '';
+            }
+
+            function lookupBarcode(code) {
+                fetch('/products/by-barcode?code=' + encodeURIComponent(code))
+                    .then(function (r) {
+                        if (r.ok) {
+                            return r.json().then(function (p) {
+                                productSelect.value = p.id;
+                                barcodeError.style.display = 'none';
+                                productSelect.classList.add('is-valid');
+                                setTimeout(function () { productSelect.classList.remove('is-valid'); }, 1500);
+                                updateStockHint(productSelect);
+                            });
+                        } else {
+                            showBarcodeNotFound(code);
+                        }
+                    })
+                    .catch(function () {
+                        showBarcodeNotFound(code);
+                    });
+            }
+        })();
     </script>
 </div>
 </body>
