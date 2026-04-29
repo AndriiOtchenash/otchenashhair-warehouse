@@ -51,7 +51,11 @@
             <span class="input-group-text"><i class="bi bi-search"></i></span>
             <input type="text" class="form-control"
                    th:placeholder="#{common.search}"
-                   oninput="filterSearch(this.value)"/>
+                   oninput="filterSearch(this.value); toggleClearBtn(this)"/>
+            <button type="button" class="btn btn-outline-secondary d-md-none"
+                    onclick="clearSearch()" tabindex="-1" style="display:none">
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
     </div>
 
@@ -128,6 +132,16 @@
                 const phone = (row.dataset.phone || '').toLowerCase();
                 row.style.display = (!q || name.includes(q) || phone.includes(q)) ? '' : 'none';
             });
+        }
+
+        function toggleClearBtn(input) {
+            var btn = input.nextElementSibling;
+            if (btn) btn.style.display = input.value ? '' : 'none';
+        }
+
+        function clearSearch() {
+            var input = document.querySelector('.input-group input[type="text"]');
+            if (input) { input.value = ''; filterSearch(''); toggleClearBtn(input); }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
