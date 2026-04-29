@@ -227,13 +227,25 @@
             </a>
             <a th:href="@{/movements/income}"
                th:classappend="${currentUri != null and currentUri.startsWith('/movements/income')} ? 'active'"
-               class="nav-link">
+               class="nav-link d-none d-md-flex">
+                <i class="bi bi-arrow-down-circle"></i>
+                <span th:text="#{nav.stock.income}">Прихід</span>
+            </a>
+            <a th:href="@{/scan(mode=income)}"
+               th:classappend="${currentUri != null and currentUri.startsWith('/movements/income')} ? 'active'"
+               class="nav-link d-flex d-md-none">
                 <i class="bi bi-arrow-down-circle"></i>
                 <span th:text="#{nav.stock.income}">Прихід</span>
             </a>
             <a th:href="@{/movements/expense}"
                th:classappend="${currentUri != null and currentUri.startsWith('/movements/expense')} ? 'active'"
-               class="nav-link">
+               class="nav-link d-none d-md-flex">
+                <i class="bi bi-arrow-up-circle"></i>
+                <span th:text="#{nav.stock.expense}">Витрата</span>
+            </a>
+            <a th:href="@{/scan(mode=expense)}"
+               th:classappend="${currentUri != null and currentUri.startsWith('/movements/expense')} ? 'active'"
+               class="nav-link d-flex d-md-none">
                 <i class="bi bi-arrow-up-circle"></i>
                 <span th:text="#{nav.stock.expense}">Витрата</span>
             </a>
