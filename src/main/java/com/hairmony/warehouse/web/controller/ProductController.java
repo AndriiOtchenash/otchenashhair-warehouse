@@ -79,6 +79,12 @@ public class ProductController {
             String path = "income".equals(mode) ? "/movements/income" : "/movements/expense";
             return "redirect:" + path + "?productId=" + saved.getId();
         }
+        if ("income".equals(returnTo)) {
+            return "redirect:/movements/income?productId=" + saved.getId();
+        }
+        if ("expense".equals(returnTo)) {
+            return "redirect:/movements/expense?productId=" + saved.getId();
+        }
         return "redirect:/products";
     }
 

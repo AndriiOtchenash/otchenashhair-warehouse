@@ -27,6 +27,7 @@ public class DashboardController {
                 .stream()
                 .map(c -> c.getName())
                 .toList());
+        model.addAttribute("brands", stockService.getDistinctBrands());
         return "dashboard";
     }
 }

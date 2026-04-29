@@ -6,6 +6,8 @@ import com.hairmony.warehouse.repository.*;
 import com.hairmony.warehouse.web.dto.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,7 @@ public class StockService {
     private final ProductRepository productRepository;
     private final SupplierRepository supplierRepository;
     private final ClientRepository clientRepository;
+    private final MessageSource messageSource;
 
     public void registerIncome(StockIncomeDto dto) {
         Product product = productRepository.findById(dto.getProductId())
@@ -63,7 +66,8 @@ public class StockService {
         // Check total available
         BigDecimal available = stockItemRepository.getTotalQuantityByProductId(dto.getProductId());
         if (available.compareTo(dto.getQuantity()) < 0) {
-            throw new IllegalStateException("Insufficient stock. Available: " + available);
+            throw new IllegalStateException(messageSource.getMessage(
+                    "stock.expense.insufficientStock", new Object[]{available}, LocaleContextHolder.getLocale()));
         }
 
         // FIFO deduction
@@ -125,6 +129,19 @@ public class StockService {
     @Transactional(readOnly = true)
     public List<StockMovement> findAllMovements() {
         return stockMovementRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public void updateStockItem(Long id, LocalDate expiryDate, String batchNumber, BigDecimal purchasePrice) {
+        StockItem item = stockItemRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Stock item not found: " + id));
+        item.setExpiryDate(expiryDate);
+        item.setBatchNumber(batchNumber != null && !batchNumber.isBlank() ? batchNumber : null);
+        item.setPurchasePrice(purchasePrice);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getDistinctBrands() {
+        return productRepository.findDistinctBrands();
     }
 
     @Transactional(readOnly = true)
