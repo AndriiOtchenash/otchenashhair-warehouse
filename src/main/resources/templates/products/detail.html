@@ -273,6 +273,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="editStockItemForm" method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
                     <input type="hidden" name="productId" th:value="${product.id}"/>
                     <div class="modal-body">
                         <div class="row g-3">
