@@ -20,15 +20,69 @@ public class ReportService {
     private final StockMovementRepository movementRepository;
     private final StockItemRepository stockItemRepository;
 
+    // Earliest movement date for ALL_TIME preset
+    public LocalDate getEarliestMovementDate() {
+        return movementRepository.findEarliestMovementDate()
+                .map(dt -> dt.toLocalDate())
+                .orElse(LocalDate.now().withDayOfMonth(1));
+    }
+
     // Expiry alerts
     public List<StockItem> getExpiringItems(int days) {
         return stockItemRepository.findExpiringBefore(LocalDate.now().plusDays(days));
     }
 
-    // Top sales by product
+    // Summary KPI banner: revenue, purchases, gross profit, margin%, sales count
+    public Map<String, Object> getReportSummary(LocalDate from, LocalDate to) {
+        List<StockMovement> sales = movementRepository.findSalesBetween(
+                from.atStartOfDay(), to.atTime(23, 59, 59));
+        List<StockMovement> purchases = movementRepository.findPurchasesBetween(
+                from.atStartOfDay(), to.atTime(23, 59, 59));
+
+        BigDecimal totalRevenue = sales.stream()
+                .filter(m -> m.getUnitPrice() != null)
+                .map(m -> m.getQuantity().multiply(m.getUnitPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalCOGS = sales.stream()
+                .filter(m -> m.getStockItem() != null && m.getStockItem().getPurchasePrice() != null)
+                .map(m -> m.getQuantity().multiply(m.getStockItem().getPurchasePrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalPurchases = purchases.stream()
+                .filter(m -> m.getUnitPrice() != null)
+                .map(m -> m.getQuantity().multiply(m.getUnitPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal grossProfit = totalRevenue.subtract(totalCOGS);
+        BigDecimal marginPct = totalRevenue.compareTo(BigDecimal.ZERO) > 0
+                ? grossProfit.divide(totalRevenue, 4, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("totalRevenue", totalRevenue);
+        summary.put("totalPurchases", totalPurchases);
+        summary.put("grossProfit", grossProfit);
+        summary.put("marginPct", marginPct);
+        summary.put("salesCount", sales.size());
+        return summary;
+    }
+
+    // Current stock value snapshot
+    public BigDecimal getStockValue() {
+        return stockItemRepository.getTotalStockValue();
+    }
+
+    // Top sales by product, with salesCount and share %
     public List<Map<String, Object>> getTopSales(LocalDate from, LocalDate to) {
         List<StockMovement> sales = movementRepository.findSalesBetween(
                 from.atStartOfDay(), to.atTime(23, 59, 59));
+
+        BigDecimal grandTotal = sales.stream()
+                .filter(m -> m.getUnitPrice() != null)
+                .map(m -> m.getQuantity().multiply(m.getUnitPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return sales.stream()
                 .collect(Collectors.groupingBy(m -> m.getProduct().getId()))
@@ -43,16 +97,89 @@ public class ReportService {
                             .filter(m -> m.getUnitPrice() != null)
                             .map(m -> m.getQuantity().multiply(m.getUnitPrice()))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal sharePct = grandTotal.compareTo(BigDecimal.ZERO) > 0
+                            ? totalRevenue.divide(grandTotal, 4, RoundingMode.HALF_UP)
+                                    .multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("productName", first.getProduct().getName());
                     row.put("unit", first.getProduct().getUnit().name());
                     row.put("totalQty", totalQty);
                     row.put("totalRevenue", totalRevenue);
                     row.put("salesCount", group.size());
+                    row.put("sharePct", sharePct);
                     return row;
                 })
                 .sorted((a, b) -> ((BigDecimal) b.get("totalRevenue"))
                         .compareTo((BigDecimal) a.get("totalRevenue")))
+                .toList();
+    }
+
+    // Write-offs summary: by product + total estimated loss
+    public Map<String, Object> getWriteOffsSummary(LocalDate from, LocalDate to) {
+        List<StockMovement> writeOffs = movementRepository.findWriteOffsBetween(
+                from.atStartOfDay(), to.atTime(23, 59, 59));
+
+        BigDecimal totalLoss = writeOffs.stream()
+                .filter(m -> m.getStockItem() != null && m.getStockItem().getPurchasePrice() != null)
+                .map(m -> m.getQuantity().multiply(m.getStockItem().getPurchasePrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        List<Map<String, Object>> byProduct = writeOffs.stream()
+                .collect(Collectors.groupingBy(m -> m.getProduct().getId()))
+                .entrySet().stream()
+                .map(e -> {
+                    List<StockMovement> group = e.getValue();
+                    StockMovement first = group.get(0);
+                    BigDecimal totalQty = group.stream()
+                            .map(StockMovement::getQuantity)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal loss = group.stream()
+                            .filter(m -> m.getStockItem() != null && m.getStockItem().getPurchasePrice() != null)
+                            .map(m -> m.getQuantity().multiply(m.getStockItem().getPurchasePrice()))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("productName", first.getProduct().getName());
+                    row.put("unit", first.getProduct().getUnit().name());
+                    row.put("totalQty", totalQty);
+                    row.put("loss", loss);
+                    row.put("count", group.size());
+                    return row;
+                })
+                .sorted((a, b) -> ((BigDecimal) b.get("totalQty")).compareTo((BigDecimal) a.get("totalQty")))
+                .toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("byProduct", byProduct);
+        result.put("totalLoss", totalLoss);
+        result.put("count", writeOffs.size());
+        return result;
+    }
+
+    // Top clients by total spent in period
+    public List<Map<String, Object>> getTopClients(LocalDate from, LocalDate to) {
+        List<StockMovement> sales = movementRepository.findSalesBetween(
+                from.atStartOfDay(), to.atTime(23, 59, 59));
+
+        return sales.stream()
+                .filter(m -> m.getClient() != null)
+                .collect(Collectors.groupingBy(m -> m.getClient().getId()))
+                .entrySet().stream()
+                .map(e -> {
+                    List<StockMovement> group = e.getValue();
+                    StockMovement first = group.get(0);
+                    BigDecimal totalSpent = group.stream()
+                            .filter(m -> m.getUnitPrice() != null)
+                            .map(m -> m.getQuantity().multiply(m.getUnitPrice()))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("clientName", first.getClient().getName());
+                    row.put("clientId", first.getClient().getId());
+                    row.put("salesCount", group.size());
+                    row.put("totalSpent", totalSpent);
+                    return row;
+                })
+                .sorted((a, b) -> ((BigDecimal) b.get("totalSpent")).compareTo((BigDecimal) a.get("totalSpent")))
                 .toList();
     }
 

@@ -8,7 +8,8 @@
             th:text="${client.id == null} ? #{client.form.title.new} : #{client.form.title.edit}">Клієнт</h1>
         <a th:href="${returnTo == 'expense'} ? @{/movements/expense} :
                    (${returnTo == 'history'} ? @{/movements/history} :
-                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients}))"
+                   (${returnTo == 'detail' and client.id != null} ? @{/clients/{id}(id=${client.id})} :
+                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients})))"
            class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>
             <span th:text="#{btn.back}">Назад</span>
@@ -43,7 +44,8 @@
                         </button>
                         <a th:href="${returnTo == 'expense'} ? @{/movements/expense} :
                                    (${returnTo == 'history'} ? @{/movements/history} :
-                                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients}))"
+                                   (${returnTo == 'detail' and client.id != null} ? @{/clients/{id}(id=${client.id})} :
+                                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients})))"
                            class="btn btn-outline-secondary"
                            th:text="#{btn.cancel}">Скасувати</a>
                     </div>

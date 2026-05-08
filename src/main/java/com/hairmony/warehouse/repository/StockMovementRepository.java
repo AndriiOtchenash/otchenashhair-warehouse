@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long>,
@@ -32,4 +33,10 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     @Query("SELECT m FROM StockMovement m WHERE m.movementType = 'PURCHASE' AND m.createdAt >= :from AND m.createdAt <= :to ORDER BY m.createdAt DESC")
     List<StockMovement> findPurchasesBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT m FROM StockMovement m WHERE m.movementType = 'WRITE_OFF' AND m.createdAt >= :from AND m.createdAt <= :to ORDER BY m.createdAt DESC")
+    List<StockMovement> findWriteOffsBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT MIN(m.createdAt) FROM StockMovement m")
+    Optional<LocalDateTime> findEarliestMovementDate();
 }

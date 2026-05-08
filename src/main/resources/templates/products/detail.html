@@ -133,7 +133,7 @@
                 <div class="card-header" th:text="#{product.detail.history}">Історія операцій</div>
                 <div th:unless="${movements.empty}" class="d-flex gap-2 align-items-center p-2 border-bottom flex-wrap">
                     <select class="form-select form-select-sm w-auto" onchange="applyHistoryFilters()">
-                        <option value="">— Всі типи —</option>
+                        <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
                         <option value="PURCHASE" th:text="#{movementType.PURCHASE}">Purchase</option>
                         <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
                         <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>

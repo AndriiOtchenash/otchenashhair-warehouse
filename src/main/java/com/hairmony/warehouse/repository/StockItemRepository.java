@@ -28,4 +28,7 @@ public interface StockItemRepository extends JpaRepository<StockItem, Long> {
 
     @Query("SELECT si FROM StockItem si WHERE si.expiryDate IS NOT NULL AND si.quantity > 0 AND si.expiryDate <= :date ORDER BY si.expiryDate ASC")
     List<StockItem> findExpiringBefore(@Param("date") LocalDate date);
+
+    @Query("SELECT COALESCE(SUM(si.quantity * si.purchasePrice), 0) FROM StockItem si WHERE si.quantity > 0 AND si.purchasePrice IS NOT NULL")
+    java.math.BigDecimal getTotalStockValue();
 }

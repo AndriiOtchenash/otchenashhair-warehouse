@@ -51,6 +51,10 @@
                        th:classappend="${period.preset == 'LAST_MONTH'} ? 'active'"
                        class="btn btn-outline-secondary"
                        th:text="#{report.lastMonth}">Минулий місяць</a>
+                    <a th:href="@{/reports(preset='ALL_TIME',expiryDays=${expiryDays})}"
+                       th:classappend="${period.preset == 'ALL_TIME'} ? 'active'"
+                       class="btn btn-outline-secondary"
+                       th:text="#{report.allTime}">Весь час</a>
                 </div>
                 <input type="hidden" name="preset" value="CUSTOM"/>
                 <input type="hidden" name="expiryDays" th:value="${expiryDays}"/>
@@ -66,10 +70,60 @@
         </div>
     </div>
 
-    <!-- Row 1: Margin — left aligned, 50% width -->
+    <!-- Summary KPI banner -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1" th:text="#{report.summary.revenue}">Виручка</div>
+                    <div class="fs-5 fw-bold"
+                         th:text="${#numbers.formatDecimal(reportSummary.totalRevenue, 1, 2)} + ' zł'"></div>
+                    <div class="text-muted small mt-1">
+                        <span th:text="#{report.summary.salesCount}">продажів</span>:
+                        <strong th:text="${reportSummary.salesCount}"></strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1" th:text="#{report.summary.purchases}">Закупки</div>
+                    <div class="fs-5 fw-bold"
+                         th:text="${#numbers.formatDecimal(reportSummary.totalPurchases, 1, 2)} + ' zł'"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1" th:text="#{report.summary.grossProfit}">Валовий прибуток</div>
+                    <div class="fs-5 fw-bold"
+                         th:classappend="${reportSummary.grossProfit.signum() >= 0} ? 'text-success' : 'text-danger'"
+                         th:text="${#numbers.formatDecimal(reportSummary.grossProfit, 1, 2)} + ' zł'"></div>
+                    <div class="text-muted small mt-1">
+                        <span th:text="${reportSummary.marginPct} + '%'"></span>
+                        <span th:text="#{report.summary.margin}">маржа</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1" th:text="#{report.stockValue.title}">Вартість складу</div>
+                    <div class="fs-5 fw-bold"
+                         th:text="${#numbers.formatDecimal(stockValue, 1, 2)} + ' zł'"></div>
+                    <div class="text-muted small mt-1" th:text="#{report.stockValue.hint}">(поточний знімок)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row: Margin + Write-offs -->
     <div class="row g-3 mb-3">
         <div class="col-12 col-lg-6">
-            <div class="card">
+            <div class="card h-100">
                 <div class="card-header fw-semibold text-center" th:text="#{report.margin.title}">Маржинальність</div>
                 <div class="card-body p-0">
                     <div th:if="${marginAnalysis.empty}" class="text-center text-muted py-4">
@@ -101,10 +155,48 @@
                 </div>
             </div>
         </div>
+
+        <!-- Write-offs -->
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                    <span class="mx-auto" th:text="#{report.writeOffs.title}">Списання за період</span>
+                    <span th:if="${writeOffsSummary.count > 0}" class="text-muted small fw-normal">
+                        <span th:text="#{report.writeOffs.total}">Втрати:</span>
+                        <strong class="ms-1 text-dark"
+                                th:text="${#numbers.formatDecimal(writeOffsSummary.totalLoss, 1, 2)} + ' zł'"></strong>
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${writeOffsSummary.count == 0}" class="text-center text-muted py-4">
+                        <span th:text="#{report.noData}">Немає даних за період</span>
+                    </div>
+                    <table th:unless="${writeOffsSummary.count == 0}" class="table table-hover mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th class="text-center" th:text="#{product.form.name}">Товар</th>
+                            <th class="text-center" th:text="#{stock.form.quantity}">К-сть</th>
+                            <th class="text-center" th:text="#{report.writeOffs.ops}">Операцій</th>
+                            <th class="text-center">Втрати, zł</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="row : ${writeOffsSummary.byProduct}">
+                            <td class="text-center fw-semibold" th:text="${row.productName}"></td>
+                            <td class="text-center" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
+                            <td class="text-center" th:text="${row.count}"></td>
+                            <td class="text-center text-danger"
+                                th:text="${row.loss != null and row.loss.signum() > 0 ? #numbers.formatDecimal(row.loss, 1, 2) : '—'}"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Row 2: Purchases + Sales side by side -->
-    <div class="row g-3">
+    <!-- Row: Purchases + Top Sales -->
+    <div class="row g-3 mb-3">
         <!-- Purchases -->
         <div class="col-12 col-lg-6">
             <div class="card h-100">
@@ -157,14 +249,18 @@
                         <tr>
                             <th class="text-center" th:text="#{product.form.name}">Товар</th>
                             <th class="text-center" th:text="#{stock.form.quantity}">К-сть</th>
+                            <th class="text-center" th:text="#{report.sales.count}">Продажів</th>
                             <th class="text-center">Сума, zł</th>
+                            <th class="text-center" th:text="#{report.sales.share}">Частка</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="row : ${topSales}">
                             <td class="text-center fw-semibold" th:text="${row.productName}"></td>
                             <td class="text-center" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
+                            <td class="text-center" th:text="${row.salesCount}"></td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.totalRevenue, 1, 2)}"></td>
+                            <td class="text-center text-muted small" th:text="${row.sharePct} + '%'"></td>
                         </tr>
                         </tbody>
                     </table>
@@ -173,13 +269,38 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-                new bootstrap.Tooltip(el);
-            });
-        });
-    </script>
+    <!-- Row: Top Clients -->
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header fw-semibold text-center" th:text="#{report.clients.title}">Топ клієнтів за період</div>
+                <div class="card-body p-0">
+                    <div th:if="${topClients.empty}" class="text-center text-muted py-4">
+                        <span th:text="#{report.noData}">Немає даних за період</span>
+                    </div>
+                    <table th:unless="${topClients.empty}" class="table table-hover mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th class="text-center" th:text="#{client.form.name}">Клієнт</th>
+                            <th class="text-center" th:text="#{report.sales.count}">Продажів</th>
+                            <th class="text-center">Сума, zł</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="row : ${topClients}"
+                            th:onclick="'window.location.href=/clients/' + ${row.clientId}"
+                            style="cursor:pointer">
+                            <td class="text-center fw-semibold" th:text="${row.clientName}"></td>
+                            <td class="text-center" th:text="${row.salesCount}"></td>
+                            <td class="text-center" th:text="${#numbers.formatDecimal(row.totalSpent, 1, 2)}"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 </body>
 </html>
