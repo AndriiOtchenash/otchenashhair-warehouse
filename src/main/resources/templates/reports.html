@@ -27,7 +27,7 @@
                 <span th:unless="${expiringItems.empty}" class="text-warning">
                     <i class="bi bi-exclamation-triangle-fill me-1"></i>
                     <span th:each="item, i : ${expiringItems}">
-                        <a th:href="@{/products/{id}(id=${item.product.id})}"
+                        <a th:href="@{/products/{id}(id=${item.product.id},from='reports')}"
                            th:text="${item.product.name}"
                            class="fw-semibold text-decoration-none"></a>
                         (<span th:text="${#temporals.format(item.expiryDate, 'dd.MM.yyyy')}"></span>)<span th:unless="${i.last}">, </span>
@@ -41,7 +41,7 @@
     <div class="card mb-3">
         <div class="card-header fw-semibold text-center" th:text="#{report.period.title}">Період</div>
         <div class="card-body">
-            <form th:action="@{/reports}" method="get" class="d-flex flex-wrap gap-2 align-items-center justify-content-center">
+            <div class="d-flex flex-column align-items-center gap-2">
                 <div class="btn-group btn-group-sm">
                     <a th:href="@{/reports(preset='THIS_MONTH',expiryDays=${expiryDays})}"
                        th:classappend="${period.preset == 'THIS_MONTH'} ? 'active'"
@@ -56,21 +56,34 @@
                        class="btn btn-outline-secondary"
                        th:text="#{report.allTime}">Весь час</a>
                 </div>
-                <input type="hidden" name="preset" value="CUSTOM"/>
-                <input type="hidden" name="expiryDays" th:value="${expiryDays}"/>
-                <input type="date" class="form-control form-control-sm w-auto"
-                       name="from" lang="uk"
-                       th:value="${#temporals.format(period.from, 'yyyy-MM-dd')}"/>
-                <input type="date" class="form-control form-control-sm w-auto"
-                       name="to" lang="uk"
-                       th:value="${#temporals.format(period.to, 'yyyy-MM-dd')}"/>
-                <button type="submit" class="btn btn-primary btn-sm"
-                        th:text="#{report.apply}">Застосувати</button>
-            </form>
+                <form th:action="@{/reports}" method="get"
+                      class="d-flex gap-2 align-items-center w-100" style="max-width:480px">
+                    <input type="hidden" name="preset" value="CUSTOM"/>
+                    <input type="hidden" name="expiryDays" th:value="${expiryDays}"/>
+                    <input type="date" class="form-control form-control-sm"
+                           style="flex: 0.85 1 0; min-width: 0;"
+                           name="from"
+                           th:value="${#temporals.format(period.from, 'yyyy-MM-dd')}"/>
+                    <input type="date" class="form-control form-control-sm"
+                           style="flex: 0.85 1 0; min-width: 0;"
+                           name="to"
+                           th:value="${#temporals.format(period.to, 'yyyy-MM-dd')}"/>
+                    <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"
+                            th:text="#{report.apply}">Застосувати</button>
+                </form>
+            </div>
         </div>
     </div>
 
     <!-- Summary KPI banner -->
+    <div class="text-center text-muted small mb-2">
+        <i class="bi bi-calendar3 me-1"></i>
+        <span th:if="${period.preset == 'THIS_MONTH'}" th:text="#{report.thisMonth}"></span>
+        <span th:if="${period.preset == 'LAST_MONTH'}" th:text="#{report.lastMonth}"></span>
+        <span th:if="${period.preset == 'ALL_TIME'}" th:text="#{report.allTime}"></span>
+        <span th:if="${period.preset == 'CUSTOM'}"
+              th:text="${#temporals.format(period.from, 'dd.MM.yyyy')} + ' – ' + ${#temporals.format(period.to, 'dd.MM.yyyy')}"></span>
+    </div>
     <div class="row g-3 mb-3">
         <div class="col-6 col-md-3">
             <div class="card text-center h-100">
@@ -140,7 +153,11 @@
                         </thead>
                         <tbody>
                         <tr th:each="row : ${marginAnalysis}">
-                            <td class="text-center fw-semibold" th:text="${row.productName}"></td>
+                            <td class="text-center">
+                                <a th:href="@{/products/{id}(id=${row.productId},from='reports')}"
+                                   th:text="${row.productName}"
+                                   class="fw-semibold text-decoration-none text-dark"></a>
+                            </td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.avgPurchasePrice, 1, 2)}"></td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.avgSalePrice, 1, 2)}"></td>
                             <td class="text-center">
@@ -182,7 +199,11 @@
                         </thead>
                         <tbody>
                         <tr th:each="row : ${writeOffsSummary.byProduct}">
-                            <td class="text-center fw-semibold" th:text="${row.productName}"></td>
+                            <td class="text-center">
+                                <a th:href="@{/products/{id}(id=${row.productId},from='reports')}"
+                                   th:text="${row.productName}"
+                                   class="fw-semibold text-decoration-none text-dark"></a>
+                            </td>
                             <td class="text-center" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
                             <td class="text-center" th:text="${row.count}"></td>
                             <td class="text-center text-danger"
@@ -225,7 +246,11 @@
                             </thead>
                             <tbody>
                             <tr th:each="row : ${purchasesSummary[0].bySupplier}">
-                                <td class="text-center" th:text="${row.supplierName}"></td>
+                                <td class="text-center">
+                                    <a th:href="@{/suppliers/{id}(id=${row.supplierId},from='reports')}"
+                                       th:text="${row.supplierName}"
+                                       class="fw-semibold text-decoration-none text-dark"></a>
+                                </td>
                                 <td class="text-center" th:text="${row.count}"></td>
                                 <td class="text-center" th:text="${#numbers.formatDecimal(row.total, 1, 2)}"></td>
                             </tr>
@@ -256,7 +281,11 @@
                         </thead>
                         <tbody>
                         <tr th:each="row : ${topSales}">
-                            <td class="text-center fw-semibold" th:text="${row.productName}"></td>
+                            <td class="text-center">
+                                <a th:href="@{/products/{id}(id=${row.productId},from='reports')}"
+                                   th:text="${row.productName}"
+                                   class="fw-semibold text-decoration-none text-dark"></a>
+                            </td>
                             <td class="text-center" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
                             <td class="text-center" th:text="${row.salesCount}"></td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.totalRevenue, 1, 2)}"></td>
@@ -287,10 +316,12 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="row : ${topClients}"
-                            th:onclick="'window.location.href=/clients/' + ${row.clientId}"
-                            style="cursor:pointer">
-                            <td class="text-center fw-semibold" th:text="${row.clientName}"></td>
+                        <tr th:each="row : ${topClients}">
+                            <td class="text-center">
+                                <a th:href="@{/clients/{id}(id=${row.clientId},from='reports')}"
+                                   th:text="${row.clientName}"
+                                   class="fw-semibold text-decoration-none text-dark"></a>
+                            </td>
                             <td class="text-center" th:text="${row.salesCount}"></td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.totalSpent, 1, 2)}"></td>
                         </tr>

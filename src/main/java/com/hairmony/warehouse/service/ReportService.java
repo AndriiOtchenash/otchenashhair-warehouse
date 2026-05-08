@@ -102,6 +102,7 @@ public class ReportService {
                                     .multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP)
                             : BigDecimal.ZERO;
                     Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("productId", first.getProduct().getId());
                     row.put("productName", first.getProduct().getName());
                     row.put("unit", first.getProduct().getUnit().name());
                     row.put("totalQty", totalQty);
@@ -139,6 +140,7 @@ public class ReportService {
                             .map(m -> m.getQuantity().multiply(m.getStockItem().getPurchasePrice()))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("productId", first.getProduct().getId());
                     row.put("productName", first.getProduct().getName());
                     row.put("unit", first.getProduct().getUnit().name());
                     row.put("totalQty", totalQty);
@@ -195,17 +197,20 @@ public class ReportService {
 
         List<Map<String, Object>> bySupplier = purchases.stream()
                 .filter(m -> m.getSupplier() != null)
-                .collect(Collectors.groupingBy(m -> m.getSupplier().getName()))
+                .collect(Collectors.groupingBy(m -> m.getSupplier().getId()))
                 .entrySet().stream()
                 .map(e -> {
-                    BigDecimal supplierTotal = e.getValue().stream()
+                    List<StockMovement> group = e.getValue();
+                    StockMovement first = group.get(0);
+                    BigDecimal supplierTotal = group.stream()
                             .filter(m -> m.getUnitPrice() != null)
                             .map(m -> m.getQuantity().multiply(m.getUnitPrice()))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("supplierName", e.getKey());
+                    row.put("supplierId", first.getSupplier().getId());
+                    row.put("supplierName", first.getSupplier().getName());
                     row.put("total", supplierTotal);
-                    row.put("count", e.getValue().size());
+                    row.put("count", group.size());
                     return row;
                 })
                 .sorted((a, b) -> ((BigDecimal) b.get("total")).compareTo((BigDecimal) a.get("total")))
@@ -245,6 +250,7 @@ public class ReportService {
                                     .multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP)
                             : BigDecimal.ZERO;
                     Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("productId", first.getProduct().getId());
                     row.put("productName", first.getProduct().getName());
                     row.put("avgPurchasePrice", avgPurchasePrice);
                     row.put("avgSalePrice", avgSalePrice);
