@@ -39,7 +39,10 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    public String detail(@PathVariable Long id, Model model) {
+    public String detail(@PathVariable Long id, Model model,
+                         @RequestParam(required = false) String from,
+                         @RequestParam(required = false) Long clientId,
+                         @RequestParam(required = false) Long supplierId) {
         ProductDto product = productService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         List<StockMovement> movements = stockService.getMovementsByProduct(id);
@@ -51,6 +54,9 @@ public class ProductController {
         model.addAttribute("cancelledMovementIds", cancelledIds);
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("totalQuantity", stockService.getAvailableQuantity(id));
+        if (from != null) model.addAttribute("from", from);
+        if (clientId != null) model.addAttribute("clientId", clientId);
+        if (supplierId != null) model.addAttribute("supplierId", supplierId);
         return "products/detail";
     }
 
@@ -129,13 +135,15 @@ public class ProductController {
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
+    public String editForm(@PathVariable Long id, Model model,
+                           @RequestParam(required = false) String returnTo) {
         ProductDto product = productService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         model.addAttribute("product", product);
         model.addAttribute("categories", categoryService.findAll());
         model.addAttribute("units", Unit.values());
         model.addAttribute("existingBrands", productService.findAllBrands());
+        if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "products/form";
     }
 
@@ -143,14 +151,17 @@ public class ProductController {
     public String update(@PathVariable Long id,
                          @Valid @ModelAttribute("product") ProductDto dto,
                          BindingResult result,
-                         Model model) {
+                         Model model,
+                         @RequestParam(required = false) String returnTo) {
         if (result.hasErrors()) {
             model.addAttribute("categories", categoryService.findAll());
             model.addAttribute("units", Unit.values());
             model.addAttribute("existingBrands", productService.findAllBrands());
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "products/form";
         }
         productService.update(id, dto);
+        if ("detail".equals(returnTo)) return "redirect:/products/" + id;
         return "redirect:/products";
     }
 

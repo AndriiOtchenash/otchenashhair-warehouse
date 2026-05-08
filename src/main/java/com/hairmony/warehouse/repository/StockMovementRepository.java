@@ -15,6 +15,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     List<StockMovement> findAllByOrderByCreatedAtDesc();
     List<StockMovement> findAllByProductIdOrderByCreatedAtDesc(Long productId);
     List<StockMovement> findAllByClientIdOrderByCreatedAtDesc(Long clientId);
+    List<StockMovement> findAllBySupplierIdOrderByCreatedAtDesc(Long supplierId);
     boolean existsByOriginalMovementId(Long originalMovementId);
     boolean existsByClientId(Long clientId);
     boolean existsBySupplierId(Long supplierId);

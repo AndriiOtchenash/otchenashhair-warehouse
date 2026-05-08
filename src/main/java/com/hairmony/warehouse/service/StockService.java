@@ -128,6 +128,11 @@ public class StockService {
     }
 
     @Transactional(readOnly = true)
+    public List<StockMovement> getMovementsBySupplier(Long supplierId) {
+        return stockMovementRepository.findAllBySupplierIdOrderByCreatedAtDesc(supplierId);
+    }
+
+    @Transactional(readOnly = true)
     public List<StockMovement> findAllMovements() {
         return stockMovementRepository.findAllByOrderByCreatedAtDesc();
     }

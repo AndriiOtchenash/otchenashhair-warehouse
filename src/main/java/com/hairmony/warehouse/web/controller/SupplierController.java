@@ -1,5 +1,7 @@
 package com.hairmony.warehouse.web.controller;
 
+import com.hairmony.warehouse.domain.stock.StockMovement;
+import com.hairmony.warehouse.service.StockService;
 import com.hairmony.warehouse.service.SupplierService;
 import com.hairmony.warehouse.web.dto.SupplierDto;
 import jakarta.validation.Valid;
@@ -12,12 +14,17 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/suppliers")
 public class SupplierController {
 
     private final SupplierService supplierService;
+    private final StockService stockService;
     private final MessageSource messageSource;
 
     @GetMapping
@@ -26,6 +33,21 @@ public class SupplierController {
         model.addAttribute("newSupplier", new SupplierDto());
         model.addAttribute("suppliersWithMovements", supplierService.getSupplierIdsWithMovements());
         return "suppliers/list";
+    }
+
+    @GetMapping("/{id}")
+    public String detail(@PathVariable Long id, Model model,
+                         @RequestParam(required = false) String from,
+                         @RequestParam(required = false) Long productId) {
+        List<StockMovement> movements = stockService.getMovementsBySupplier(id);
+        Set<Long> cancelledIds = stockService.getCancelledMovementIds(
+                movements.stream().map(StockMovement::getId).collect(Collectors.toSet()));
+        model.addAttribute("supplier", supplierService.findById(id));
+        model.addAttribute("movements", movements);
+        model.addAttribute("cancelledMovementIds", cancelledIds);
+        if (from != null) model.addAttribute("from", from);
+        if (productId != null) model.addAttribute("productId", productId);
+        return "suppliers/detail";
     }
 
     @GetMapping("/new")
@@ -53,8 +75,10 @@ public class SupplierController {
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
+    public String editForm(@PathVariable Long id, Model model,
+                           @RequestParam(required = false) String returnTo) {
         model.addAttribute("supplier", supplierService.findById(id));
+        if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "suppliers/form";
     }
 
@@ -76,11 +100,13 @@ public class SupplierController {
     @PostMapping("/{id}/edit")
     public String update(@PathVariable Long id,
                          @Valid @ModelAttribute("supplier") SupplierDto dto,
-                         BindingResult result, Model model) {
+                         BindingResult result, Model model,
+                         @RequestParam(required = false) String returnTo) {
         if (result.hasErrors()) {
             return "suppliers/form";
         }
         supplierService.update(id, dto);
+        if ("detail".equals(returnTo)) return "redirect:/suppliers/" + id;
         return "redirect:/suppliers";
     }
 

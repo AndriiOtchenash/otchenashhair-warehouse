@@ -5,22 +5,24 @@ import com.hairmony.warehouse.repository.StockMovementRepository;
 import com.hairmony.warehouse.web.dto.MovementFilterDto;
 import jakarta.persistence.criteria.JoinType;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MovementHistoryService {
 
+    private static final int MAX_RESULTS = 500;
+
     private final StockMovementRepository movementRepository;
 
-    public Page<StockMovement> findFiltered(MovementFilterDto filter) {
+    public List<StockMovement> findFiltered(MovementFilterDto filter) {
         Specification<StockMovement> spec = Specification.where(null);
 
         if (filter.getDateFrom() != null) {
@@ -41,6 +43,12 @@ public class MovementHistoryService {
             spec = spec.and((root, q, cb) ->
                 cb.equal(root.get("product").get("id"), filter.getProductId()));
         }
+        if (filter.getProductName() != null && !filter.getProductName().isBlank()) {
+            spec = spec.and((root, q, cb) -> {
+                String pattern = "%" + filter.getProductName().toLowerCase() + "%";
+                return cb.like(cb.lower(root.get("product").get("name")), pattern);
+            });
+        }
         if (filter.getCounterparty() != null && !filter.getCounterparty().isBlank()) {
             spec = spec.and((root, q, cb) -> {
                 var client = root.join("client", JoinType.LEFT);
@@ -55,10 +63,8 @@ public class MovementHistoryService {
 
         spec = spec.and((root, q, cb) -> { q.distinct(true); return null; });
 
-        Pageable pageable = PageRequest.of(
-            filter.getPage(), filter.getSize(),
-            Sort.by(Sort.Direction.DESC, "createdAt")
-        );
-        return movementRepository.findAll(spec, pageable);
+        return movementRepository.findAll(spec,
+                PageRequest.of(0, MAX_RESULTS, Sort.by(Sort.Direction.DESC, "createdAt")))
+            .getContent();
     }
 }

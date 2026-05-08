@@ -45,14 +45,10 @@
                 </div>
                 <div class="col-6 col-md-auto">
                     <label class="form-label form-label-sm fw-semibold" th:text="#{stock.form.product}">Товар</label>
-                    <select class="form-select form-select-sm" name="productId">
-                        <option value="" th:text="#{movements.filter.allProducts}">Всі товари</option>
-                        <option th:each="p : ${products}"
-                                th:value="${p.id}"
-                                th:text="${p.name}"
-                                th:selected="${filter.productId == p.id}">
-                        </option>
-                    </select>
+                    <input type="text" class="form-control form-control-sm"
+                           name="productName"
+                           th:value="${filter.productName}"
+                           th:placeholder="#{common.search}"/>
                 </div>
                 <div class="col-12 col-md-auto">
                     <label class="form-label form-label-sm fw-semibold" th:text="#{movements.filter.counterparty}">Контрагент</label>
@@ -112,7 +108,7 @@
                              th:text="${#temporals.format(m.createdAt, 'HH:mm')}"></div>
                     </td>
                     <td>
-                        <a th:href="@{/products/{id}(id=${m.product.id})}"
+                        <a th:href="@{/products/{id}(id=${m.product.id},from='history')}"
                            th:text="${m.product.name}"
                            th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted text-decoration-line-through' : 'fw-semibold text-dark'"
                            class="text-decoration-none"></a>
@@ -131,8 +127,14 @@
                     </td>
                     <td th:text="${m.unitPrice != null ? m.unitPrice + ' zł' : '—'}"></td>
                     <td>
-                        <span th:if="${m.supplier != null}" th:text="${m.supplier.name}"></span>
-                        <span th:if="${m.client != null}" th:text="${m.client.name}"></span>
+                        <a th:if="${m.supplier != null}"
+                           th:href="@{/suppliers/{id}(id=${m.supplier.id},from='history')}"
+                           th:text="${m.supplier.name}"
+                           class="text-decoration-none text-dark fw-semibold"></a>
+                        <a th:if="${m.client != null}"
+                           th:href="@{/clients/{id}(id=${m.client.id},from='history')}"
+                           th:text="${m.client.name}"
+                           class="text-decoration-none text-dark fw-semibold"></a>
                         <span th:if="${m.supplier == null and m.client == null}">—</span>
                     </td>
                     <td class="d-none d-md-table-cell"
@@ -249,26 +251,6 @@
         </div>
     </div>
 
-    <!-- Pagination -->
-    <nav th:if="${page.totalPages > 1}" class="mt-3">
-        <ul class="pagination pagination-sm">
-            <li class="page-item" th:classappend="${page.first} ? 'disabled'">
-                <a class="page-link"
-                   th:href="@{/movements/history(page=${page.number - 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productId=${filter.productId},counterparty=${filter.counterparty})}">‹</a>
-            </li>
-            <li class="page-item"
-                th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}"
-                th:classappend="${i == page.number} ? 'active'">
-                <a class="page-link"
-                   th:href="@{/movements/history(page=${i},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productId=${filter.productId},counterparty=${filter.counterparty})}"
-                   th:text="${i + 1}">1</a>
-            </li>
-            <li class="page-item" th:classappend="${page.last} ? 'disabled'">
-                <a class="page-link"
-                   th:href="@{/movements/history(page=${page.number + 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productId=${filter.productId},counterparty=${filter.counterparty})}">›</a>
-            </li>
-        </ul>
-    </nav>
 
     <style>
         .filter-active {
@@ -344,15 +326,14 @@
                 el.addEventListener('blur', function () { form.submit(); });
             });
 
-            // Auto-submit: counterparty text → debounced 500ms
-            var counterpartyInput = form.querySelector('input[name="counterparty"]');
-            if (counterpartyInput) {
-                var counterpartyTimer;
-                counterpartyInput.addEventListener('input', function () {
-                    clearTimeout(counterpartyTimer);
-                    counterpartyTimer = setTimeout(function () { form.submit(); }, 500);
+            // Auto-submit: text inputs → debounced 500ms
+            var debounceTimer;
+            form.querySelectorAll('input[type="text"]').forEach(function (el) {
+                el.addEventListener('input', function () {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(function () { form.submit(); }, 500);
                 });
-            }
+            });
         })();
 
         // Cancel modal: set form action and confirm text when modal opens

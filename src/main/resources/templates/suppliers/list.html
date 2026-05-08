@@ -77,19 +77,18 @@
                         <i class="bi bi-truck fs-1 d-block mb-2"></i>
                         <span th:text="#{supplier.list.empty}">Постачальники не знайдено</span>
                     </div>
-                    <div class="table-responsive-wrapper">
-                    <table th:unless="${suppliers.empty}" class="table table-hover mb-0">
+                    <table th:unless="${suppliers.empty}" class="table table-hover mb-0 table-auto">
                         <thead class="table-light">
                         <tr>
                             <th th:text="#{supplier.form.name}">Назва</th>
-                            <th th:text="#{supplier.form.contactInfo}">Контакт</th>
-                            <th th:text="#{table.actions}">Дії</th>
+                            <th class="d-none d-md-table-cell" th:text="#{supplier.form.contactInfo}">Контакт</th>
+                            <th class="text-end" th:text="#{table.actions}">Дії</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="s : ${suppliers}"
                             th:attr="data-name=${s.name},data-contact=${s.contactInfo ?: ''}"
-                            th:onclick="|window.location='@{/suppliers/{id}/edit(id=${s.id})}'|"
+                            th:onclick="|window.location='@{/suppliers/{id}(id=${s.id})}'|"
                             style="cursor:pointer">
                             <td>
                                 <span class="fw-semibold"
@@ -105,9 +104,9 @@
                                       style="cursor: help; border-bottom: 1px dashed #6c757d;">
                                 </span>
                             </td>
-                            <td th:text="${s.contactInfo}"></td>
-                            <td onclick="event.stopPropagation()">
-                                <div class="d-flex gap-1">
+                            <td class="d-none d-md-table-cell" th:text="${s.contactInfo}"></td>
+                            <td class="text-end" onclick="event.stopPropagation()">
+                                <div class="d-flex gap-1 justify-content-end">
                                     <a th:href="@{/suppliers/{id}/edit(id=${s.id})}"
                                        class="btn btn-sm btn-outline-secondary"
                                        th:title="#{btn.edit}"
@@ -137,7 +136,6 @@
                         </tr>
                         </tbody>
                     </table>
-                    </div>
                 </div>
             </div>
         </div>

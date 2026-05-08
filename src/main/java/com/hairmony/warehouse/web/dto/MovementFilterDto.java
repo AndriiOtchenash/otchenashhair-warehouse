@@ -17,7 +17,6 @@ public class MovementFilterDto {
 
     private MovementType movementType;
     private Long productId;
+    private String productName;
     private String counterparty;
-    private int page = 0;
-    private int size = 20;
 }

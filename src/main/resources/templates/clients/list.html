@@ -72,13 +72,12 @@
                         <i class="bi bi-people fs-1 d-block mb-2"></i>
                         <span th:text="#{client.list.empty}">Клієнти не знайдено</span>
                     </div>
-                    <div class="table-responsive-wrapper">
-                    <table th:unless="${clients.empty}" class="table table-hover mb-0">
+                    <table th:unless="${clients.empty}" class="table table-hover mb-0 table-auto">
                         <thead class="table-light">
                         <tr>
                             <th th:text="#{client.form.name}">Ім'я</th>
-                            <th th:text="#{client.form.phone}">Телефон</th>
-                            <th th:text="#{table.actions}">Дії</th>
+                            <th class="d-none d-md-table-cell" th:text="#{client.form.phone}">Телефон</th>
+                            <th class="text-end" th:text="#{table.actions}">Дії</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -100,9 +99,9 @@
                                    data-bs-placement="right"
                                    style="border-bottom: 1px dashed #6c757d;"></a>
                             </td>
-                            <td th:text="${c.phone ?: '—'}"></td>
-                            <td onclick="event.stopPropagation()">
-                                <div class="d-flex gap-1">
+                            <td class="d-none d-md-table-cell" th:text="${c.phone ?: '—'}"></td>
+                            <td class="text-end" onclick="event.stopPropagation()">
+                                <div class="d-flex gap-1 justify-content-end">
                                     <a th:href="@{/clients/{id}/edit(id=${c.id})}"
                                        class="btn btn-sm btn-outline-secondary"
                                        th:title="#{btn.edit}"
@@ -132,7 +131,6 @@
                         </tr>
                         </tbody>
                     </table>
-                    </div>
                 </div>
             </div>
         </div>
