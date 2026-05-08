@@ -138,21 +138,35 @@
                     <td class="d-none d-md-table-cell"
                         th:text="${m.notes ?: '—'}"></td>
                     <td>
-                        <!-- Show cancel button only for cancellable movements -->
-                        <button th:if="${m.originalMovementId == null
-                                        and m.movementType.name() != 'PURCHASE'
-                                        and !cancelledMovementIds.contains(m.id)}"
-                                type="button"
-                                class="btn btn-sm btn-outline-danger"
-                                th:title="#{movement.cancel.button}"
-                                data-bs-toggle="modal"
-                                data-bs-target="#cancelModal"
-                                th:attr="data-movement-id=${m.id}">
-                            <i class="bi bi-x-circle"></i>
-                        </button>
-                        <span th:if="${cancelledMovementIds.contains(m.id)}"
-                              class="text-muted small" style="font-size:0.7rem"
-                              th:text="#{movement.cancel.badge}">Скасовано</span>
+                        <div class="d-flex gap-1 justify-content-center">
+                            <!-- Edit button: for any non-CANCELLATION, non-cancelled movement -->
+                            <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    th:title="#{movement.edit.button}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editModal"
+                                    th:attr="data-movement-id=${m.id},
+                                             data-movement-type=${m.movementType.name()},
+                                             data-client-id=${m.client != null ? m.client.id : ''},
+                                             data-notes=${m.notes ?: ''}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <!-- Cancel button -->
+                            <button th:if="${m.originalMovementId == null
+                                            and !cancelledMovementIds.contains(m.id)}"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    th:title="#{movement.cancel.button}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#cancelModal"
+                                    th:attr="data-movement-id=${m.id},data-movement-type=${m.movementType.name()}">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                            <span th:if="${cancelledMovementIds.contains(m.id)}"
+                                  class="text-muted small" style="font-size:0.7rem"
+                                  th:text="#{movement.cancel.badge}">Скасовано</span>
+                        </div>
                     </td>
                 </tr>
                 </tbody>
@@ -170,7 +184,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p th:text="#{movement.cancel.confirm}">Ви впевнені, що хочете скасувати цю операцію? Товар буде повернуто на склад.</p>
+                    <p id="cancelConfirmText" th:text="#{movement.cancel.confirm}">Ви впевнені, що хочете скасувати цю операцію? Товар буде повернуто на склад.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"
@@ -181,6 +195,50 @@
                                 th:text="#{movement.cancel.button}">Скасувати</button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit movement modal -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{movement.edit.title}">Редагувати операцію</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editForm" method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                    <div class="modal-body">
+                        <div id="editClientField" class="mb-3">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
+                            <select class="form-select" name="clientId" id="editClientSelect">
+                                <option value="" th:text="#{stock.form.selectClient}">-- Оберіть клієнта --</option>
+                                <option th:each="c : ${clients}"
+                                        th:value="${c.id}"
+                                        th:text="${c.name}">
+                                </option>
+                            </select>
+                            <div class="mt-1">
+                                <span class="text-muted small" th:text="#{common.or}">або</span>
+                                <a id="historyCreateClientLink" href="#"
+                                   class="small fw-semibold text-decoration-none ms-1"
+                                   style="color:var(--accent)"
+                                   th:text="#{client.createNew}">Створити нового клієнта →</a>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
+                            <textarea class="form-control" name="notes" id="editNotes" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"
+                                th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                th:text="#{btn.save}">Зберегти</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -291,14 +349,69 @@
             }
         })();
 
-        // Cancel modal: set form action when modal opens
+        // Cancel modal: set form action and confirm text when modal opens
         var cancelModal = document.getElementById('cancelModal');
         if (cancelModal) {
+            var confirmExpense = /*[[#{movement.cancel.confirm}]]*/ '';
+            var confirmPurchase = /*[[#{movement.cancel.confirm.purchase}]]*/ '';
             cancelModal.addEventListener('show.bs.modal', function (event) {
                 var btn = event.relatedTarget;
                 var movementId = btn.getAttribute('data-movement-id');
+                var movementType = btn.getAttribute('data-movement-type');
                 document.getElementById('cancelForm').action = '/movements/' + movementId + '/cancel';
+                document.getElementById('cancelConfirmText').textContent =
+                    movementType === 'PURCHASE' ? confirmPurchase : confirmExpense;
             });
+        }
+
+        // Edit modal: populate fields when modal opens
+        var editModal = document.getElementById('editModal');
+        if (editModal) {
+            editModal.addEventListener('show.bs.modal', function (event) {
+                var btn = event.relatedTarget;
+                var movementId = btn.getAttribute('data-movement-id');
+                var movementType = btn.getAttribute('data-movement-type');
+                var clientId = btn.getAttribute('data-client-id');
+                var notes = btn.getAttribute('data-notes');
+
+                document.getElementById('editForm').action = '/movements/' + movementId + '/edit';
+                document.getElementById('editNotes').value = notes || '';
+
+                var clientField = document.getElementById('editClientField');
+                var clientSelect = document.getElementById('editClientSelect');
+                if (movementType === 'SALE') {
+                    clientField.style.display = '';
+                    clientSelect.value = clientId || '';
+                    var link = document.getElementById('historyCreateClientLink');
+                    if (link) {
+                        link.href = '/clients/new?returnTo=history'
+                            + (movementId ? '&movementId=' + movementId : '');
+                    }
+                } else {
+                    clientField.style.display = 'none';
+                    clientSelect.value = '';
+                }
+            });
+
+            // Auto-save client after returning from client creation
+            var params = new URLSearchParams(window.location.search);
+            var reopenMovement = params.get('reopenMovement');
+            var newClientId = params.get('newClientId');
+            if (reopenMovement && newClientId) {
+                var triggerBtn = document.querySelector('[data-movement-id="' + reopenMovement + '"][data-bs-target="#editModal"]');
+                if (triggerBtn) {
+                    var form = document.getElementById('editForm');
+                    form.action = '/movements/' + reopenMovement + '/edit';
+                    document.getElementById('editClientSelect').value = newClientId;
+                    document.getElementById('editNotes').value = triggerBtn.getAttribute('data-notes') || '';
+                    form.submit();
+                } else {
+                    var url = new URL(window.location);
+                    url.searchParams.delete('reopenMovement');
+                    url.searchParams.delete('newClientId');
+                    window.history.replaceState({}, '', url);
+                }
+            }
         }
     </script>
 </div>

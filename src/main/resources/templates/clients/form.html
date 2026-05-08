@@ -1,19 +1,26 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/main :: layout(#{client.form.title.edit}, ~{::content})}">
+      th:replace="~{layout/main :: layout(${client.id == null} ? #{client.form.title.new} : #{client.form.title.edit}, ~{::content})}">
 <body>
 <div th:fragment="content">
     <div class="page-header">
-        <h1 class="page-title" th:text="#{client.form.title.edit}">Редагувати клієнта</h1>
-        <a th:href="@{/clients}" class="btn btn-outline-secondary">
+        <h1 class="page-title"
+            th:text="${client.id == null} ? #{client.form.title.new} : #{client.form.title.edit}">Клієнт</h1>
+        <a th:href="${returnTo == 'expense'} ? @{/movements/expense} :
+                   (${returnTo == 'history'} ? @{/movements/history} :
+                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients}))"
+           class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>
             <span th:text="#{btn.back}">Назад</span>
         </a>
     </div>
     <div class="card">
         <div class="card-body">
-            <form th:action="@{/clients/{id}/edit(id=${client.id})}"
+            <form th:action="${client.id == null} ? @{/clients/new} : @{/clients/{id}/edit(id=${client.id})}"
                   th:object="${client}" method="post">
+                <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
+                <input th:if="${productId != null}" type="hidden" name="productId" th:value="${productId}"/>
+                <input th:if="${movementId != null}" type="hidden" name="movementId" th:value="${movementId}"/>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{client.form.name}">Ім'я</label>
@@ -34,7 +41,10 @@
                             <i class="bi bi-check-lg me-1"></i>
                             <span th:text="#{btn.save}">Зберегти</span>
                         </button>
-                        <a th:href="@{/clients}" class="btn btn-outline-secondary"
+                        <a th:href="${returnTo == 'expense'} ? @{/movements/expense} :
+                                   (${returnTo == 'history'} ? @{/movements/history} :
+                                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients}))"
+                           class="btn btn-outline-secondary"
                            th:text="#{btn.cancel}">Скасувати</a>
                     </div>
                 </div>

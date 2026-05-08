@@ -2,6 +2,7 @@ package com.hairmony.warehouse.web.controller;
 
 import com.hairmony.warehouse.domain.stock.MovementType;
 import com.hairmony.warehouse.domain.stock.StockMovement;
+import com.hairmony.warehouse.service.ClientService;
 import com.hairmony.warehouse.service.MovementHistoryService;
 import com.hairmony.warehouse.service.ProductService;
 import com.hairmony.warehouse.service.StockService;
@@ -22,6 +23,7 @@ public class MovementController {
     private final MovementHistoryService movementHistoryService;
     private final ProductService productService;
     private final StockService stockService;
+    private final ClientService clientService;
 
     @GetMapping("/movements/history")
     public String history(MovementFilterDto filter, Model model) {
@@ -40,6 +42,7 @@ public class MovementController {
         model.addAttribute("movementTypes", MovementType.values());
         model.addAttribute("totalElements", page.getTotalElements());
         model.addAttribute("cancelledMovementIds", cancelledIds);
+        model.addAttribute("clients", clientService.findAll());
         return "movements/history";
     }
 }

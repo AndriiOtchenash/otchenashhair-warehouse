@@ -1,7 +1,9 @@
 package com.hairmony.warehouse.web.controller;
 
 import com.hairmony.warehouse.domain.product.Unit;
+import com.hairmony.warehouse.domain.stock.StockMovement;
 import com.hairmony.warehouse.service.CategoryService;
+import com.hairmony.warehouse.service.ClientService;
 import com.hairmony.warehouse.service.ProductService;
 import com.hairmony.warehouse.service.StockService;
 import com.hairmony.warehouse.web.dto.ProductDto;
@@ -16,6 +18,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ public class ProductController {
     private final ProductService productService;
     private final CategoryService categoryService;
     private final StockService stockService;
+    private final ClientService clientService;
 
     @GetMapping
     public String list(@RequestParam(defaultValue = "false") boolean showInactive, Model model) {
@@ -37,9 +42,14 @@ public class ProductController {
     public String detail(@PathVariable Long id, Model model) {
         ProductDto product = productService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
+        List<StockMovement> movements = stockService.getMovementsByProduct(id);
+        Set<Long> cancelledIds = stockService.getCancelledMovementIds(
+                movements.stream().map(StockMovement::getId).collect(Collectors.toSet()));
         model.addAttribute("product", product);
         model.addAttribute("stockItems", stockService.getStockItemsByProduct(id));
-        model.addAttribute("movements", stockService.getMovementsByProduct(id));
+        model.addAttribute("movements", movements);
+        model.addAttribute("cancelledMovementIds", cancelledIds);
+        model.addAttribute("clients", clientService.findAll());
         model.addAttribute("totalQuantity", stockService.getAvailableQuantity(id));
         return "products/detail";
     }

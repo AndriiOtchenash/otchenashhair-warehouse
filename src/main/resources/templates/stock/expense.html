@@ -82,6 +82,13 @@
                                     th:text="${c.name}">
                             </option>
                         </select>
+                        <div class="mt-1">
+                            <span class="text-muted small" th:text="#{common.or}">або</span>
+                            <a th:href="@{/clients/new(returnTo='expense')}"
+                               class="small fw-semibold text-decoration-none ms-1"
+                               style="color:var(--accent)"
+                               th:text="#{client.createNew}">Створити нового клієнта →</a>
+                        </div>
                     </div>
 
                     <div class="col-md-3">
@@ -141,9 +148,24 @@
             }
         }
 
+        const saleNoClientMsg = /*[[#{stock.expense.confirm.noClient}]]*/ 'Продаж без клієнта. Продовжити?';
+
         document.addEventListener('DOMContentLoaded', function() {
             const select = document.getElementById('productSelect');
             if (select && select.value) updateStockHint(select);
+
+            const form = document.querySelector('form[data-autosave-key="expense_form"]');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const type = document.querySelector('[name="movementType"]');
+                    const client = document.querySelector('[name="clientId"]');
+                    if (type && type.value === 'SALE' && client && !client.value) {
+                        if (!confirm(saleNoClientMsg)) {
+                            e.preventDefault();
+                        }
+                    }
+                });
+            }
         });
 
         (function () {
