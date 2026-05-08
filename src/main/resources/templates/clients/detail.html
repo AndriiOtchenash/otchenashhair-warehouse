@@ -16,7 +16,7 @@
                 <i class="bi bi-pencil me-1"></i>
                 <span th:text="#{btn.edit}">Редагувати</span>
             </a>
-            <a th:href="${from == 'history'} ? '/movements/history' : (${from == 'product' and productId != null} ? '/products/' + ${productId} : '/clients')"
+            <a th:href="${from == 'history'} ? '/movements/history' : (${from == 'reports'} ? '/reports' : (${from == 'product' and productId != null} ? '/products/' + ${productId} : '/clients'))"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>
                 <span th:text="#{btn.back}">Назад</span>
