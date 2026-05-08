@@ -71,7 +71,14 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Movement journal (/movements/history) — server-side filtering (JPA Specifications),
   server-side pagination PAGE_SIZE=100 (MovementHistoryService), filters: date range,
   type, product name (text LIKE search), counterparty (text LIKE);
-  auto-submit on change/blur/debounce; search input-group with × clear button;
+  auto-submit: selects/dates → on change, text inputs → debounced 500ms after min 3 chars
+  (empty clears immediately); date inputs use showPicker() onclick for mobile calendar;
+  focus restored after text auto-submit via sessionStorage;
+  × clear buttons on all filter fields (mobile only, d-md-none, server-side th:if when active);
+  "Скинути (N)" button visible only when ≥1 filter active, shows count;
+  active filters highlighted with accent border + background (filter-active CSS);
+  "з фільтром" badge in results count when any filter active;
+  filter-field-inline CSS class: label+input inline on mobile, stacked on desktop;
   pagination controls preserve all filter params; warning banner when totalElements >= 500;
   product name, client name, supplier name are clickable links → detail pages with
   from=history so Back button returns to journal
