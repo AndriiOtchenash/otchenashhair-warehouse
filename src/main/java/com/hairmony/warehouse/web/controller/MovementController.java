@@ -11,7 +11,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -25,17 +26,19 @@ public class MovementController {
 
     @GetMapping("/movements/history")
     public String history(MovementFilterDto filter, Model model) {
-        List<StockMovement> movements = movementHistoryService.findFiltered(filter);
+        Page<StockMovement> page = movementHistoryService.findFiltered(filter);
 
-        Set<Long> ids = movements.stream()
+        Set<Long> ids = page.getContent().stream()
                 .map(StockMovement::getId)
                 .collect(Collectors.toSet());
         Set<Long> cancelledIds = stockService.getCancelledMovementIds(ids);
 
-        model.addAttribute("movements", movements);
+        model.addAttribute("movements", page.getContent());
         model.addAttribute("filter", filter);
         model.addAttribute("movementTypes", MovementType.values());
-        model.addAttribute("totalElements", movements.size());
+        model.addAttribute("totalElements", page.getTotalElements());
+        model.addAttribute("totalPages", page.getTotalPages());
+        model.addAttribute("currentPage", page.getNumber());
         model.addAttribute("cancelledMovementIds", cancelledIds);
         model.addAttribute("clients", clientService.findAll());
         return "movements/history";

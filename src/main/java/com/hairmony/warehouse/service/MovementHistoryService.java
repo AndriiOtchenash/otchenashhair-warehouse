@@ -11,6 +11,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+
 import java.util.List;
 
 @Service
@@ -18,11 +20,11 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class MovementHistoryService {
 
-    private static final int MAX_RESULTS = 500;
+    public static final int PAGE_SIZE = 100;
 
     private final StockMovementRepository movementRepository;
 
-    public List<StockMovement> findFiltered(MovementFilterDto filter) {
+    public Page<StockMovement> findFiltered(MovementFilterDto filter) {
         Specification<StockMovement> spec = Specification.where(null);
 
         if (filter.getDateFrom() != null) {
@@ -64,7 +66,6 @@ public class MovementHistoryService {
         spec = spec.and((root, q, cb) -> { q.distinct(true); return null; });
 
         return movementRepository.findAll(spec,
-                PageRequest.of(0, MAX_RESULTS, Sort.by(Sort.Direction.DESC, "createdAt")))
-            .getContent();
+                PageRequest.of(filter.getPage(), PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 }

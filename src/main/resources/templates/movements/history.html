@@ -17,9 +17,24 @@
     </div>
 
     <!-- Filters -->
-    <form method="get" action="/movements/history" class="card mb-3">
+    <form id="filterForm" method="get" action="/movements/history" class="card mb-3">
         <div class="card-body">
             <div class="row g-2 align-items-end">
+                <div class="col-12">
+                    <div class="input-group input-group-sm" style="max-width:300px;">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="productNameInput"
+                               name="productName"
+                               th:value="${filter.productName}"
+                               th:placeholder="#{common.search}"/>
+                        <button type="button" class="btn btn-outline-secondary d-md-none"
+                                onclick="clearProductSearch()" tabindex="-1"
+                                id="clearProductBtn"
+                                th:style="${filter.productName != null and !filter.productName.isEmpty()} ? '' : 'display:none'">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="col-6 col-md-auto">
                     <label class="form-label form-label-sm fw-semibold" th:text="#{movements.filter.dateFrom}">Від</label>
                     <input type="date" class="form-control form-control-sm"
@@ -44,13 +59,6 @@
                     </select>
                 </div>
                 <div class="col-6 col-md-auto">
-                    <label class="form-label form-label-sm fw-semibold" th:text="#{stock.form.product}">Товар</label>
-                    <input type="text" class="form-control form-control-sm"
-                           name="productName"
-                           th:value="${filter.productName}"
-                           th:placeholder="#{common.search}"/>
-                </div>
-                <div class="col-12 col-md-auto">
                     <label class="form-label form-label-sm fw-semibold" th:text="#{movements.filter.counterparty}">Контрагент</label>
                     <input type="text" class="form-control form-control-sm"
                            name="counterparty"
@@ -74,6 +82,10 @@
         <span th:text="#{movements.found}">Знайдено:</span>
         <strong th:text="${totalElements}">0</strong>
         <span th:text="#{movements.records}">записів</span>
+        <span th:if="${totalElements >= 500}" class="ms-2 text-warning fw-semibold">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            <span th:text="#{movements.limitReached}">показано останні 500 — звузьте фільтр дат</span>
+        </span>
     </div>
 
     <!-- Table -->
@@ -99,7 +111,8 @@
                 </thead>
                 <tbody>
                 <tr th:each="m : ${movements}"
-                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted' : (${m.originalMovementId != null} ? 'table-secondary' : '')">
+                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted' : (${m.originalMovementId != null} ? 'table-secondary' : '')"
+                    th:attr="data-product=${m.product.name},data-counterparty=${m.supplier != null ? m.supplier.name : (m.client != null ? m.client.name : '')}">
                     <td style="white-space:nowrap">
                         <div class="small fw-semibold"
                              th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-decoration-line-through'"
@@ -180,6 +193,32 @@
             </table>
             </div>
         </div>
+    </div>
+
+    <!-- Pagination -->
+    <div th:if="${totalPages > 1}" class="d-flex justify-content-center mt-3">
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
+                    <a class="page-link"
+                       th:href="@{/movements/history(page=${currentPage - 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productName=${filter.productName},counterparty=${filter.counterparty})}">
+                        &laquo;
+                    </a>
+                </li>
+                <li th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+                    class="page-item" th:classappend="${i == currentPage} ? 'active'">
+                    <a class="page-link"
+                       th:href="@{/movements/history(page=${i},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productName=${filter.productName},counterparty=${filter.counterparty})}"
+                       th:text="${i + 1}">1</a>
+                </li>
+                <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled'">
+                    <a class="page-link"
+                       th:href="@{/movements/history(page=${currentPage + 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productName=${filter.productName},counterparty=${filter.counterparty})}">
+                        &raquo;
+                    </a>
+                </li>
+            </ul>
+        </nav>
     </div>
 
     <!-- Cancel confirmation modal -->
@@ -277,8 +316,16 @@
     </style>
 
     <script>
+        function clearProductSearch() {
+            var input = document.getElementById('productNameInput');
+            var btn = document.getElementById('clearProductBtn');
+            if (input) { input.value = ''; }
+            if (btn) { btn.style.display = 'none'; }
+            document.getElementById('filterForm').submit();
+        }
+
         (function () {
-            var form = document.querySelector('form[action="/movements/history"]');
+            var form = document.getElementById('filterForm');
             if (!form) return;
 
             var fields = form.querySelectorAll('input[name], select[name]');
@@ -294,7 +341,6 @@
                         el.classList.remove('filter-active');
                     }
                 });
-
                 if (!submitBtn) return;
                 var badge = submitBtn.querySelector('.filter-count-badge');
                 if (count > 0) {
@@ -313,15 +359,23 @@
                 el.addEventListener('input', updateFilters);
                 el.addEventListener('change', updateFilters);
             });
-
             updateFilters();
 
-            // Auto-submit: selects → immediately on change
+            // × button visibility on product search input
+            var productInput = document.getElementById('productNameInput');
+            var clearBtn = document.getElementById('clearProductBtn');
+            if (productInput && clearBtn) {
+                productInput.addEventListener('input', function () {
+                    clearBtn.style.display = this.value ? '' : 'none';
+                });
+            }
+
+            // Auto-submit: selects → immediately
             form.querySelectorAll('select[name]').forEach(function (el) {
                 el.addEventListener('change', function () { form.submit(); });
             });
 
-            // Auto-submit: date inputs → on blur (when user leaves the field)
+            // Auto-submit: date inputs → on blur
             form.querySelectorAll('input[type="date"]').forEach(function (el) {
                 el.addEventListener('blur', function () { form.submit(); });
             });
