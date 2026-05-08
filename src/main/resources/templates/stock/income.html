@@ -3,6 +3,9 @@
       th:replace="~{layout/main :: layout(#{stock.income.title}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .card-body { overflow-x: visible !important; }
+    </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{stock.income.title}">Прихід товару</h1>
     </div>
@@ -111,9 +114,6 @@
             </form>
         </div>
     </div>
-    <style>
-        .card-body { overflow-x: visible !important; }
-    </style>
     <script th:inline="javascript">
         function updateQuantityStep(select) {
             var option = select.options[select.selectedIndex];

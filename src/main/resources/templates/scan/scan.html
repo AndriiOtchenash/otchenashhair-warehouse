@@ -3,6 +3,57 @@
       th:replace="~{layout/main :: layout(#{scan.title}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .scan-container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .mode-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+        .btn-mode {
+            flex: 1;
+            padding: 0.9rem 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--accent);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .btn-mode.active {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-mode:hover:not(.active) {
+            background: var(--accent-light);
+        }
+        #reader {
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 200px;
+        }
+        #reader video {
+            border-radius: 8px;
+        }
+        #reader img {
+            display: none;
+        }
+        #searchResults .list-group-item {
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        #searchResults .list-group-item:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+        .scan-status {
+            font-size: 0.85rem;
+        }
+    </style>
     <div class="page-header">
         <h1 class="page-title">
             <i class="bi bi-upc-scan me-2"></i>
@@ -109,58 +160,6 @@
         </div>
     </div>
 
-    <style>
-        .scan-container {
-            max-width: 480px;
-            margin: 0 auto;
-        }
-        .mode-buttons {
-            display: flex;
-            gap: 0.75rem;
-        }
-        .btn-mode {
-            flex: 1;
-            padding: 0.9rem 0.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border: 2px solid var(--accent);
-            border-radius: 10px;
-            background: #fff;
-            color: var(--accent);
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s;
-        }
-        .btn-mode.active {
-            background: var(--accent);
-            color: #fff;
-        }
-        .btn-mode:hover:not(.active) {
-            background: var(--accent-light);
-        }
-        #reader {
-            border-radius: 8px;
-            overflow: hidden;
-            min-height: 200px;
-        }
-        /* Override html5-qrcode default styles for cleaner look */
-        #reader video {
-            border-radius: 8px;
-        }
-        #reader img {
-            display: none;
-        }
-        #searchResults .list-group-item {
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        #searchResults .list-group-item:hover {
-            background: var(--accent-light);
-            color: var(--accent);
-        }
-        .scan-status {
-            font-size: 0.85rem;
-        }
-    </style>
 
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script th:inline="javascript">

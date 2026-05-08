@@ -3,6 +3,25 @@
       th:replace="~{layout/main :: layout(#{dashboard.title}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .filter-active {
+            border: 2px solid var(--accent) !important;
+        }
+        .kpi-active {
+            border: 2px solid var(--accent) !important;
+            box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.15);
+        }
+        .kpi-card .small {
+            line-height: 1.2;
+        }
+        .kpi-card {
+            padding-left: 0.4rem !important;
+            padding-right: 0.4rem !important;
+        }
+        .table td.fw-semibold {
+            font-size: 0.90rem;
+        }
+    </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{dashboard.title}">Склад</h1>
         <div class="d-flex d-md-none gap-2">
@@ -186,22 +205,6 @@
         </div>
     </div>
 
-    <style>
-        .filter-active {
-            border: 2px solid var(--accent) !important;
-        }
-        .kpi-active {
-            border: 2px solid var(--accent) !important;
-            box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.15);
-        }
-        .kpi-card .small {
-            line-height: 1.2;
-        }
-        .kpi-card {
-            padding-left: 0.4rem !important;
-            padding-right: 0.4rem !important;
-        }
-    </style>
 
     <script>
         // Read initial filter from URL
