@@ -163,6 +163,20 @@ class StockServiceTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void registerExpense_zeroStock_throwsIllegalState() {
+        // Product exists in DB but has no stock — backend must reject even qty=1
+        Product p = product(1L, Unit.PCS);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(p));
+        when(stockItemRepository.getTotalQuantityByProductId(1L)).thenReturn(BigDecimal.ZERO);
+        when(messageSource.getMessage(eq("stock.expense.insufficientStock"), any(), any()))
+                .thenReturn("Insufficient stock");
+
+        assertThatThrownBy(() -> stockService.registerExpense(
+                expenseDto(1L, BigDecimal.ONE, MovementType.SALE)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     // ========================
     // Movement cancellation — guards
     // ========================
