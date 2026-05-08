@@ -55,6 +55,13 @@
                             </option>
                         </select>
                         <div class="invalid-feedback" th:errors="*{category}"></div>
+                        <div th:if="${product.id == null}" class="mt-1">
+                            <span class="text-muted small" th:text="#{common.or}">або</span>
+                            <a th:href="@{/categories/new(returnTo='product')}"
+                               class="small fw-semibold text-decoration-none ms-1"
+                               style="color:var(--accent)"
+                               th:text="#{category.createNew}">Створити нову категорію →</a>
+                        </div>
                     </div>
 
                     <!-- Unit -->

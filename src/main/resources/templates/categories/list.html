@@ -9,20 +9,29 @@
                 data-bs-toggle="collapse" data-bs-target="#newCategoryForm"
                 aria-expanded="false">
             <i class="bi bi-plus-lg me-1"></i>
-            Нова категорія
+            <span th:text="#{category.form.title.new}">Нова категорія</span>
         </button>
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-3">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mb-3">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 
     <!-- Collapsible new-category form -->
     <div class="collapse mb-3" id="newCategoryForm">
         <div class="card">
-            <div class="card-header">Нова категорія</div>
+            <div class="card-header" th:text="#{category.form.title.new}">Нова категорія</div>
             <div class="card-body">
                 <form th:action="@{/categories}" th:object="${newCategory}" method="post">
                     <div class="d-flex gap-2">
                         <input type="text" class="form-control"
                                th:field="*{name}"
-                               placeholder="Назва категорії"
+                               th:placeholder="#{category.form.name}"
                                th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-plus-lg"></i>
@@ -42,7 +51,7 @@
                         <thead class="table-light">
                         <tr>
                             <th>#</th>
-                            <th>Назва</th>
+                            <th th:text="#{category.form.name}">Назва</th>
                             <th th:text="#{table.actions}">Дії</th>
                         </tr>
                         </thead>
@@ -60,15 +69,24 @@
                                             th:attr="data-id=${cat.id},data-name=${cat.name}">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <form th:action="@{/categories/{id}/delete(id=${cat.id})}"
-                                          method="post"
-                                          onsubmit="return confirm('Видалити категорію?')">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                th:title="#{btn.delete}"
-                                                data-bs-toggle="tooltip">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <button th:if="${!categoriesWithProducts.contains(cat.id)}"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-danger"
+                                            th:title="#{btn.delete}"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#deleteCategoryModal"
+                                            th:attr="data-category-name=${cat.name},
+                                                     data-action=@{/categories/{id}/delete(id=${cat.id})}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    <button th:if="${categoriesWithProducts.contains(cat.id)}"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            disabled
+                                            th:title="#{category.delete.error.hasProducts}"
+                                            data-bs-toggle="tooltip">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -104,6 +122,32 @@
         </div>
     </div>
 
+    <!-- Delete confirmation modal -->
+    <div class="modal fade" id="deleteCategoryModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{btn.delete}">Видалити</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        <span th:text="#{confirm.delete.category}">Видалити категорію</span>
+                        <strong id="deleteCategoryName"></strong>?
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                    <form id="deleteCategoryForm" method="post">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                        <button type="submit" class="btn btn-danger btn-sm" th:text="#{btn.yes}">Так</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         .table { min-width: 0 !important; }
     </style>
@@ -117,10 +161,17 @@
             if (editModal) {
                 editModal.addEventListener('show.bs.modal', function(event) {
                     const btn = event.relatedTarget;
-                    const id = btn.getAttribute('data-id');
-                    const name = btn.getAttribute('data-name');
-                    document.getElementById('editCategoryName').value = name;
-                    document.getElementById('editCategoryForm').action = '/categories/' + id + '/rename';
+                    document.getElementById('editCategoryName').value = btn.getAttribute('data-name');
+                    document.getElementById('editCategoryForm').action = '/categories/' + btn.getAttribute('data-id') + '/rename';
+                });
+            }
+
+            const deleteModal = document.getElementById('deleteCategoryModal');
+            if (deleteModal) {
+                deleteModal.addEventListener('show.bs.modal', function(event) {
+                    const btn = event.relatedTarget;
+                    document.getElementById('deleteCategoryName').textContent = btn.getAttribute('data-category-name');
+                    document.getElementById('deleteCategoryForm').action = btn.getAttribute('data-action');
                 });
             }
         });

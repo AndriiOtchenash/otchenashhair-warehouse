@@ -1,13 +1,17 @@
 package com.hairmony.warehouse.service;
 
 import com.hairmony.warehouse.domain.supplier.Supplier;
+import com.hairmony.warehouse.repository.StockMovementRepository;
 import com.hairmony.warehouse.repository.SupplierRepository;
 import com.hairmony.warehouse.web.dto.SupplierDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +19,8 @@ import java.util.List;
 public class SupplierService {
 
     private final SupplierRepository supplierRepository;
+    private final StockMovementRepository stockMovementRepository;
+    private final MessageSource messageSource;
 
     @Transactional(readOnly = true)
     public List<SupplierDto> findAll() {
@@ -43,8 +49,21 @@ public class SupplierService {
         return toDto(supplier); // dirty checking
     }
 
-    public void delete(Long id) {
+    public String delete(Long id) {
+        Supplier supplier = supplierRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Supplier not found: " + id));
+        if (stockMovementRepository.existsBySupplierId(id)) {
+            throw new IllegalStateException(messageSource.getMessage(
+                    "supplier.delete.error.hasMovements", null, LocaleContextHolder.getLocale()));
+        }
+        String name = supplier.getName();
         supplierRepository.deleteById(id);
+        return name;
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Long> getSupplierIdsWithMovements() {
+        return stockMovementRepository.findAllSupplierIdsWithMovements();
     }
 
     public List<Supplier> findAllEntities() {

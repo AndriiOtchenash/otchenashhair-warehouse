@@ -25,9 +25,12 @@ public class StockController {
     private final MessageSource messageSource;
 
     @GetMapping("/income")
-    public String incomeForm(@RequestParam(required = false) Long productId, Model model) {
+    public String incomeForm(@RequestParam(required = false) Long productId,
+                             @RequestParam(required = false) Long supplierId,
+                             Model model) {
         StockIncomeDto dto = new StockIncomeDto();
         if (productId != null) dto.setProductId(productId);
+        if (supplierId != null) dto.setSupplierId(supplierId);
         model.addAttribute("dto", dto);
         model.addAttribute("products", productService.findAllActive());
         model.addAttribute("suppliers", supplierService.findAll());
@@ -121,9 +124,11 @@ public class StockController {
     @PostMapping("/{id}/cancel")
     public String cancelMovement(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
-            stockService.cancelMovement(id);
+            StockService.CancelResult result = stockService.cancelMovement(id);
+            String msgKey = result.isPurchase() ? "movement.cancel.success.purchase" : "movement.cancel.success";
+            Object[] args = {result.productName(), result.qtyFormatted(), result.unitLabel(), result.newStockFormatted()};
             redirectAttributes.addFlashAttribute("successMessage",
-                    messageSource.getMessage("movement.cancel.success", null, LocaleContextHolder.getLocale()));
+                    messageSource.getMessage(msgKey, args, LocaleContextHolder.getLocale()));
         } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }

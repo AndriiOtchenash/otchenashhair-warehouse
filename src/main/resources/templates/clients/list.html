@@ -154,10 +154,10 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm"
-                            data-bs-dismiss="modal" th:text="#{btn.cancel}">Скасувати</button>
+                            data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
                     <form id="deleteClientForm" method="post">
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                        <button type="submit" class="btn btn-danger btn-sm" th:text="#{btn.delete}">Видалити</button>
+                        <button type="submit" class="btn btn-danger btn-sm" th:text="#{btn.yes}">Так</button>
                     </form>
                 </div>
             </div>

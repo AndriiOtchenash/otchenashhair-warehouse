@@ -58,9 +58,15 @@ public class ProductController {
     public String newForm(Model model,
                           @RequestParam(required = false) String barcode,
                           @RequestParam(required = false) String returnTo,
-                          @RequestParam(required = false) String mode) {
+                          @RequestParam(required = false) String mode,
+                          @RequestParam(required = false) Long categoryId) {
         ProductDto dto = new ProductDto();
         if (barcode != null) dto.setBarcode(barcode);
+        if (categoryId != null) {
+            com.hairmony.warehouse.domain.category.Category cat = new com.hairmony.warehouse.domain.category.Category();
+            cat.setId(categoryId);
+            dto.setCategory(cat);
+        }
         model.addAttribute("product", dto);
         model.addAttribute("categories", categoryService.findAll());
         model.addAttribute("units", Unit.values());

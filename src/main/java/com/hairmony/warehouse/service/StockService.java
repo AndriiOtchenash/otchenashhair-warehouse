@@ -140,7 +140,10 @@ public class StockService {
         item.setPurchasePrice(purchasePrice);
     }
 
-    public void cancelMovement(Long movementId) {
+    public record CancelResult(String productName, String qtyFormatted, String unitLabel,
+                               String newStockFormatted, boolean isPurchase) {}
+
+    public CancelResult cancelMovement(Long movementId) {
         StockMovement original = stockMovementRepository.findById(movementId)
                 .orElseThrow(() -> new EntityNotFoundException("Movement not found: " + movementId));
 
@@ -210,6 +213,13 @@ public class StockService {
                 .performedBy(currentUser)
                 .build();
         stockMovementRepository.save(cancellation);
+
+        boolean isPurchase = original.getMovementType() == MovementType.PURCHASE;
+        BigDecimal newStock = stockItemRepository.getTotalQuantityByProductId(original.getProduct().getId());
+        String newStockFormatted = (newStock.scale() == 0 || newStock.stripTrailingZeros().scale() <= 0)
+                ? newStock.toBigInteger().toString()
+                : newStock.stripTrailingZeros().toPlainString();
+        return new CancelResult(productName, qtyFormatted, unitLabel, newStockFormatted, isPurchase);
     }
 
     public void updateMovementMeta(Long movementId, Long clientId, String notes) {

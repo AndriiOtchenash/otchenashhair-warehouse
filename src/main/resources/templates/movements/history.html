@@ -157,10 +157,15 @@
                                             and !cancelledMovementIds.contains(m.id)}"
                                     type="button"
                                     class="btn btn-sm btn-outline-danger"
-                                    th:title="#{movement.cancel.button}"
+                                    th:title="|#{movement.cancel.button}: ${m.product.name}, ${@qf.format(m.quantity, m.product.unit.name())} #{unit.__${m.product.unit}__} (${#temporals.format(m.createdAt, 'dd.MM.yyyy')})|"
                                     data-bs-toggle="modal"
                                     data-bs-target="#cancelModal"
-                                    th:attr="data-movement-id=${m.id},data-movement-type=${m.movementType.name()}">
+                                    th:attr="data-movement-id=${m.id},
+                                             data-movement-type=${m.movementType.name()},
+                                             data-product=${m.product.name},
+                                             data-qty=${@qf.format(m.quantity, m.product.unit.name())},
+                                             data-unit=#{unit.__${m.product.unit}__},
+                                             data-date=${#temporals.format(m.createdAt, 'dd.MM.yyyy')}">
                                 <i class="bi bi-x-circle"></i>
                             </button>
                             <span th:if="${cancelledMovementIds.contains(m.id)}"
@@ -184,15 +189,16 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p id="cancelConfirmText" th:text="#{movement.cancel.confirm}">Ви впевнені, що хочете скасувати цю операцію? Товар буде повернуто на склад.</p>
+                    <p id="cancelMovementDetail" class="fw-semibold mb-1"></p>
+                    <p id="cancelConfirmText" class="text-muted small mb-0" th:text="#{movement.cancel.confirm}">Ви впевнені, що хочете скасувати цю операцію? Товар буде повернуто на склад.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"
-                            th:text="#{btn.cancel}">Відмінити</button>
+                            th:text="#{btn.no}">Ні</button>
                     <form id="cancelForm" method="post">
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
                         <button type="submit" class="btn btn-danger btn-sm"
-                                th:text="#{movement.cancel.button}">Скасувати</button>
+                                th:text="#{btn.yes}">Так</button>
                     </form>
                 </div>
             </div>
@@ -361,6 +367,10 @@
                 document.getElementById('cancelForm').action = '/movements/' + movementId + '/cancel';
                 document.getElementById('cancelConfirmText').textContent =
                     movementType === 'PURCHASE' ? confirmPurchase : confirmExpense;
+                document.getElementById('cancelMovementDetail').textContent =
+                    btn.getAttribute('data-product') + ', ' +
+                    btn.getAttribute('data-qty') + ' ' + btn.getAttribute('data-unit') + ', ' +
+                    btn.getAttribute('data-date');
             });
         }
 

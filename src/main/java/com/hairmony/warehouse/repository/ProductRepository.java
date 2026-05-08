@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
@@ -18,6 +19,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByBarcode(String barcode);
 
     List<Product> findAllByCategory(Category category);
+    boolean existsByCategory_Id(Long categoryId);
+
+    @Query("SELECT DISTINCT p.category.id FROM Product p WHERE p.category IS NOT NULL")
+    Set<Long> findAllCategoryIdsInUse();
 
     List<Product> findAllByActiveTrueAndNameContainingIgnoreCase(String name);
 }
