@@ -16,7 +16,7 @@
                 <i class="bi bi-pencil me-1"></i>
                 <span th:text="#{btn.edit}">Редагувати</span>
             </a>
-            <a th:href="${from == 'history'} ? @{/movements/history} : @{/suppliers}"
+            <a th:href="${from == 'history'} ? '/movements/history' : (${from == 'product' and productId != null} ? '/products/' + ${productId} : '/suppliers')"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>
                 <span th:text="#{btn.back}">Назад</span>
@@ -65,7 +65,7 @@
                     th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted' : (${m.originalMovementId != null} ? 'table-secondary' : '')">
                     <td style="white-space:nowrap" th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy')}"></td>
                     <td>
-                        <a th:href="@{/products/{id}(id=${m.product.id})}"
+                        <a th:href="@{/products/{id}(id=${m.product.id},from='supplier',supplierId=${supplier.id})}"
                            th:text="${m.product.name}"
                            th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted text-decoration-line-through' : 'fw-semibold text-dark'"
                            class="text-decoration-none"></a>

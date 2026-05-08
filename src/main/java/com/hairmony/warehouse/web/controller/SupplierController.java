@@ -37,7 +37,8 @@ public class SupplierController {
 
     @GetMapping("/{id}")
     public String detail(@PathVariable Long id, Model model,
-                         @RequestParam(required = false) String from) {
+                         @RequestParam(required = false) String from,
+                         @RequestParam(required = false) Long productId) {
         List<StockMovement> movements = stockService.getMovementsBySupplier(id);
         Set<Long> cancelledIds = stockService.getCancelledMovementIds(
                 movements.stream().map(StockMovement::getId).collect(Collectors.toSet()));
@@ -45,6 +46,7 @@ public class SupplierController {
         model.addAttribute("movements", movements);
         model.addAttribute("cancelledMovementIds", cancelledIds);
         if (from != null) model.addAttribute("from", from);
+        if (productId != null) model.addAttribute("productId", productId);
         return "suppliers/detail";
     }
 

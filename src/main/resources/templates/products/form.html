@@ -8,7 +8,11 @@
             th:text="${product.id != null} ? #{product.form.title.edit} : #{product.form.title.new}">
             Товар
         </h1>
-        <a th:href="@{/products}" class="btn btn-outline-secondary">
+        <a th:href="${returnTo == 'detail'} ? '/products/' + ${product.id} :
+                   (${returnTo == 'income'} ? '/movements/income' :
+                   (${returnTo == 'expense'} ? '/movements/expense' :
+                   (${returnTo == 'scan'} ? '/scan' : '/products')))"
+           class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>
             <span th:text="#{btn.back}">Назад</span>
         </a>
@@ -115,7 +119,11 @@
                             <i class="bi bi-check-lg me-1"></i>
                             <span th:text="#{btn.save}">Зберегти</span>
                         </button>
-                        <a th:href="@{/products}" class="btn btn-outline-secondary"
+                        <a th:href="${returnTo == 'detail'} ? '/products/' + ${product.id} :
+                                   (${returnTo == 'income'} ? '/movements/income' :
+                                   (${returnTo == 'expense'} ? '/movements/expense' :
+                                   (${returnTo == 'scan'} ? '/scan' : '/products')))"
+                           class="btn btn-outline-secondary"
                            th:text="#{btn.cancel}">Скасувати</a>
                     </div>
                 </div>

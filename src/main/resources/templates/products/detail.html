@@ -19,12 +19,12 @@
                 <i class="bi bi-arrow-up-circle me-1"></i>
                 <span th:text="#{stock.expense.title}">Витрата</span>
             </a>
-            <a th:href="@{/products/{id}/edit(id=${product.id})}"
+            <a th:href="@{/products/{id}/edit(id=${product.id},returnTo='detail')}"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-pencil me-1"></i>
                 <span th:text="#{btn.edit}">Редагувати</span>
             </a>
-            <a th:href="${from == 'history'} ? @{/movements/history} : @{/products}"
+            <a th:href="${from == 'history'} ? '/movements/history' : (${from == 'client' and clientId != null} ? '/clients/' + ${clientId} : (${from == 'supplier' and supplierId != null} ? '/suppliers/' + ${supplierId} : '/products'))"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>
                 <span th:text="#{btn.back}">Назад</span>
@@ -38,8 +38,7 @@
             <div class="card h-100">
                 <div class="card-header" th:text="#{product.detail.info}">Інформація</div>
                 <div class="card-body">
-                    <div class="table-responsive-wrapper">
-                    <table class="table table-sm mb-0">
+                    <table class="table table-sm mb-0 table-auto">
                         <tr>
                             <td class="text-muted" th:text="#{product.form.category}">Категорія</td>
                             <td th:text="${product.category?.name}"></td>
@@ -68,7 +67,6 @@
                             </td>
                         </tr>
                     </table>
-                    </div>
                     <div th:if="${product.description}" class="mt-3 text-muted small"
                          th:text="${product.description}"></div>
                 </div>
@@ -90,8 +88,8 @@
                             <th th:text="#{stock.form.quantity}">Кількість</th>
                             <th th:text="#{stock.form.purchasePrice}">Ціна закупки</th>
                             <th th:text="#{stock.form.expiryDate}">Термін придатності</th>
-                            <th class="d-none d-md-table-cell" th:text="#{stock.form.batchNumber}">Партія</th>
-                            <th class="d-none d-md-table-cell" th:text="#{product.detail.received}">Отримано</th>
+                            <th th:text="#{stock.form.batchNumber}">Партія</th>
+                            <th th:text="#{product.detail.received}">Отримано</th>
                             <th th:text="#{table.actions}">Дії</th>
                         </tr>
                         </thead>
@@ -110,8 +108,8 @@
                                       th:classappend="${item.expiryDate.isBefore(#temporals.createToday().plusDays(30))} ? 'text-danger fw-semibold'">
                                 </span>
                             </td>
-                            <td class="d-none d-md-table-cell" th:text="${item.batchNumber ?: '—'}"></td>
-                            <td class="d-none d-md-table-cell" th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
+                            <td th:text="${item.batchNumber ?: '—'}"></td>
+                            <td th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
                             <td>
                                 <button type="button"
                                         class="btn btn-sm btn-outline-secondary"
@@ -140,13 +138,15 @@
                         <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
                         <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
                     </select>
-                    <div class="input-group input-group-sm w-auto">
-                        <span class="input-group-text">від</span>
-                        <input type="date" class="form-control" id="histDateFrom" onchange="applyHistoryFilters()"/>
-                    </div>
-                    <div class="input-group input-group-sm w-auto">
-                        <span class="input-group-text">до</span>
-                        <input type="date" class="form-control" id="histDateTo" onchange="applyHistoryFilters()"/>
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="input-group input-group-sm w-auto">
+                            <span class="input-group-text">від</span>
+                            <input type="date" class="form-control" id="histDateFrom" onchange="applyHistoryFilters()"/>
+                        </div>
+                        <div class="input-group input-group-sm w-auto">
+                            <span class="input-group-text">до</span>
+                            <input type="date" class="form-control" id="histDateTo" onchange="applyHistoryFilters()"/>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -182,8 +182,14 @@
                             <td th:text="${m.quantity}"></td>
                             <td th:text="${m.unitPrice ?: '—'}"></td>
                             <td>
-                                <span th:if="${m.supplier != null}" th:text="${m.supplier.name}"></span>
-                                <span th:if="${m.client != null}" th:text="${m.client.name}"></span>
+                                <a th:if="${m.supplier != null}"
+                                   th:href="@{/suppliers/{id}(id=${m.supplier.id},from='product',productId=${product.id})}"
+                                   th:text="${m.supplier.name}"
+                                   class="text-decoration-none text-dark fw-semibold"></a>
+                                <a th:if="${m.client != null}"
+                                   th:href="@{/clients/{id}(id=${m.client.id},from='product',productId=${product.id})}"
+                                   th:text="${m.client.name}"
+                                   class="text-decoration-none text-dark fw-semibold"></a>
                                 <span th:if="${m.supplier == null and m.client == null}">—</span>
                             </td>
                             <td class="d-none d-md-table-cell" th:text="${m.notes ?: '—'}"></td>
