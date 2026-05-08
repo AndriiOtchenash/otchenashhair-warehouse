@@ -19,4 +19,5 @@ public class MovementFilterDto {
     private Long productId;
     private String productName;
     private String counterparty;
+    private int page = 0;
 }
