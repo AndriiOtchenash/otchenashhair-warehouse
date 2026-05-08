@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(${supplier.name}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="${supplier.name}"></h1>
+            <span class="text-muted small" th:if="${supplier.contactInfo != null and !supplier.contactInfo.isEmpty()}">
+                <span th:text="#{supplier.form.contactInfo}">Контакт</span>:&nbsp;<span th:text="${supplier.contactInfo}"></span>
+            </span>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:href="@{/suppliers/{id}/edit(id=${supplier.id},returnTo='detail')}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-pencil me-1"></i>
+                <span th:text="#{btn.edit}">Редагувати</span>
+            </a>
+            <a th:href="${from == 'history'} ? @{/movements/history} : @{/suppliers}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>
+                <span th:text="#{btn.back}">Назад</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Supplier info -->
+    <div class="card mb-3">
+        <div class="card-header" th:text="#{supplier.detail.info}">Інформація</div>
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap gap-4">
+                <div>
+                    <span class="text-muted small" th:text="#{client.detail.totalOps}">Операцій</span>:
+                    <strong th:text="${movements.size()}"></strong>
+                </div>
+                <div th:if="${supplier.notes != null and !supplier.notes.isEmpty()}">
+                    <span class="text-muted small" th:text="#{supplier.form.notes}">Примітки</span>:
+                    <span th:text="${supplier.notes}"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase history -->
+    <div class="card">
+        <div class="card-header" th:text="#{supplier.detail.history}">Історія закупок</div>
+        <div class="card-body p-0">
+            <div th:if="${movements.empty}" class="text-center text-muted py-4">
+                <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
+                <span th:text="#{supplier.detail.noHistory}">Операцій немає</span>
+            </div>
+            <table th:unless="${movements.empty}" class="table table-hover mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th th:text="#{product.detail.date}">Дата</th>
+                    <th th:text="#{product.form.name}">Товар</th>
+                    <th th:text="#{stock.form.movementType}">Тип</th>
+                    <th th:text="#{stock.form.quantity}">Кількість</th>
+                    <th class="d-none d-md-table-cell" th:text="#{stock.form.purchasePrice}">Ціна</th>
+                    <th class="d-none d-md-table-cell" th:text="#{stock.form.notes}">Примітки</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="m : ${movements}"
+                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted' : (${m.originalMovementId != null} ? 'table-secondary' : '')">
+                    <td style="white-space:nowrap" th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy')}"></td>
+                    <td>
+                        <a th:href="@{/products/{id}(id=${m.product.id})}"
+                           th:text="${m.product.name}"
+                           th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted text-decoration-line-through' : 'fw-semibold text-dark'"
+                           class="text-decoration-none"></a>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill"
+                              th:classappend="${m.movementType.name() == 'PURCHASE'} ? 'bg-success' : 'bg-secondary'"
+                              th:text="#{movementType.__${m.movementType}__}">
+                        </span>
+                    </td>
+                    <td>
+                        <span th:text="${@qf.format(m.quantity, m.product.unit.name())}"></span>
+                        <span class="text-muted small" th:text="#{unit.__${m.product.unit}__}"></span>
+                    </td>
+                    <td class="d-none d-md-table-cell"
+                        th:text="${m.unitPrice != null ? m.unitPrice + ' zł' : '—'}"></td>
+                    <td class="d-none d-md-table-cell" th:text="${m.notes ?: '—'}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>

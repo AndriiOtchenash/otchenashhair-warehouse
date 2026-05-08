@@ -24,7 +24,8 @@
                 <i class="bi bi-pencil me-1"></i>
                 <span th:text="#{btn.edit}">Редагувати</span>
             </a>
-            <a th:href="@{/products}" class="btn btn-outline-secondary btn-sm">
+            <a th:href="${from == 'history'} ? @{/movements/history} : @{/products}"
+               class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>
                 <span th:text="#{btn.back}">Назад</span>
             </a>
@@ -89,8 +90,8 @@
                             <th th:text="#{stock.form.quantity}">Кількість</th>
                             <th th:text="#{stock.form.purchasePrice}">Ціна закупки</th>
                             <th th:text="#{stock.form.expiryDate}">Термін придатності</th>
-                            <th th:text="#{stock.form.batchNumber}">Партія</th>
-                            <th th:text="#{product.detail.received}">Отримано</th>
+                            <th class="d-none d-md-table-cell" th:text="#{stock.form.batchNumber}">Партія</th>
+                            <th class="d-none d-md-table-cell" th:text="#{product.detail.received}">Отримано</th>
                             <th th:text="#{table.actions}">Дії</th>
                         </tr>
                         </thead>
@@ -109,8 +110,8 @@
                                       th:classappend="${item.expiryDate.isBefore(#temporals.createToday().plusDays(30))} ? 'text-danger fw-semibold'">
                                 </span>
                             </td>
-                            <td th:text="${item.batchNumber ?: '—'}"></td>
-                            <td th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
+                            <td class="d-none d-md-table-cell" th:text="${item.batchNumber ?: '—'}"></td>
+                            <td class="d-none d-md-table-cell" th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
                             <td>
                                 <button type="button"
                                         class="btn btn-sm btn-outline-secondary"
@@ -160,8 +161,8 @@
                             <th th:text="#{stock.form.movementType}">Тип</th>
                             <th th:text="#{stock.form.quantity}">Кількість</th>
                             <th th:text="#{stock.form.purchasePrice}">Ціна</th>
-                            <th>Контрагент</th>
-                            <th th:text="#{stock.form.notes}">Примітки</th>
+                            <th th:text="#{movements.counterparty}">Контрагент</th>
+                            <th class="d-none d-md-table-cell" th:text="#{stock.form.notes}">Примітки</th>
                             <th></th>
                         </tr>
                         </thead>
@@ -185,7 +186,7 @@
                                 <span th:if="${m.client != null}" th:text="${m.client.name}"></span>
                                 <span th:if="${m.supplier == null and m.client == null}">—</span>
                             </td>
-                            <td th:text="${m.notes ?: '—'}"></td>
+                            <td class="d-none d-md-table-cell" th:text="${m.notes ?: '—'}"></td>
                             <td>
                                 <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
                                         type="button"

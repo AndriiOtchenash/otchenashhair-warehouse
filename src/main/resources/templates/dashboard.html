@@ -120,9 +120,9 @@
                     <th th:text="#{dashboard.currentStock}">Залишок</th>
                     <th th:text="#{dashboard.status}">Статус</th>
                     <th th:text="#{table.actions}">Дії</th>
-                    <th th:text="#{product.form.brand}">Бренд</th>
-                    <th th:text="#{product.form.category}">Категорія</th>
-                    <th th:text="#{dashboard.expiryDate}">Термін придатності</th>
+                    <th class="d-none d-md-table-cell" th:text="#{product.form.brand}">Бренд</th>
+                    <th class="d-none d-md-table-cell" th:text="#{product.form.category}">Категорія</th>
+                    <th class="d-none d-md-table-cell" th:text="#{dashboard.expiryDate}">Термін придатності</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -170,9 +170,9 @@
                             </a>
                         </div>
                     </td>
-                    <td th:text="${row.brand}"></td>
-                    <td th:text="${row.categoryName}"></td>
-                    <td>
+                    <td class="d-none d-md-table-cell" th:text="${row.brand}"></td>
+                    <td class="d-none d-md-table-cell" th:text="${row.categoryName}"></td>
+                    <td class="d-none d-md-table-cell">
                         <span th:if="${row.nearestExpiryDate == null}" class="text-muted">—</span>
                         <span th:unless="${row.nearestExpiryDate == null}"
                               th:text="${#temporals.format(row.nearestExpiryDate, 'dd.MM.yyyy')}"

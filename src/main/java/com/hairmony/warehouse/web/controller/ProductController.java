@@ -39,7 +39,8 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    public String detail(@PathVariable Long id, Model model) {
+    public String detail(@PathVariable Long id, Model model,
+                         @RequestParam(required = false) String from) {
         ProductDto product = productService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         List<StockMovement> movements = stockService.getMovementsByProduct(id);
@@ -51,6 +52,7 @@ public class ProductController {
         model.addAttribute("cancelledMovementIds", cancelledIds);
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("totalQuantity", stockService.getAvailableQuantity(id));
+        if (from != null) model.addAttribute("from", from);
         return "products/detail";
     }
 

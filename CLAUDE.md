@@ -52,11 +52,12 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Categories CRUD with modal editing and Bootstrap delete modal (Ні/Так);
   deletion guarded — disabled with tooltip if category has products assigned;
   flash messages for create/delete; GET/POST /categories/new with returnTo=product
-- Suppliers CRUD with tooltip notes, collapsible form; Bootstrap delete modal (Ні/Так);
+- Suppliers CRUD with detail page (/suppliers/{id}) showing purchase history;
+  collapsible form; Bootstrap delete modal (Ні/Так);
   deletion guarded — disabled with tooltip if supplier has stock movements;
   flash messages for create/delete; GET/POST /suppliers/new with returnTo=income
-- Clients CRUD with detail page, transaction history, collapsible form;
-  deletion guarded — disabled with tooltip if client has movements
+- Clients CRUD with detail page (/clients/{id}) showing transaction history,
+  collapsible form; deletion guarded — disabled with tooltip if client has movements
 - Stock income (/movements/income) with FIFO, barcode scanner input (debounced AJAX),
   quantity step auto-set by unit (integer for PCS, decimal for ML/G);
   "Створити нового постачальника →" link pre-selects new supplier on return
@@ -67,8 +68,11 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Barcode scanner page (/scan) — camera scan or manual entry, income/expense mode
 - MovementType enum: PURCHASE, SALE, WRITE_OFF, ADJUSTMENT, CANCELLATION
 - StockDashboardRowDto with status OK/LOW/OUT
-- Movement journal (/movements/history) with server-side filtering (JPA Specifications),
-  pagination, date/type/product/counterparty filters, auto-submit on change
+- Movement journal (/movements/history) — server-side filtering (JPA Specifications),
+  no pagination (full list, max 500 guard), filters: date range, type, product name
+  (text LIKE search), counterparty (text LIKE); auto-submit on change/blur/debounce;
+  product name, client name, supplier name are clickable links → detail pages with
+  from=history so Back button returns to journal
 - Movement cancellation — POST /movements/{id}/cancel reverses any PURCHASE/SALE/
   WRITE_OFF/ADJUSTMENT: restores or removes stock, records CANCELLATION movement;
   cancel button tooltip shows product name + qty + date (native title attr);
@@ -78,10 +82,12 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   StockService.cancelMovement() returns CancelResult record with all data for message;
   cancelled rows shown strikethrough, cancellation rows shown in gray;
   guard against double-cancel and cancelling a cancellation
-- Reports page (/reports) — expiry alerts, top sales by revenue,
-  purchases summary by supplier, margin analysis with %; period presets
-  (THIS_MONTH, LAST_MONTH, CUSTOM) and configurable expiry window
-- i18n: uk (primary), pl, en
+- Reports page (/reports) — period presets (THIS_MONTH, LAST_MONTH, ALL_TIME, CUSTOM);
+  KPI summary banner (revenue, purchases, gross profit + margin%, sales count);
+  stock value snapshot; top sales with salesCount and share%; write-offs summary;
+  top clients (clickable → client detail); purchases by supplier; margin analysis;
+  configurable expiry alert window
+- i18n: uk (primary), pl, en; all UI strings via #{} — no hardcoded text in templates
 - QuantityFormatter (@qf bean) — integers for PCS, decimals for ML/G
 - CurrentUriInterceptor — active nav highlighting
 - Language switcher preserves URL params via JS switchLang()
@@ -89,7 +95,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Login page with show/hide password
 - Change password page (/profile/change-password)
 - Logout in sidebar
-- Mobile responsive layout with burger menu and topbar
+- Mobile responsive layout with burger menu and topbar;
+  secondary table columns hidden on mobile via d-none d-md-table-cell
 - Client-side search on all list pages with × clear button (mobile only, appears on input)
 - Collapsible create forms on list pages
 - Clickable table rows on mobile
@@ -121,6 +128,18 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Informative success messages include entity name in quotes using {0} MessageFormat param
 - Bootstrap Tooltip cannot coexist with data-bs-toggle="modal" on same element —
   use native title attribute instead (browser tooltip still shows)
+- from=history pattern: links from /movements/history to detail pages
+  (/products/{id}, /clients/{id}, /suppliers/{id}) carry ?from=history;
+  detail page GET reads @RequestParam(required=false) String from, adds to model;
+  Back button: ${from == 'history'} ? @{/movements/history} : @{/default-list}
+- returnTo=detail pattern: Edit button on detail page passes ?returnTo=detail;
+  editForm GET reads it and passes to model (hidden input in form);
+  update POST reads returnTo and redirects to /entity/{id} if "detail", else list;
+  Back/Cancel in form template handle returnTo=detail → /entity/{id}
+- Detail pages layout: info strip (d-flex flex-wrap gap-4) above history table,
+  phone/contact in page header subtitle, no duplicate data
+- Mobile tables: hide secondary columns with d-none d-md-table-cell;
+  keep essential columns (name, status/type, quantity, actions) always visible
 
 ## Movement cancellation details
 - StockMovement.originalMovementId (Long) links a CANCELLATION back to its source
@@ -130,10 +149,22 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   IDs on the current history page have been cancelled (for UI indicators)
 - StockMovementRepository.findAllSupplierIdsWithMovements() / findAllClientIdsWithMovements()
   — used to build disabled-delete sets in list controllers
+- StockMovementRepository.findAllBySupplierIdOrderByCreatedAtDesc() — supplier detail history
 - StockService.cancelMovement() returns CancelResult record: productName, qtyFormatted,
   unitLabel, newStockFormatted, isPurchase — controller picks message key and formats
 - Cancel button visible only for non-CANCELLATION, not-yet-cancelled rows
   (PURCHASE can also be cancelled; guard: batch qty must equal original qty)
+
+## Reports details
+- ReportService.getReportSummary(from, to) — totalRevenue, totalPurchases,
+  grossProfit (revenue − COGS), marginPct, salesCount
+- ReportService.getStockValue() — current stock value from StockItemRepository
+- ReportService.getTopSales(from, to) — salesCount, sharePct per product
+- ReportService.getWriteOffsSummary(from, to) — by product + totalLoss
+- ReportService.getTopClients(from, to) — by client, sorted by totalSpent
+- ReportService.getEarliestMovementDate() — used for ALL_TIME preset
+- StockItemRepository.getTotalStockValue() — SUM(quantity * purchasePrice)
+- StockMovementRepository.findWriteOffsBetween() / findEarliestMovementDate()
 
 ## Security
 - DB-based authentication via UserDetailsServiceImpl
@@ -165,7 +196,6 @@ DB credentials in application-dev.properties (gitignored)
   system auto-generates ADJUSTMENT movements for the differences
 - User roles (ADMIN/OPERATOR) — Role entity already exists; @PreAuthorize on
   delete/cancel/deactivate endpoints to restrict to ADMIN only
-- Supplier detail page — /suppliers/{id} with purchase history (mirrors client detail)
 - Print barcode labels — printable label with product name + barcode from product detail page
 - AI: conversation history / multi-turn chat (currently stateless per request)
 

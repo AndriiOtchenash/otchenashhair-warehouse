@@ -36,7 +36,8 @@ public class ClientController {
     }
 
     @GetMapping("/{id}")
-    public String detail(@PathVariable Long id, Model model) {
+    public String detail(@PathVariable Long id, Model model,
+                         @RequestParam(required = false) String from) {
         List<StockMovement> movements = stockService.getMovementsByClient(id);
         Set<Long> cancelledIds = stockService.getCancelledMovementIds(
                 movements.stream().map(StockMovement::getId).collect(Collectors.toSet()));
@@ -44,6 +45,7 @@ public class ClientController {
         model.addAttribute("movements", movements);
         model.addAttribute("cancelledMovementIds", cancelledIds);
         model.addAttribute("clients", clientService.findAll());
+        if (from != null) model.addAttribute("from", from);
         return "clients/detail";
     }
 
