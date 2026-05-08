@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(#{category.form.title.new}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{category.form.title.new}">Нова категорія</h1>
+        <a th:href="${returnTo == 'product'} ? @{/products/new} : @{/categories}"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span th:text="#{btn.back}">Назад</span>
+        </a>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <form th:action="@{/categories/new}" th:object="${newCategory}" method="post">
+                <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" th:text="#{category.form.name}">Назва</label>
+                        <input type="text" class="form-control" th:field="*{name}"
+                               th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                               autofocus/>
+                        <div class="invalid-feedback" th:errors="*{name}"></div>
+                    </div>
+                    <div class="col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
+                        <a th:href="${returnTo == 'product'} ? @{/products/new} : @{/categories}"
+                           class="btn btn-outline-secondary"
+                           th:text="#{btn.cancel}">Скасувати</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

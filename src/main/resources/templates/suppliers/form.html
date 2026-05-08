@@ -1,19 +1,22 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/main :: layout(#{supplier.form.title.edit}, ~{::content})}">
+      th:replace="~{layout/main :: layout(${supplier.id == null} ? #{supplier.form.title.new} : #{supplier.form.title.edit}, ~{::content})}">
 <body>
 <div th:fragment="content">
     <div class="page-header">
-        <h1 class="page-title" th:text="#{supplier.form.title.edit}">Редагувати постачальника</h1>
-        <a th:href="@{/suppliers}" class="btn btn-outline-secondary">
+        <h1 class="page-title"
+            th:text="${supplier.id == null} ? #{supplier.form.title.new} : #{supplier.form.title.edit}">Постачальник</h1>
+        <a th:href="${returnTo == 'income'} ? @{/movements/income} : @{/suppliers}"
+           class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>
             <span th:text="#{btn.back}">Назад</span>
         </a>
     </div>
     <div class="card">
         <div class="card-body">
-            <form th:action="@{/suppliers/{id}/edit(id=${supplier.id})}"
+            <form th:action="${supplier.id == null} ? @{/suppliers/new} : @{/suppliers/{id}/edit(id=${supplier.id})}"
                   th:object="${supplier}" method="post">
+                <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{supplier.form.name}">Назва</label>
@@ -34,7 +37,8 @@
                             <i class="bi bi-check-lg me-1"></i>
                             <span th:text="#{btn.save}">Зберегти</span>
                         </button>
-                        <a th:href="@{/suppliers}" class="btn btn-outline-secondary"
+                        <a th:href="${returnTo == 'income'} ? @{/movements/income} : @{/suppliers}"
+                           class="btn btn-outline-secondary"
                            th:text="#{btn.cancel}">Скасувати</a>
                     </div>
                 </div>

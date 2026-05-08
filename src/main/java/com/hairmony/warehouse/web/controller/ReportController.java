@@ -30,6 +30,9 @@ public class ReportController {
             LocalDate lastOfLastMonth = firstOfLastMonth.withDayOfMonth(
                     firstOfLastMonth.lengthOfMonth());
             period = new ReportPeriod(firstOfLastMonth, lastOfLastMonth, "LAST_MONTH");
+        } else if ("ALL_TIME".equals(preset)) {
+            LocalDate earliest = reportService.getEarliestMovementDate();
+            period = new ReportPeriod(earliest, LocalDate.now(), "ALL_TIME");
         } else if ("CUSTOM".equals(preset) && from != null && to != null) {
             period = new ReportPeriod(from, to, "CUSTOM");
         } else {
@@ -39,7 +42,11 @@ public class ReportController {
         model.addAttribute("period", period);
         model.addAttribute("expiryDays", expiryDays);
         model.addAttribute("expiringItems", reportService.getExpiringItems(expiryDays));
+        model.addAttribute("reportSummary", reportService.getReportSummary(period.getFrom(), period.getTo()));
+        model.addAttribute("stockValue", reportService.getStockValue());
         model.addAttribute("topSales", reportService.getTopSales(period.getFrom(), period.getTo()));
+        model.addAttribute("writeOffsSummary", reportService.getWriteOffsSummary(period.getFrom(), period.getTo()));
+        model.addAttribute("topClients", reportService.getTopClients(period.getFrom(), period.getTo()));
         model.addAttribute("purchasesSummary", reportService.getPurchasesSummary(period.getFrom(), period.getTo()));
         model.addAttribute("marginAnalysis", reportService.getMarginAnalysis(period.getFrom(), period.getTo()));
 

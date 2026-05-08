@@ -92,8 +92,10 @@ public class ClientController {
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
+    public String editForm(@PathVariable Long id, Model model,
+                           @RequestParam(required = false) String returnTo) {
         model.addAttribute("client", clientService.findById(id));
+        if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "clients/form";
     }
 
@@ -111,9 +113,11 @@ public class ClientController {
     @PostMapping("/{id}/edit")
     public String update(@PathVariable Long id,
                          @Valid @ModelAttribute("client") ClientDto dto,
-                         BindingResult result) {
+                         BindingResult result,
+                         @RequestParam(required = false) String returnTo) {
         if (result.hasErrors()) return "clients/form";
         clientService.update(id, dto);
+        if ("detail".equals(returnTo)) return "redirect:/clients/" + id;
         return "redirect:/clients";
     }
 

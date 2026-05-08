@@ -49,23 +49,34 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   KPI "countOk" = OK+LOW, "lowStock" = LOW+OUT, "countOut" = OUT only
 - Products CRUD with soft delete, restore, detail page, brand autocomplete
 - Stock batch (StockItem) edit modal on product detail — expiry date, batch number, price
-- Categories CRUD with modal editing
-- Suppliers CRUD with tooltip notes, collapsible form
-- Clients CRUD with detail page, transaction history, collapsible form
+- Categories CRUD with modal editing and Bootstrap delete modal (Ні/Так);
+  deletion guarded — disabled with tooltip if category has products assigned;
+  flash messages for create/delete; GET/POST /categories/new with returnTo=product
+- Suppliers CRUD with tooltip notes, collapsible form; Bootstrap delete modal (Ні/Так);
+  deletion guarded — disabled with tooltip if supplier has stock movements;
+  flash messages for create/delete; GET/POST /suppliers/new with returnTo=income
+- Clients CRUD with detail page, transaction history, collapsible form;
+  deletion guarded — disabled with tooltip if client has movements
 - Stock income (/movements/income) with FIFO, barcode scanner input (debounced AJAX),
-  quantity step auto-set by unit (integer for PCS, decimal for ML/G)
+  quantity step auto-set by unit (integer for PCS, decimal for ML/G);
+  "Створити нового постачальника →" link pre-selects new supplier on return
 - Stock expense (/movements/expense) with SALE/WRITE_OFF/ADJUSTMENT,
   available qty shown + enforced as max, barcode scanner input,
-  quantity step auto-set by unit; insufficient stock error via i18n MessageSource
+  quantity step auto-set by unit; insufficient stock error via i18n MessageSource;
+  "Створити нового клієнта →" link pre-selects new client on return
 - Barcode scanner page (/scan) — camera scan or manual entry, income/expense mode
 - MovementType enum: PURCHASE, SALE, WRITE_OFF, ADJUSTMENT, CANCELLATION
 - StockDashboardRowDto with status OK/LOW/OUT
 - Movement journal (/movements/history) with server-side filtering (JPA Specifications),
   pagination, date/type/product/counterparty filters, auto-submit on change
-- Movement cancellation — POST /movements/{id}/cancel reverses any SALE/WRITE_OFF/
-  ADJUSTMENT: restores stock (new StockItem batch), records CANCELLATION movement with
-  original_movement_id set and human-readable Ukrainian note; cancelled rows shown
-  strikethrough, cancellation rows shown in gray; confirm modal in UI;
+- Movement cancellation — POST /movements/{id}/cancel reverses any PURCHASE/SALE/
+  WRITE_OFF/ADJUSTMENT: restores or removes stock, records CANCELLATION movement;
+  cancel button tooltip shows product name + qty + date (native title attr);
+  confirmation modal shows movement detail (product, qty, unit, date) + confirm text;
+  success flash message is informative: product name, qty, new stock level —
+  two variants: movement.cancel.success (expense) and movement.cancel.success.purchase;
+  StockService.cancelMovement() returns CancelResult record with all data for message;
+  cancelled rows shown strikethrough, cancellation rows shown in gray;
   guard against double-cancel and cancelling a cancellation
 - Reports page (/reports) — expiry alerts, top sales by revenue,
   purchases summary by supplier, margin analysis with %; period presets
@@ -93,15 +104,36 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   AJAX, no page reload; 3 quick-question buttons; fully i18n'd UI;
   API key via GEMINI_API_KEY env var / gemini.api.key in dev properties
 
+## UX patterns (apply consistently)
+- Confirmation modals use btn.yes / btn.no ("Так" / "Ні") — not action-named buttons
+- Delete buttons: active (btn-outline-danger + modal) when deletable;
+  disabled (btn-outline-secondary + tooltip with reason) when guarded
+- Guard pattern: service loads entity, checks constraint, throws IllegalStateException
+  with i18n message; controller catches and puts in errorMessage flash attribute
+- Deletion guard set loaded in controller.list() via getXxxIdsWithYyy() service method,
+  passed to model as "xxxWithYyy" (e.g. suppliersWithMovements, categoriesWithProducts)
+- Create-from-related-page pattern: GET/POST /entity/new?returnTo=page,
+  on success redirect to /related/page?entityId=savedId,
+  related page GET accepts entityId param and pre-fills DTO;
+  form page shows "Створити новий X →" link under the select with color:var(--accent)
+- Flash messages: successMessage (alert-success) and errorMessage (alert-danger),
+  rendered inline in each template (not in layout); dismissible
+- Informative success messages include entity name in quotes using {0} MessageFormat param
+- Bootstrap Tooltip cannot coexist with data-bs-toggle="modal" on same element —
+  use native title attribute instead (browser tooltip still shows)
+
 ## Movement cancellation details
 - StockMovement.originalMovementId (Long) links a CANCELLATION back to its source
 - StockMovementRepository.existsByOriginalMovementId() — guard for double-cancel
+- StockMovementRepository.existsBySupplierId() / existsByClientId() — delete guards
 - StockMovementRepository.findCancelledMovementIds(Set<Long>) — @Query returns which
   IDs on the current history page have been cancelled (for UI indicators)
-- StockService.cancelMovement() validates type, checks guards, saves restored StockItem,
-  builds note "Скасування: {name}, {qty} {unit}, {dd.MM.yyyy}", saves CANCELLATION movement
-- StockService.getCancelledMovementIds() — called by MovementController for the model
-- Cancel button visible only for non-PURCHASE, non-CANCELLATION, not-yet-cancelled rows
+- StockMovementRepository.findAllSupplierIdsWithMovements() / findAllClientIdsWithMovements()
+  — used to build disabled-delete sets in list controllers
+- StockService.cancelMovement() returns CancelResult record: productName, qtyFormatted,
+  unitLabel, newStockFormatted, isPurchase — controller picks message key and formats
+- Cancel button visible only for non-CANCELLATION, not-yet-cancelled rows
+  (PURCHASE can also be cancelled; guard: batch qty must equal original qty)
 
 ## Security
 - DB-based authentication via UserDetailsServiceImpl
