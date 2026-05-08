@@ -69,8 +69,10 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - MovementType enum: PURCHASE, SALE, WRITE_OFF, ADJUSTMENT, CANCELLATION
 - StockDashboardRowDto with status OK/LOW/OUT
 - Movement journal (/movements/history) — server-side filtering (JPA Specifications),
-  no pagination (full list, max 500 guard), filters: date range, type, product name
-  (text LIKE search), counterparty (text LIKE); auto-submit on change/blur/debounce;
+  server-side pagination PAGE_SIZE=100 (MovementHistoryService), filters: date range,
+  type, product name (text LIKE search), counterparty (text LIKE);
+  auto-submit on change/blur/debounce; search input-group with × clear button;
+  pagination controls preserve all filter params; warning banner when totalElements >= 500;
   product name, client name, supplier name are clickable links → detail pages with
   from=history so Back button returns to journal
 - Movement cancellation — POST /movements/{id}/cancel reverses any PURCHASE/SALE/
@@ -177,7 +179,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Platform: Fly.io (Amsterdam region, 1 shared machine, 512MB RAM)
 - Database: Neon PostgreSQL (eu-central-1, Frankfurt)
 - CI/CD: GitHub Actions
-  - deploy.yml — triggers on push to master, builds Docker image with flyctl --remote-only, deploys to Fly.io
+  - test.yml — triggers on push to develop and PRs to master; runs ./mvnw test (unit tests only, no DB required)
+  - deploy.yml — triggers on push to master; runs unit tests first, then builds Docker image and deploys to Fly.io
   - deploy-on-comment.yml — triggers on PR comment "/deploy" by repo owner, same deploy flow
 - Secrets managed via Fly.io secrets (DB_URL, DB_USERNAME, DB_PASSWORD,
   SPRING_PROFILES_ACTIVE, GEMINI_API_KEY)
@@ -204,4 +207,12 @@ DB credentials in application-dev.properties (gitignored)
 - User management page (if multiple users needed)
 
 ### Quality
-- Unit tests for StockService — FIFO deduction logic, cancel guards, KPI counts
+- Unit tests written (29 tests, no DB required, run with ./mvnw test):
+  - StockServiceTest — FIFO deduction (single/multi-batch, exact/partial, insufficient stock),
+    cancel guards (double-cancel, cancel-of-cancellation, partially used purchase, null batch),
+    cancel success paths (expense restores stock item, purchase zeroes batch,
+    CANCELLATION movement linked via originalMovementId), getCancelledMovementIds empty shortcut
+  - StockDashboardRowDtoTest — status OK / LOW (= min, < min) / OUT (0, 0.000)
+  - ReportServiceTest — revenue, gross profit, margin%, salesCount, top sales grouping +
+    share%, top clients sorting + null-client exclusion, margin analysis sorting
+  - WarehouseApplicationTests — @Disabled (requires live PostgreSQL, run manually with dev profile)

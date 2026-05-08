@@ -45,6 +45,33 @@
         </div>
     </div>
 
+    <!-- Out-of-stock modal (expense mode, product exists but qty = 0) -->
+    <div class="modal fade" id="outOfStockModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title text-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <span th:text="#{scan.outOfStock.title}">Товар відсутній на складі</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="outOfStockName" class="fw-semibold mb-1"></p>
+                    <p class="text-muted mb-3" th:text="#{scan.outOfStock.message}">
+                        Неможливо оформити витрату: товар відсутній у наявності.
+                    </p>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-arrow-repeat me-1"></i>
+                            <span th:text="#{scan.outOfStock.retry}">Сканувати інший товар</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Not-found modal -->
     <div class="modal fade" id="notFoundModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -185,12 +212,29 @@
             fetch(byBarcodeUrl + '?code=' + encodeURIComponent(decodedText))
                 .then(r => {
                     if (r.ok) {
-                        return r.json().then(p => { window.location.href = getStockUrl(p.id); });
+                        return r.json().then(p => {
+                            if (selectedMode === 'expense' && !(p.availableQty > 0)) {
+                                showOutOfStockModal(p);
+                            } else {
+                                window.location.href = getStockUrl(p.id);
+                            }
+                        });
                     } else {
                         showNotFoundModal(decodedText);
                     }
                 })
                 .catch(() => showNotFoundModal(decodedText));
+        }
+
+        function showOutOfStockModal(product) {
+            document.getElementById('outOfStockName').textContent =
+                product.name + (product.brand ? ' \u2014 ' + product.brand : '');
+            const modal = new bootstrap.Modal(document.getElementById('outOfStockModal'));
+            modal.show();
+            document.getElementById('outOfStockModal').addEventListener('hidden.bs.modal', function () {
+                scannedCode = null;
+                startScanner();
+            }, { once: true });
         }
 
         function showNotFoundModal(code) {
