@@ -77,10 +77,12 @@
                             <th th:text="#{stock.form.quantity}">Кількість</th>
                             <th th:text="#{stock.form.salePrice}">Ціна</th>
                             <th th:text="#{stock.form.notes}">Примітки</th>
+                            <th></th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="m : ${movements}"
+                            th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted'"
                             th:attr="data-type=${m.movementType.name()},data-name=${m.product.name}">
                             <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
                             <td>
@@ -101,10 +103,65 @@
                             </td>
                             <td th:text="${m.unitPrice != null ? m.unitPrice + ' zł' : '—'}"></td>
                             <td th:text="${m.notes ?: '—'}"></td>
+                            <td>
+                                <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
+                                        type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        th:title="#{movement.edit.button}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editMovementModal"
+                                        th:attr="data-movement-id=${m.id},
+                                                 data-movement-type=${m.movementType.name()},
+                                                 data-client-id=${m.client != null ? m.client.id : ''},
+                                                 data-notes=${m.notes ?: ''}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <span th:if="${cancelledMovementIds.contains(m.id)}"
+                                      class="text-muted small" style="font-size:0.7rem"
+                                      th:text="#{movement.cancel.badge}"></span>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit movement modal -->
+    <div class="modal fade" id="editMovementModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{movement.edit.title}">Редагувати операцію</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editMovementForm" method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                    <input type="hidden" name="returnTo" th:value="@{/clients/{id}(id=${client.id})}"/>
+                    <div class="modal-body">
+                        <div id="editMovClientField" class="mb-3">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
+                            <select class="form-select" name="clientId" id="editMovClientSelect">
+                                <option value="" th:text="#{stock.form.selectClient}">-- Оберіть клієнта --</option>
+                                <option th:each="c : ${clients}"
+                                        th:value="${c.id}"
+                                        th:text="${c.name}">
+                                </option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
+                            <textarea class="form-control" name="notes" id="editMovNotes" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal" th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                th:text="#{btn.save}">Зберегти</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -127,6 +184,26 @@
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);
             });
+
+            const editMovModal = document.getElementById('editMovementModal');
+            if (editMovModal) {
+                editMovModal.addEventListener('show.bs.modal', function(event) {
+                    const btn = event.relatedTarget;
+                    const movementType = btn.getAttribute('data-movement-type');
+                    document.getElementById('editMovementForm').action =
+                        '/movements/' + btn.getAttribute('data-movement-id') + '/edit';
+                    document.getElementById('editMovNotes').value = btn.getAttribute('data-notes') || '';
+                    const clientField = document.getElementById('editMovClientField');
+                    const clientSelect = document.getElementById('editMovClientSelect');
+                    if (movementType === 'SALE') {
+                        clientField.style.display = '';
+                        clientSelect.value = btn.getAttribute('data-client-id') || '';
+                    } else {
+                        clientField.style.display = 'none';
+                        clientSelect.value = '';
+                    }
+                });
+            }
         });
     </script>
 </div>

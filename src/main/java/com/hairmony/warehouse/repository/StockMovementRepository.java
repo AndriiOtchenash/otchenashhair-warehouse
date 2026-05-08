@@ -15,6 +15,10 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     List<StockMovement> findAllByProductIdOrderByCreatedAtDesc(Long productId);
     List<StockMovement> findAllByClientIdOrderByCreatedAtDesc(Long clientId);
     boolean existsByOriginalMovementId(Long originalMovementId);
+    boolean existsByClientId(Long clientId);
+
+    @Query("SELECT DISTINCT m.client.id FROM StockMovement m WHERE m.client IS NOT NULL")
+    Set<Long> findAllClientIdsWithMovements();
 
     @Query("SELECT m.originalMovementId FROM StockMovement m WHERE m.originalMovementId IN :ids")
     Set<Long> findCancelledMovementIds(@Param("ids") Set<Long> ids);

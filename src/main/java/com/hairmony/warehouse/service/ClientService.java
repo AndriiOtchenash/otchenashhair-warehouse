@@ -2,12 +2,14 @@ package com.hairmony.warehouse.service;
 
 import com.hairmony.warehouse.domain.client.Client;
 import com.hairmony.warehouse.repository.ClientRepository;
+import com.hairmony.warehouse.repository.StockMovementRepository;
 import com.hairmony.warehouse.web.dto.ClientDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +17,7 @@ import java.util.List;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final StockMovementRepository stockMovementRepository;
 
     @Transactional(readOnly = true)
     public List<ClientDto> findAll() {
@@ -44,7 +47,15 @@ public class ClientService {
     }
 
     public void delete(Long id) {
+        if (stockMovementRepository.existsByClientId(id)) {
+            throw new IllegalStateException("client.delete.error.hasMovements");
+        }
         clientRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Long> getClientIdsWithMovements() {
+        return stockMovementRepository.findAllClientIdsWithMovements();
     }
 
     public List<Client> findAllEntities() {

@@ -55,9 +55,12 @@ public class StockController {
     }
 
     @GetMapping("/expense")
-    public String expenseForm(@RequestParam(required = false) Long productId, Model model) {
+    public String expenseForm(@RequestParam(required = false) Long productId,
+                              @RequestParam(required = false) Long clientId,
+                              Model model) {
         StockExpenseDto dto = new StockExpenseDto();
         if (productId != null) dto.setProductId(productId);
+        if (clientId != null) dto.setClientId(clientId);
         model.addAttribute("dto", dto);
         model.addAttribute("products", productService.findAllActiveWithStock());
         model.addAttribute("clients", clientService.findAll());
@@ -94,6 +97,25 @@ public class StockController {
             });
             return "stock/expense";
         }
+    }
+
+    @PostMapping("/{id}/edit")
+    public String editMovement(@PathVariable Long id,
+                               @RequestParam(required = false) Long clientId,
+                               @RequestParam(required = false) String notes,
+                               @RequestParam(required = false) String returnTo,
+                               RedirectAttributes redirectAttributes) {
+        try {
+            stockService.updateMovementMeta(id, clientId, notes);
+            redirectAttributes.addFlashAttribute("successMessage",
+                    messageSource.getMessage("movement.edit.success", null, LocaleContextHolder.getLocale()));
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        if (returnTo != null && returnTo.startsWith("/")) {
+            return "redirect:" + returnTo;
+        }
+        return "redirect:/movements/history";
     }
 
     @PostMapping("/{id}/cancel")

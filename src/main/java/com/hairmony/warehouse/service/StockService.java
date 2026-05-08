@@ -144,13 +144,7 @@ public class StockService {
         StockMovement original = stockMovementRepository.findById(movementId)
                 .orElseThrow(() -> new EntityNotFoundException("Movement not found: " + movementId));
 
-        // Only expense-type movements can be cancelled
-        if (original.getMovementType() == MovementType.PURCHASE) {
-            throw new IllegalStateException(messageSource.getMessage(
-                    "movement.cancel.error.notAllowed", null, LocaleContextHolder.getLocale()));
-        }
-
-        // A cancellation movement itself cannot be cancelled again
+        // A cancellation movement itself cannot be cancelled
         if (original.getOriginalMovementId() != null) {
             throw new IllegalStateException(messageSource.getMessage(
                     "movement.cancel.error.notAllowed", null, LocaleContextHolder.getLocale()));
@@ -164,15 +158,7 @@ public class StockService {
 
         User currentUser = getCurrentUser();
 
-        // Restore stock: create a new StockItem batch with the returned quantity
-        StockItem restored = StockItem.builder()
-                .product(original.getProduct())
-                .quantity(original.getQuantity())
-                .purchasePrice(original.getUnitPrice())
-                .build();
-        stockItemRepository.save(restored);
-
-        // Build cancellation note in Ukrainian (data field, not i18n)
+        // Build note fields
         String productName = original.getProduct().getName();
         String unitLabel = switch (original.getProduct().getUnit()) {
             case ML -> "мл";
@@ -185,20 +171,54 @@ public class StockService {
                 : qty.stripTrailingZeros().toPlainString();
         String originalDate = original.getCreatedAt()
                 .format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
-        String note = "Скасування: " + productName + ", " + qtyFormatted + " " + unitLabel + ", " + originalDate;
 
-        // Record the reverse movement
+        StockItem stockItemForCancellation;
+        String note;
+
+        if (original.getMovementType() == MovementType.PURCHASE) {
+            // Purchase cancellation: remove the stock batch that was created
+            StockItem batch = original.getStockItem();
+            if (batch == null || batch.getQuantity().compareTo(original.getQuantity()) != 0) {
+                throw new IllegalStateException(messageSource.getMessage(
+                        "movement.cancel.error.purchasePartiallyUsed", null, LocaleContextHolder.getLocale()));
+            }
+            batch.setQuantity(BigDecimal.ZERO);
+            stockItemForCancellation = batch;
+            note = "Скасування приходу: " + productName + ", " + qtyFormatted + " " + unitLabel + ", " + originalDate;
+        } else {
+            // Expense cancellation: restore stock by creating a new batch
+            StockItem restored = StockItem.builder()
+                    .product(original.getProduct())
+                    .quantity(original.getQuantity())
+                    .purchasePrice(original.getUnitPrice())
+                    .build();
+            stockItemRepository.save(restored);
+            stockItemForCancellation = restored;
+            note = "Скасування: " + productName + ", " + qtyFormatted + " " + unitLabel + ", " + originalDate;
+        }
+
         StockMovement cancellation = StockMovement.builder()
                 .product(original.getProduct())
-                .stockItem(restored)
+                .stockItem(stockItemForCancellation)
                 .movementType(MovementType.CANCELLATION)
                 .quantity(original.getQuantity())
                 .unitPrice(original.getUnitPrice())
+                .supplier(original.getSupplier())
+                .client(original.getClient())
                 .notes(note)
                 .originalMovementId(movementId)
                 .performedBy(currentUser)
                 .build();
         stockMovementRepository.save(cancellation);
+    }
+
+    public void updateMovementMeta(Long movementId, Long clientId, String notes) {
+        StockMovement movement = stockMovementRepository.findById(movementId)
+                .orElseThrow(() -> new EntityNotFoundException("Movement not found: " + movementId));
+        movement.setClient(clientId != null
+                ? clientRepository.findById(clientId).orElse(null)
+                : null);
+        movement.setNotes(notes != null && !notes.isBlank() ? notes.strip() : null);
     }
 
     @Transactional(readOnly = true)

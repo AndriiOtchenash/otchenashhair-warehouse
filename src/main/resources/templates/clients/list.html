@@ -13,6 +13,11 @@
         </button>
     </div>
 
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mb-3">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
     <!-- Collapsible new-client form -->
     <div class="collapse mb-3" id="newClientForm">
         <div class="card">
@@ -104,22 +109,56 @@
                                        data-bs-toggle="tooltip">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <form th:action="@{/clients/{id}/delete(id=${c.id})}"
-                                          method="post"
-                                          th:attr="data-confirm=#{confirm.delete.client}"
-                                          onsubmit="return confirm(this.dataset.confirm)">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                th:title="#{btn.delete}"
-                                                data-bs-toggle="tooltip">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <button th:if="${!clientsWithMovements.contains(c.id)}"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-danger"
+                                            th:title="#{btn.delete}"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#deleteClientModal"
+                                            th:attr="data-client-name=${c.name},
+                                                     data-action=@{/clients/{id}/delete(id=${c.id})}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    <button th:if="${clientsWithMovements.contains(c.id)}"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            disabled
+                                            th:title="#{client.delete.error.hasMovements}"
+                                            data-bs-toggle="tooltip">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
                         </tbody>
                     </table>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div class="modal fade" id="deleteClientModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{btn.delete}">Видалити</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        <span th:text="#{confirm.delete.client}">Видалити клієнта</span>
+                        <strong id="deleteClientName"></strong>?
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            data-bs-dismiss="modal" th:text="#{btn.cancel}">Скасувати</button>
+                    <form id="deleteClientForm" method="post">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                        <button type="submit" class="btn btn-danger btn-sm" th:text="#{btn.delete}">Видалити</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -149,6 +188,15 @@
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);
             });
+
+            var deleteModal = document.getElementById('deleteClientModal');
+            if (deleteModal) {
+                deleteModal.addEventListener('show.bs.modal', function(event) {
+                    var btn = event.relatedTarget;
+                    document.getElementById('deleteClientName').textContent = btn.getAttribute('data-client-name');
+                    document.getElementById('deleteClientForm').action = btn.getAttribute('data-action');
+                });
+            }
         });
     </script>
 </div>
