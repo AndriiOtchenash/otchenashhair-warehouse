@@ -126,6 +126,7 @@ public class ProductService {
                 .brand(product.getBrand())
                 .unit(product.getUnit() != null ? product.getUnit().name() : null)
                 .barcode(product.getBarcode())
+                .availableQty(stockItemRepository.getTotalQuantityByProductId(product.getId()))
                 .build();
     }
 

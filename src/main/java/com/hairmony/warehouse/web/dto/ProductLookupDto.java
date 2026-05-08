@@ -2,6 +2,8 @@ package com.hairmony.warehouse.web.dto;
 
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -13,4 +15,5 @@ public class ProductLookupDto {
     private String brand;
     private String unit;
     private String barcode;
+    private BigDecimal availableQty;
 }
