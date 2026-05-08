@@ -3,6 +3,9 @@
       th:replace="~{layout/main :: layout(#{stock.expense.title}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .card-body { overflow-x: visible !important; }
+    </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{stock.expense.title}">Витрата товару</h1>
     </div>
@@ -112,9 +115,6 @@
             </form>
         </div>
     </div>
-    <style>
-        .card-body { overflow-x: visible !important; }
-    </style>
     <script th:inline="javascript">
         const inStockLabel = /*[[#{stock.hint.available}]]*/ 'В наявності';
         const unitLabels = {

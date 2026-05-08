@@ -3,6 +3,12 @@
       th:replace="~{layout/main :: layout(#{product.list.title}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .table td a.fw-semibold,
+        .table td.td-category {
+            font-size: 0.90rem;
+        }
+    </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{product.list.title}">Товари</h1>
         <div class="d-flex gap-2 flex-wrap">
@@ -71,7 +77,7 @@
                               class="badge badge-inactive px-2 py-1 rounded-pill"
                               th:text="#{product.inactive}">Неактивний</span>
                     </td>
-                    <td th:text="${product.category != null ? product.category.name : ''}"></td>
+                    <td class="td-category" th:text="${product.category != null ? product.category.name : ''}"></td>
                     <td class="d-none d-md-table-cell" th:text="${product.brand}"></td>
                     <td class="d-none d-md-table-cell" th:text="#{unit.__${product.unit}__}"></td>
                     <td class="d-none d-md-table-cell" th:text="${@qf.format(product.minStockLevel, product.unit != null ? product.unit.name() : 'PCS')}"></td>
