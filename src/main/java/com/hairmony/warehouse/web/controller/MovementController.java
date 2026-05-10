@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.web.controller;
 
 import com.hairmony.warehouse.domain.stock.MovementType;
+import com.hairmony.warehouse.domain.stock.WriteOffReason;
 import com.hairmony.warehouse.domain.stock.StockMovement;
 import com.hairmony.warehouse.service.ClientService;
 import com.hairmony.warehouse.service.MovementHistoryService;
@@ -36,6 +37,7 @@ public class MovementController {
         model.addAttribute("movements", page.getContent());
         model.addAttribute("filter", filter);
         model.addAttribute("movementTypes", MovementType.values());
+        model.addAttribute("writeOffReasons", WriteOffReason.values());
         model.addAttribute("totalElements", page.getTotalElements());
         model.addAttribute("totalPages", page.getTotalPages());
         model.addAttribute("currentPage", page.getNumber());

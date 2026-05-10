@@ -51,6 +51,10 @@ public class MovementHistoryService {
                 return cb.like(cb.lower(root.get("product").get("name")), pattern);
             });
         }
+        if (filter.getWriteOffReason() != null) {
+            spec = spec.and((root, q, cb) ->
+                cb.equal(root.get("writeOffReason"), filter.getWriteOffReason()));
+        }
         if (filter.getCounterparty() != null && !filter.getCounterparty().isBlank()) {
             spec = spec.and((root, q, cb) -> {
                 var client = root.join("client", JoinType.LEFT);

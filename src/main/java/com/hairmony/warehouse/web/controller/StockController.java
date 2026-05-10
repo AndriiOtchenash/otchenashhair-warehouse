@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.web.controller;
 
 import com.hairmony.warehouse.domain.stock.MovementType;
+import com.hairmony.warehouse.domain.stock.WriteOffReason;
 import com.hairmony.warehouse.service.*;
 import com.hairmony.warehouse.web.dto.*;
 import jakarta.validation.Valid;
@@ -64,12 +65,8 @@ public class StockController {
         StockExpenseDto dto = new StockExpenseDto();
         if (productId != null) dto.setProductId(productId);
         if (clientId != null) dto.setClientId(clientId);
+        populateExpenseModel(model);
         model.addAttribute("dto", dto);
-        model.addAttribute("products", productService.findAllActiveWithStock());
-        model.addAttribute("clients", clientService.findAll());
-        model.addAttribute("expenseTypes", new MovementType[]{
-                MovementType.SALE, MovementType.WRITE_OFF, MovementType.ADJUSTMENT
-        });
         return "stock/expense";
     }
 
@@ -79,11 +76,7 @@ public class StockController {
                                   Model model,
                                   RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
-            model.addAttribute("products", productService.findAllActiveWithStock());
-            model.addAttribute("clients", clientService.findAll());
-            model.addAttribute("expenseTypes", new MovementType[]{
-                    MovementType.SALE, MovementType.WRITE_OFF, MovementType.ADJUSTMENT
-            });
+            populateExpenseModel(model);
             return "stock/expense";
         }
         try {
@@ -93,13 +86,19 @@ public class StockController {
             return "redirect:/movements/expense";
         } catch (IllegalStateException e) {
             model.addAttribute("errorMessage", e.getMessage());
-            model.addAttribute("products", productService.findAllActiveWithStock());
-            model.addAttribute("clients", clientService.findAll());
-            model.addAttribute("expenseTypes", new MovementType[]{
-                    MovementType.SALE, MovementType.WRITE_OFF, MovementType.ADJUSTMENT
-            });
+            populateExpenseModel(model);
             return "stock/expense";
         }
+    }
+
+    private void populateExpenseModel(Model model) {
+        model.addAttribute("products", productService.findAllActiveWithStock());
+        model.addAttribute("clients", clientService.findAll());
+        model.addAttribute("expenseTypes", new MovementType[]{
+                MovementType.SALE, MovementType.WRITE_OFF, MovementType.ADJUSTMENT
+        });
+        model.addAttribute("fifoPrices", stockService.getFifoPricesPerProduct());
+        model.addAttribute("writeOffReasons", WriteOffReason.values());
     }
 
     @PostMapping("/{id}/edit")

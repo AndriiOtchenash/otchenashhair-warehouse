@@ -160,12 +160,32 @@
                         </button>
                     </div>
                 </div>
+                <div class="col-12 col-md-auto" id="writeOffReasonFilterCol">
+                    <div class="filter-field-inline">
+                        <label class="form-label form-label-sm fw-semibold mb-1" th:text="#{movements.filter.writeOffReason}">Причина</label>
+                        <select class="form-select form-select-sm" name="writeOffReason">
+                            <option value="">—</option>
+                            <option th:each="r : ${writeOffReasons}"
+                                    th:value="${r}"
+                                    th:text="#{writeOffReason.__${r}__}"
+                                    th:selected="${filter.writeOffReason == r}">
+                            </option>
+                        </select>
+                        <button th:if="${filter.writeOffReason != null}"
+                                type="button" tabindex="-1"
+                                class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                onclick="clearWriteOffReasonFilter()">
+                            <i class="bi bi-x-lg" style="font-size:0.65rem"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="col-auto d-flex align-items-end"
                      th:with="filterCount=${(filter.productName != null and !filter.productName.isEmpty() ? 1 : 0) +
                                            (filter.counterparty != null and !filter.counterparty.isEmpty() ? 1 : 0) +
                                            (filter.dateFrom != null ? 1 : 0) +
                                            (filter.dateTo != null ? 1 : 0) +
-                                           (filter.movementType != null ? 1 : 0)}">
+                                           (filter.movementType != null ? 1 : 0) +
+                                           (filter.writeOffReason != null ? 1 : 0)}">
                     <a th:if="${filterCount > 0}" href="/movements/history" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-funnel"></i>
                         <span th:text="#{btn.reset}">Скинути</span><span th:text="${' (' + filterCount + ')'}"></span>
@@ -181,7 +201,8 @@
                               (filter.counterparty != null and !filter.counterparty.isEmpty()) or
                               filter.dateFrom != null or
                               filter.dateTo != null or
-                              filter.movementType != null}">
+                              filter.movementType != null or
+                              filter.writeOffReason != null}">
         <span th:text="#{movements.found}">Знайдено:</span>
         <strong th:text="${totalElements}">0</strong>
         <span th:text="#{movements.records}">записів</span>
@@ -239,6 +260,10 @@
                                              (${m.movementType.name() == 'WRITE_OFF'} ? 'bg-danger' : 'bg-secondary'))"
                               th:text="#{movementType.__${m.movementType}__}">
                         </span>
+                        <div th:if="${m.writeOffReason != null}" class="mt-1">
+                            <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
+                                  th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
+                        </div>
                     </td>
                     <td>
                         <span th:text="${@qf.format(m.quantity, m.product.unit.name())}"></span>
@@ -307,19 +332,19 @@
             <ul class="pagination pagination-sm mb-0">
                 <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
                     <a class="page-link"
-                       th:href="@{/movements/history(page=${currentPage - 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productName=${filter.productName},counterparty=${filter.counterparty})}">
+                       th:href="@{/movements/history(page=${currentPage - 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},writeOffReason=${filter.writeOffReason},productName=${filter.productName},counterparty=${filter.counterparty})}">
                         &laquo;
                     </a>
                 </li>
                 <li th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
                     class="page-item" th:classappend="${i == currentPage} ? 'active'">
                     <a class="page-link"
-                       th:href="@{/movements/history(page=${i},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productName=${filter.productName},counterparty=${filter.counterparty})}"
+                       th:href="@{/movements/history(page=${i},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},writeOffReason=${filter.writeOffReason},productName=${filter.productName},counterparty=${filter.counterparty})}"
                        th:text="${i + 1}">1</a>
                 </li>
                 <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled'">
                     <a class="page-link"
-                       th:href="@{/movements/history(page=${currentPage + 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},productName=${filter.productName},counterparty=${filter.counterparty})}">
+                       th:href="@{/movements/history(page=${currentPage + 1},dateFrom=${filter.dateFrom},dateTo=${filter.dateTo},movementType=${filter.movementType},writeOffReason=${filter.writeOffReason},productName=${filter.productName},counterparty=${filter.counterparty})}">
                         &raquo;
                     </a>
                 </li>
@@ -408,6 +433,12 @@
 
         function clearTypeFilter() {
             var sel = document.querySelector('select[name="movementType"]');
+            if (sel) { sel.value = ''; }
+            submitFilter();
+        }
+
+        function clearWriteOffReasonFilter() {
+            var sel = document.querySelector('select[name="writeOffReason"]');
             if (sel) { sel.value = ''; }
             submitFilter();
         }

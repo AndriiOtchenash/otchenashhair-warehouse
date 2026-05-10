@@ -57,6 +57,10 @@ public class StockMovement {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "write_off_reason", length = 30)
+    private WriteOffReason writeOffReason;
+
     @Column(name = "original_movement_id")
     private Long originalMovementId;
 
