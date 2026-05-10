@@ -31,4 +31,8 @@ public interface StockItemRepository extends JpaRepository<StockItem, Long> {
 
     @Query("SELECT COALESCE(SUM(si.quantity * si.purchasePrice), 0) FROM StockItem si WHERE si.quantity > 0 AND si.purchasePrice IS NOT NULL")
     java.math.BigDecimal getTotalStockValue();
+
+    @Query("SELECT si.product.id, si.purchasePrice FROM StockItem si WHERE si.quantity > 0 " +
+           "AND si.createdAt = (SELECT MIN(si2.createdAt) FROM StockItem si2 WHERE si2.product.id = si.product.id AND si2.quantity > 0)")
+    List<Object[]> findFifoPricePerProduct();
 }

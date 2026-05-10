@@ -72,6 +72,14 @@ public class StockService {
                     "stock.expense.insufficientStock", new Object[]{available}, LocaleContextHolder.getLocale()));
         }
 
+        // SALE-specific price validation
+        if (dto.getMovementType() == MovementType.SALE) {
+            if (dto.getUnitPrice() == null || dto.getUnitPrice().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalStateException(messageSource.getMessage(
+                        "stock.expense.salePriceRequired", null, LocaleContextHolder.getLocale()));
+            }
+        }
+
         // FIFO deduction
         BigDecimal remaining = dto.getQuantity();
         List<StockItem> batches = stockItemRepository.findAvailableByProductIdFifo(dto.getProductId());
@@ -96,15 +104,26 @@ public class StockService {
                 .movementType(dto.getMovementType())
                 .quantity(dto.getQuantity())
                 .unitPrice(dto.getUnitPrice())
+                .writeOffReason(dto.getMovementType() == MovementType.WRITE_OFF ? dto.getWriteOffReason() : null)
                 .notes(dto.getNotes())
                 .performedBy(getCurrentUser())
                 .build();
 
-        if (dto.getMovementType() == MovementType.SALE && dto.getClientId() != null) {
+        boolean needsClient = dto.getMovementType() == MovementType.SALE
+                || (dto.getMovementType() == MovementType.WRITE_OFF && dto.getWriteOffReason() == WriteOffReason.GIFT);
+        if (needsClient && dto.getClientId() != null) {
             movement.setClient(clientRepository.findById(dto.getClientId()).orElse(null));
         }
 
         stockMovementRepository.save(movement);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> getFifoPricesPerProduct() {
+        Map<Long, BigDecimal> map = new HashMap<>();
+        stockItemRepository.findFifoPricePerProduct()
+                .forEach(row -> map.putIfAbsent((Long) row[0], (BigDecimal) row[1]));
+        return map;
     }
 
     @Transactional(readOnly = true)

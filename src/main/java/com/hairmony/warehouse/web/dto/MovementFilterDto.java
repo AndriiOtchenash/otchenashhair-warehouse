@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.web.dto;
 
 import com.hairmony.warehouse.domain.stock.MovementType;
+import com.hairmony.warehouse.domain.stock.WriteOffReason;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -16,6 +17,7 @@ public class MovementFilterDto {
     private LocalDate dateTo;
 
     private MovementType movementType;
+    private WriteOffReason writeOffReason;
     private Long productId;
     private String productName;
     private String counterparty;

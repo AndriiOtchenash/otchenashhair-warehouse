@@ -34,7 +34,7 @@
                             <option th:each="p : ${products}"
                                     th:value="${p.id}"
                                     th:text="${p.name}"
-                                    th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity}">
+                                    th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''}">
                             </option>
                         </select>
                         <input th:if="${dto.productId != null}" type="hidden" name="productId" th:value="${dto.productId}"/>
@@ -63,6 +63,17 @@
                             </option>
                         </select>
                         <div class="invalid-feedback" th:errors="*{movementType}"></div>
+                    </div>
+
+                    <div class="col-md-3" id="writeOffReasonField">
+                        <label class="form-label fw-semibold" th:text="#{stock.form.writeOffReason}">Причина списання</label>
+                        <select class="form-select" id="writeOffReasonSelect" th:field="*{writeOffReason}">
+                            <option value="" th:text="#{stock.form.selectType}">-- Причина --</option>
+                            <option th:each="r : ${writeOffReasons}"
+                                    th:value="${r}"
+                                    th:text="#{writeOffReason.__${r}__}">
+                            </option>
+                        </select>
                     </div>
 
                     <div class="col-md-3">
@@ -94,9 +105,16 @@
                         </div>
                     </div>
 
-                    <div class="col-md-3">
+                    <div class="col-md-3" id="priceField">
                         <label class="form-label fw-semibold" th:text="#{stock.form.salePrice}">Ціна продажу</label>
-                        <input type="number" step="0.01" class="form-control" th:field="*{unitPrice}"/>
+                        <input type="number" step="0.01" min="0.01" id="unitPriceInput"
+                               class="form-control"
+                               th:field="*{unitPrice}"
+                               th:classappend="${#fields.hasErrors('unitPrice')} ? 'is-invalid'"/>
+                        <div class="invalid-feedback" th:errors="*{unitPrice}"></div>
+                        <div id="priceWarning" class="alert alert-warning py-1 px-2 mt-1 mb-0 small" style="display:none">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="priceWarningText"></span>
+                        </div>
                     </div>
 
                     <div class="col-12">
@@ -146,21 +164,100 @@
                     quantityInput.step = '1';
                 }
             }
+            checkPriceWarning();
         }
 
         const saleNoClientMsg = /*[[#{stock.expense.confirm.noClient}]]*/ 'Продаж без клієнта. Продовжити?';
+        const priceBelowCostWarning = /*[[#{stock.expense.warning.priceBelowCost}]]*/ 'Ціна нижча за закупівельну:';
+        const priceBelowCostConfirm = /*[[#{stock.expense.confirm.priceBelowCost}]]*/ 'Ціна продажу нижча за закупівельну. Зберегти операцію?';
+
+        let isBelowCost = false;
+
+        function checkPriceWarning() {
+            const productSelect = document.getElementById('productSelect');
+            const priceInput = document.getElementById('unitPriceInput');
+            const warningDiv = document.getElementById('priceWarning');
+            const warningText = document.getElementById('priceWarningText');
+            if (!productSelect || !priceInput || !warningDiv) return;
+
+            const option = productSelect.options[productSelect.selectedIndex];
+            const fifoPrice = option ? parseFloat(option.dataset.fifoPrice) : NaN;
+            const unitPrice = parseFloat(priceInput.value);
+
+            if (!isNaN(fifoPrice) && fifoPrice > 0 && !isNaN(unitPrice) && unitPrice > 0 && unitPrice < fifoPrice) {
+                warningText.textContent = priceBelowCostWarning + ' ' + fifoPrice.toFixed(2);
+                warningDiv.style.display = '';
+                isBelowCost = true;
+            } else {
+                warningDiv.style.display = 'none';
+                isBelowCost = false;
+            }
+        }
+
+        function toggleTypeFields() {
+            const typeSelect = document.querySelector('[name="movementType"]');
+            const writeOffReasonSelect = document.getElementById('writeOffReasonSelect');
+            const type = typeSelect ? typeSelect.value : '';
+            const reason = writeOffReasonSelect ? writeOffReasonSelect.value : '';
+            const isSale = type === 'SALE';
+            const isWriteOff = type === 'WRITE_OFF';
+            const isGift = isWriteOff && reason === 'GIFT';
+            const showClient = isSale || isGift;
+
+            const saleFields = document.getElementById('saleFields');
+            const priceField = document.getElementById('priceField');
+            const priceInput = document.getElementById('unitPriceInput');
+            const writeOffReasonField = document.getElementById('writeOffReasonField');
+
+            if (saleFields) saleFields.style.display = showClient ? '' : 'none';
+            if (priceField) priceField.style.display = isSale ? '' : 'none';
+            if (priceInput) {
+                priceInput.required = isSale;
+                if (!isSale) {
+                    priceInput.value = '';
+                    isBelowCost = false;
+                    const warningDiv = document.getElementById('priceWarning');
+                    if (warningDiv) warningDiv.style.display = 'none';
+                }
+            }
+            if (!showClient) {
+                const clientSelect = document.querySelector('[name="clientId"]');
+                if (clientSelect) clientSelect.value = '';
+            }
+
+            if (writeOffReasonField) writeOffReasonField.style.display = isWriteOff ? '' : 'none';
+            if (writeOffReasonSelect && !isWriteOff) writeOffReasonSelect.value = '';
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const select = document.getElementById('productSelect');
-            if (select && select.value) updateStockHint(select);
+            const productSelect = document.getElementById('productSelect');
+            if (productSelect && productSelect.value) updateStockHint(productSelect);
+
+            const typeSelect = document.querySelector('[name="movementType"]');
+            if (typeSelect) {
+                toggleTypeFields();
+                typeSelect.addEventListener('change', toggleTypeFields);
+            }
+
+            const writeOffReasonSelect = document.getElementById('writeOffReasonSelect');
+            if (writeOffReasonSelect) {
+                writeOffReasonSelect.addEventListener('change', toggleTypeFields);
+            }
+
+            const priceInput = document.getElementById('unitPriceInput');
+            if (priceInput) priceInput.addEventListener('input', checkPriceWarning);
 
             const form = document.querySelector('form[data-autosave-key="expense_form"]');
             if (form) {
                 form.addEventListener('submit', function(e) {
                     const type = document.querySelector('[name="movementType"]');
-                    const client = document.querySelector('[name="clientId"]');
-                    if (type && type.value === 'SALE' && client && !client.value) {
-                        if (!confirm(saleNoClientMsg)) {
+                    if (type && type.value === 'SALE') {
+                        if (isBelowCost && !confirm(priceBelowCostConfirm)) {
+                            e.preventDefault();
+                            return;
+                        }
+                        const client = document.querySelector('[name="clientId"]');
+                        if (client && !client.value && !confirm(saleNoClientMsg)) {
                             e.preventDefault();
                         }
                     }

@@ -26,7 +26,7 @@ web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-010)
+- ddl-auto=none, Liquibase manages schema (migrations 001-011)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -40,7 +40,8 @@ Production: Neon PostgreSQL (credentials via Fly.io secrets)
 Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             005-stock-items, 006-stock-movements, 007-categories,
             008-fix-categories, 009-insert-admin-user,
-            010-add-movement-cancel (adds original_movement_id FK on stock_movements)
+            010-add-movement-cancel (adds original_movement_id FK on stock_movements),
+            011-add-writeoff-reason (adds write_off_reason VARCHAR(30) on stock_movements)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -64,13 +65,21 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Stock expense (/movements/expense) with SALE/WRITE_OFF/ADJUSTMENT,
   available qty shown + enforced as max, barcode scanner input,
   quantity step auto-set by unit; insufficient stock error via i18n MessageSource;
-  "Створити нового клієнта →" link pre-selects new client on return
-- Barcode scanner page (/scan) — camera scan or manual entry, income/expense mode
+  "Створити нового клієнта →" link pre-selects new client on return;
+  sale price validation: unitPrice required and > 0 for SALE (server-side guard);
+  below-cost warning: JS inline alert-warning when unitPrice < FIFO purchase price,
+  confirm() on submit (data-fifo-price on product options via StockItemRepository.findFifoPricePerProduct());
+  write-off reason selector (WriteOffReason enum): GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER,
+  shown only when WRITE_OFF selected; client field shown for SALE and WRITE_OFF+GIFT
+- Barcode scanner page (/scan) — camera scan or manual entry, income/expense mode;
+  income/expense mode buttons: colored icons (green/red), white when active
 - MovementType enum: PURCHASE, SALE, WRITE_OFF, ADJUSTMENT, CANCELLATION
+- WriteOffReason enum: GIFT, EXPIRED, DAMAGED, SAMPLE, INTERNAL_USE, OTHER
 - StockDashboardRowDto with status OK/LOW/OUT
 - Movement journal (/movements/history) — server-side filtering (JPA Specifications),
   server-side pagination PAGE_SIZE=100 (MovementHistoryService), filters: date range,
-  type, product name (text LIKE search), counterparty (text LIKE);
+  type, write-off reason (always visible, label "Причина списання"), product name (text LIKE search), counterparty (text LIKE);
+  write-off reason badge shown in type column for WRITE_OFF rows;
   auto-submit: selects/dates → on change, text inputs → debounced 500ms after min 3 chars
   (empty clears immediately); date inputs use showPicker() onclick for mobile calendar;
   focus restored after text auto-submit via sessionStorage;
@@ -111,7 +120,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Clickable table rows on mobile
 - Cancel buttons on stock income/expense forms (back to dashboard)
 - Mobile nav: Income/Expense links → scanner (/scan?mode=income/expense) on mobile,
-  form pages (/movements/income/expense) on desktop (Bootstrap d-none/d-flex split)
+  form pages (/movements/income/expense) on desktop (Bootstrap d-none/d-flex split);
+  dashboard mobile buttons: both btn-outline-secondary, green icon (income) / red icon (expense)
 - DevTools enabled (dev profile only)
 - AI Assistant page (/ai) — chat widget backed by Google Gemini 2.5 Flash
   (v1beta endpoint); builds warehouse context (stock levels + last 30-day
@@ -149,6 +159,16 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   phone/contact in page header subtitle, no duplicate data
 - Mobile tables: hide secondary columns with d-none d-md-table-cell;
   keep essential columns (name, status/type, quantity, actions) always visible
+
+## Stock expense validation
+- unitPrice required and > 0 for SALE — service throws IllegalStateException (stock.expense.salePriceRequired)
+- Below-cost warning (not a hard block): JS compares unitPrice with data-fifo-price on product option;
+  shows inline alert-warning; confirm() on submit if below cost
+- data-fifo-price populated from StockItemRepository.findFifoPricePerProduct() —
+  returns purchasePrice of oldest available batch per product (one query for all products)
+- StockService.getFifoPricesPerProduct() → Map<Long, BigDecimal>, passed to model as fifoPrices
+- WriteOffReason set only when movementType == WRITE_OFF (else null)
+- Client set for SALE and for WRITE_OFF+GIFT (gift recipient)
 
 ## Movement cancellation details
 - StockMovement.originalMovementId (Long) links a CANCELLATION back to its source
