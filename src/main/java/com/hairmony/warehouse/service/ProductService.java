@@ -30,14 +30,14 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductDto> findAllActive() {
-        return productRepository.findAllByActiveTrue().stream()
+        return productRepository.findAllByActiveTrueOrderByNameAsc().stream()
                 .map(this::toDto)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ProductDto> findAllActiveWithStock() {
-        return productRepository.findAllByActiveTrue().stream()
+        return productRepository.findAllByActiveTrueOrderByNameAsc().stream()
                 .map(this::toDto)
                 .filter(p -> p.getCurrentQuantity() != null
                         && p.getCurrentQuantity().compareTo(java.math.BigDecimal.ZERO) > 0)

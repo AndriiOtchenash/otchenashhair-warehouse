@@ -3,12 +3,24 @@
       th:replace="~{layout/main :: layout(${product.name}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .table th { font-size: 0.72rem; vertical-align: middle; }
+        .table-auto th, .table-auto td { font-size: inherit; }
+        @media (max-width: 767.98px) {
+            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+            .table-auto th, .table-auto td { font-size: inherit; padding: revert; }
+        }
+        .table-xs th, .table-xs td { padding: 0.2rem 0.5rem; }
+    </style>
     <div class="page-header">
         <div>
             <h1 class="page-title" th:text="${product.name}"></h1>
-            <span class="text-muted small" th:text="${product.brand}"></span>
+            <span class="text-muted small"
+                  th:if="${product.brand != null and !product.brand.isEmpty()}"
+                  th:text="${product.brand}"></span>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
             <a th:href="@{/movements/income(productId=${product.id})}"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-down-circle me-1 text-success"></i>
@@ -32,193 +44,234 @@
         </div>
     </div>
 
-    <div class="row g-3">
-        <!-- Product info -->
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header" th:text="#{product.detail.info}">Інформація</div>
-                <div class="card-body">
-                    <table class="table table-sm mb-0 table-auto">
-                        <tr>
-                            <td class="text-muted" th:text="#{product.form.category}">Категорія</td>
-                            <td th:text="${product.category?.name}"></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted" th:text="#{product.form.unit}">Од. виміру</td>
-                            <td th:text="#{unit.__${product.unit}__}"></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted" th:text="#{product.form.unitSize}">Обсяг</td>
-                            <td th:text="${product.unitSize}"></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted" th:text="#{product.form.barcode}">Штрихкод</td>
-                            <td th:text="${product.barcode}"></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted" th:text="#{product.form.minStockLevel}">Мін. залишок</td>
-                            <td th:text="${@qf.format(product.minStockLevel, product.unit != null ? product.unit.name() : 'PCS')}"></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted" th:text="#{dashboard.currentStock}">Залишок</td>
-                            <td>
-                                <strong th:text="${@qf.format(totalQuantity, product.unit != null ? product.unit.name() : 'PCS')}"></strong>
-                                <span class="text-muted small" th:text="#{unit.__${product.unit}__}"></span>
-                            </td>
-                        </tr>
-                    </table>
-                    <div th:if="${product.description}" class="mt-3 text-muted small"
-                         th:text="${product.description}"></div>
+    <!-- Info: mobile (original table layout) -->
+    <div class="d-md-none mb-3">
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="card h-100">
+                    <div class="card-header" th:text="#{product.detail.info}">Інформація</div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-0 table-auto">
+                            <tr>
+                                <td class="text-muted" th:text="#{product.form.category}">Категорія</td>
+                                <td th:text="${product.category?.name}"></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" th:text="#{product.form.unit}">Од. виміру</td>
+                                <td th:text="#{unit.__${product.unit}__}"></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" th:text="#{product.form.unitSize}">Обсяг</td>
+                                <td th:text="${product.unitSize}"></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" th:text="#{product.form.barcode}">Штрихкод</td>
+                                <td th:text="${product.barcode}"></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" th:text="#{product.form.minStockLevel}">Мін. залишок</td>
+                                <td th:text="${@qf.format(product.minStockLevel, product.unit != null ? product.unit.name() : 'PCS')}"></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" th:text="#{dashboard.currentStock}">Залишок</td>
+                                <td>
+                                    <strong th:text="${@qf.format(totalQuantity, product.unit != null ? product.unit.name() : 'PCS')}"></strong>
+                                    <span class="text-muted small" th:text="#{unit.__${product.unit}__}"></span>
+                                </td>
+                            </tr>
+                        </table>
+                        <div th:if="${product.description}" class="mt-3 text-muted small"
+                             th:text="${product.description}"></div>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Stock batches -->
-        <div class="col-md-8">
-            <div class="card mb-3">
-                <div class="card-header" th:text="#{product.detail.batches}">Партії на складі</div>
-                <div class="card-body p-0">
-                    <div th:if="${stockItems.empty}" class="text-center text-muted py-3">
-                        <span th:text="#{product.detail.noBatches}">Партій немає</span>
+    <!-- Info: desktop (info strip) -->
+    <div class="d-none d-md-block">
+        <div class="card mb-3">
+            <div class="card-header" th:text="#{product.detail.info}">Інформація</div>
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap gap-4 align-items-baseline">
+                    <div>
+                        <span class="text-muted small" th:text="#{dashboard.currentStock}">Залишок</span>:
+                        <strong class="fs-5"
+                                th:classappend="${totalQuantity.signum() == 0} ? 'text-danger' :
+                                               (${totalQuantity.compareTo(product.minStockLevel) <= 0} ? 'text-warning' : 'text-success')"
+                                th:text="${@qf.format(totalQuantity, product.unit != null ? product.unit.name() : 'PCS')}"></strong>
+                        <span class="text-muted small" th:text="#{unit.__${product.unit}__}"></span>
                     </div>
-                    <div class="table-responsive-wrapper">
-                    <table th:unless="${stockItems.empty}" class="table table-sm mb-0">
-                        <thead class="table-light">
-                        <tr>
-                            <th th:text="#{stock.form.quantity}">Кількість</th>
-                            <th th:text="#{stock.form.purchasePrice}">Ціна закупки</th>
-                            <th th:text="#{stock.form.expiryDate}">Термін придатності</th>
-                            <th th:text="#{stock.form.batchNumber}">Партія</th>
-                            <th th:text="#{product.detail.received}">Отримано</th>
-                            <th th:text="#{table.actions}">Дії</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="item : ${stockItems}"
-                            th:classappend="${item.quantity.compareTo(T(java.math.BigDecimal).ZERO) == 0} ? 'text-muted'">
-                            <td>
-                                <span th:text="${@qf.format(item.quantity, product.unit != null ? product.unit.name() : 'PCS')}"></span>
-                                <span class="small" th:text="#{unit.__${product.unit}__}"></span>
-                            </td>
-                            <td th:text="${item.purchasePrice}"></td>
-                            <td>
-                                <span th:if="${item.expiryDate == null}">—</span>
-                                <span th:unless="${item.expiryDate == null}"
-                                      th:text="${#temporals.format(item.expiryDate, 'dd.MM.yyyy')}"
-                                      th:classappend="${item.expiryDate.isBefore(#temporals.createToday().plusDays(30))} ? 'text-danger fw-semibold'">
-                                </span>
-                            </td>
-                            <td th:text="${item.batchNumber ?: '—'}"></td>
-                            <td th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
-                            <td>
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        th:title="#{stock.item.edit}"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editStockItemModal"
-                                        th:attr="data-id=${item.id},data-expiry=${item.expiryDate},data-batch=${item.batchNumber ?: ''},data-price=${item.purchasePrice ?: ''}">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
+                    <div th:if="${product.category != null}">
+                        <span class="text-muted small" th:text="#{product.form.category}">Категорія</span>:
+                        <span th:text="${product.category.name}"></span>
                     </div>
+                    <div>
+                        <span class="text-muted small" th:text="#{product.form.unit}">Од. виміру</span>:
+                        <span th:text="#{unit.__${product.unit}__}"></span>
+                        <span class="text-muted small" th:if="${product.unitSize != null}"
+                              th:text="'(' + ${product.unitSize} + ')'"></span>
+                    </div>
+                    <div>
+                        <span class="text-muted small" th:text="#{product.form.minStockLevel}">Мін. залишок</span>:
+                        <span th:text="${@qf.format(product.minStockLevel, product.unit != null ? product.unit.name() : 'PCS')}"></span>
+                    </div>
+                    <div th:if="${product.barcode != null and !product.barcode.isEmpty()}">
+                        <span class="text-muted small" th:text="#{product.form.barcode}">Штрихкод</span>:
+                        <code th:text="${product.barcode}"></code>
+                    </div>
+                </div>
+                <div th:if="${product.description != null and !product.description.isEmpty()}"
+                     class="mt-2 text-muted small border-top pt-2" th:text="${product.description}"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock batches -->
+    <div class="card mb-3">
+        <div class="card-header" th:text="#{product.detail.batches}">Партії на складі</div>
+        <div class="card-body p-0">
+            <div th:if="${stockItems.empty}" class="text-center text-muted py-3">
+                <span th:text="#{product.detail.noBatches}">Партій немає</span>
+            </div>
+            <div class="table-responsive-wrapper">
+            <table th:unless="${stockItems.empty}" class="table table-sm table-xs table-hover table-striped mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th th:text="#{stock.form.quantity}">Кількість</th>
+                    <th th:text="#{stock.form.purchasePrice}">Ціна закупки</th>
+                    <th th:text="#{stock.form.expiryDate}">Термін придатності</th>
+                    <th th:text="#{stock.form.batchNumber}">Партія</th>
+                    <th th:text="#{product.detail.received}">Отримано</th>
+                    <th th:text="#{table.actions}">Дії</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item : ${stockItems}"
+                    th:classappend="${item.quantity.compareTo(T(java.math.BigDecimal).ZERO) == 0} ? 'text-muted'">
+                    <td>
+                        <span th:text="${@qf.format(item.quantity, product.unit != null ? product.unit.name() : 'PCS')}"></span>
+                        <span class="small" th:text="#{unit.__${product.unit}__}"></span>
+                    </td>
+                    <td th:text="${item.purchasePrice}"></td>
+                    <td>
+                        <span th:if="${item.expiryDate == null}">—</span>
+                        <span th:unless="${item.expiryDate == null}"
+                              th:text="${#temporals.format(item.expiryDate, 'dd.MM.yyyy')}"
+                              th:classappend="${item.expiryDate.isBefore(#temporals.createToday().plusDays(30))} ? 'text-danger fw-semibold'">
+                        </span>
+                    </td>
+                    <td th:text="${item.batchNumber ?: '—'}"></td>
+                    <td th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
+                    <td>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                th:title="#{stock.item.edit}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editStockItemModal"
+                                th:attr="data-id=${item.id},data-expiry=${item.expiryDate},data-batch=${item.batchNumber ?: ''},data-price=${item.purchasePrice ?: ''}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movement history -->
+    <div class="card">
+        <div class="card-header" th:text="#{product.detail.history}">Історія операцій</div>
+        <div th:unless="${movements.empty}" id="historyFilters"
+             class="d-flex gap-2 align-items-center p-2 border-bottom flex-wrap">
+            <select id="histTypeFilter" class="form-select form-select-sm w-auto" onchange="applyHistoryFilters()">
+                <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
+                <option value="PURCHASE" th:text="#{movementType.PURCHASE}">Purchase</option>
+                <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
+                <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
+                <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
+            </select>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="input-group input-group-sm w-auto">
+                    <span class="input-group-text">від</span>
+                    <input type="date" class="form-control" id="histDateFrom" onchange="applyHistoryFilters()"/>
+                </div>
+                <div class="input-group input-group-sm w-auto">
+                    <span class="input-group-text">до</span>
+                    <input type="date" class="form-control" id="histDateTo" onchange="applyHistoryFilters()"/>
                 </div>
             </div>
-
-            <!-- Movement history -->
-            <div class="card">
-                <div class="card-header" th:text="#{product.detail.history}">Історія операцій</div>
-                <div th:unless="${movements.empty}" class="d-flex gap-2 align-items-center p-2 border-bottom flex-wrap">
-                    <select class="form-select form-select-sm w-auto" onchange="applyHistoryFilters()">
-                        <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
-                        <option value="PURCHASE" th:text="#{movementType.PURCHASE}">Purchase</option>
-                        <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
-                        <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
-                        <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
-                    </select>
-                    <div class="d-flex gap-2 align-items-center">
-                        <div class="input-group input-group-sm w-auto">
-                            <span class="input-group-text">від</span>
-                            <input type="date" class="form-control" id="histDateFrom" onchange="applyHistoryFilters()"/>
+        </div>
+        <div class="card-body p-0">
+            <div th:if="${movements.empty}" class="text-center text-muted py-4">
+                <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
+                <span th:text="#{product.detail.noHistory}">Операцій немає</span>
+            </div>
+            <div class="table-responsive-wrapper">
+            <table th:unless="${movements.empty}" class="table table-sm table-hover table-striped mb-0" id="historyTable">
+                <thead class="table-light">
+                <tr>
+                    <th th:text="#{product.detail.date}">Дата</th>
+                    <th th:text="#{stock.form.movementType}">Тип</th>
+                    <th th:text="#{stock.form.quantity}">Кількість</th>
+                    <th th:text="#{stock.form.purchasePrice}">Ціна</th>
+                    <th th:text="#{movements.counterparty}">Контрагент</th>
+                    <th class="d-none d-md-table-cell" th:text="#{stock.form.notes}">Примітки</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="m : ${movements}"
+                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted'"
+                    th:attr="data-type=${m.movementType.name()},data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')}">
+                    <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+                    <td>
+                        <span class="badge rounded-pill"
+                              th:classappend="${m.movementType.name() == 'PURCHASE'} ? 'bg-success' :
+                                             (${m.movementType.name() == 'SALE'} ? 'bg-primary' :
+                                             (${m.movementType.name() == 'WRITE_OFF'} ? 'badge-writeoff' : 'bg-secondary'))"
+                              th:text="#{movementType.__${m.movementType}__}">
+                        </span>
+                        <div th:if="${m.writeOffReason != null}" class="mt-1">
+                            <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
+                                  th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
                         </div>
-                        <div class="input-group input-group-sm w-auto">
-                            <span class="input-group-text">до</span>
-                            <input type="date" class="form-control" id="histDateTo" onchange="applyHistoryFilters()"/>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div th:if="${movements.empty}" class="text-center text-muted py-3">
-                        <span th:text="#{product.detail.noHistory}">Операцій немає</span>
-                    </div>
-                    <div class="table-responsive-wrapper">
-                    <table th:unless="${movements.empty}" class="table table-sm mb-0">
-                        <thead class="table-light">
-                        <tr>
-                            <th th:text="#{product.detail.date}">Дата</th>
-                            <th th:text="#{stock.form.movementType}">Тип</th>
-                            <th th:text="#{stock.form.quantity}">Кількість</th>
-                            <th th:text="#{stock.form.purchasePrice}">Ціна</th>
-                            <th th:text="#{movements.counterparty}">Контрагент</th>
-                            <th class="d-none d-md-table-cell" th:text="#{stock.form.notes}">Примітки</th>
-                            <th></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="m : ${movements}"
-                            th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted'"
-                            th:attr="data-type=${m.movementType.name()},data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')}">
-                            <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
-                            <td>
-                                <span class="badge rounded-pill"
-                                      th:classappend="${m.movementType.name() == 'PURCHASE'} ? 'bg-success' :
-                                                     (${m.movementType.name() == 'SALE'} ? 'bg-primary' :
-                                                     (${m.movementType.name() == 'WRITE_OFF'} ? 'bg-danger' : 'bg-secondary'))"
-                                      th:text="#{movementType.__${m.movementType}__}">
-                                </span>
-                                <div th:if="${m.writeOffReason != null}" class="mt-1">
-                                    <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
-                                          th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
-                                </div>
-                            </td>
-                            <td th:text="${m.quantity}"></td>
-                            <td th:text="${m.unitPrice ?: '—'}"></td>
-                            <td>
-                                <a th:if="${m.supplier != null}"
-                                   th:href="@{/suppliers/{id}(id=${m.supplier.id},from='product',productId=${product.id})}"
-                                   th:text="${m.supplier.name}"
-                                   class="text-decoration-none text-dark fw-semibold"></a>
-                                <a th:if="${m.client != null}"
-                                   th:href="@{/clients/{id}(id=${m.client.id},from='product',productId=${product.id})}"
-                                   th:text="${m.client.name}"
-                                   class="text-decoration-none text-dark fw-semibold"></a>
-                                <span th:if="${m.supplier == null and m.client == null}">—</span>
-                            </td>
-                            <td class="d-none d-md-table-cell" th:text="${m.notes ?: '—'}"></td>
-                            <td>
-                                <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
-                                        type="button"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        th:title="#{movement.edit.button}"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editMovementModal"
-                                        th:attr="data-movement-id=${m.id},
-                                                 data-movement-type=${m.movementType.name()},
-                                                 data-client-id=${m.client != null ? m.client.id : ''},
-                                                 data-notes=${m.notes ?: ''}">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <span th:if="${cancelledMovementIds.contains(m.id)}"
-                                      class="text-muted small" style="font-size:0.7rem"
-                                      th:text="#{movement.cancel.badge}"></span>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                    </div>
-                </div>
+                    </td>
+                    <td th:text="${m.quantity}"></td>
+                    <td th:text="${m.unitPrice ?: '—'}"></td>
+                    <td>
+                        <a th:if="${m.supplier != null}"
+                           th:href="@{/suppliers/{id}(id=${m.supplier.id},from='product',productId=${product.id})}"
+                           th:text="${m.supplier.name}"
+                           class="text-decoration-none text-dark fw-semibold"></a>
+                        <a th:if="${m.client != null}"
+                           th:href="@{/clients/{id}(id=${m.client.id},from='product',productId=${product.id})}"
+                           th:text="${m.client.name}"
+                           class="text-decoration-none text-dark fw-semibold"></a>
+                        <span th:if="${m.supplier == null and m.client == null}">—</span>
+                    </td>
+                    <td class="d-none d-md-table-cell" th:text="${m.notes ?: '—'}"></td>
+                    <td>
+                        <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                th:title="#{movement.edit.button}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editMovementModal"
+                                th:attr="data-movement-id=${m.id},
+                                         data-movement-type=${m.movementType.name()},
+                                         data-client-id=${m.client != null ? m.client.id : ''},
+                                         data-notes=${m.notes ?: ''}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <span th:if="${cancelledMovementIds.contains(m.id)}"
+                              class="text-muted small" style="font-size:0.7rem"
+                              th:text="#{movement.cancel.badge}"></span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
             </div>
         </div>
     </div>
@@ -309,10 +362,10 @@
 
     <script>
         function applyHistoryFilters() {
-            const type = document.querySelector('.card:last-of-type select').value;
+            const type = document.getElementById('histTypeFilter').value;
             const from = document.getElementById('histDateFrom').value;
             const to   = document.getElementById('histDateTo').value;
-            document.querySelectorAll('.card:last-of-type tbody tr').forEach(row => {
+            document.querySelectorAll('#historyTable tbody tr').forEach(row => {
                 const rowType = row.dataset.type || '';
                 const rowDate = row.dataset.date || '';
                 const typeMatch = !type || rowType === type;
@@ -323,10 +376,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-                new bootstrap.Tooltip(el);
-            });
-
             const editItemModal = document.getElementById('editStockItemModal');
             if (editItemModal) {
                 editItemModal.addEventListener('show.bs.modal', function(event) {

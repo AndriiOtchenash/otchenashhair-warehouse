@@ -29,13 +29,14 @@
                 flex-shrink: 0;
             }
         }
+        thead.table-light { --bs-table-bg: var(--accent-light); }
         .table th {
             font-size: 0.65rem !important;
             white-space: normal;
             word-break: keep-all;
             hyphens: none;
             text-align: center;
-            vertical-align: bottom;
+            vertical-align: middle;
             padding: 0.4rem 0.25rem;
         }
         .table td {
@@ -257,7 +258,7 @@
                         <span class="badge rounded-pill"
                               th:classappend="${m.movementType.name() == 'PURCHASE'} ? 'bg-success' :
                                              (${m.movementType.name() == 'SALE'} ? 'bg-primary' :
-                                             (${m.movementType.name() == 'WRITE_OFF'} ? 'bg-danger' : 'bg-secondary'))"
+                                             (${m.movementType.name() == 'WRITE_OFF'} ? 'badge-writeoff' : 'bg-secondary'))"
                               th:text="#{movementType.__${m.movementType}__}">
                         </span>
                         <div th:if="${m.writeOffReason != null}" class="mt-1">

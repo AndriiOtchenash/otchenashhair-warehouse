@@ -40,4 +40,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     @Query("SELECT MIN(m.createdAt) FROM StockMovement m")
     Optional<LocalDateTime> findEarliestMovementDate();
+
+    @Query("SELECT DISTINCT m.product.id FROM StockMovement m WHERE m.movementType = 'SALE' AND m.createdAt >= :from AND m.createdAt <= :to")
+    Set<Long> findProductIdsWithSalesBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

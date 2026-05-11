@@ -3,23 +3,31 @@
       th:replace="~{layout/main :: layout(#{nav.reports}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .card { border: 1px solid rgba(0,0,0,0.1) !important; }
+        .card-header { background-color: var(--accent-light) !important; }
+        .table { min-width: 0; }
+        .table th { font-size: 0.72rem; vertical-align: middle; }
+        @media (max-width: 767.98px) {
+            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+        }
+    </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{nav.reports}">Звіти</h1>
     </div>
 
     <!-- Expiry control -->
-    <div class="card mb-3">
-        <div class="card-body py-2">
+    <div class="card mb-3 small">
+        <div class="card-body py-1 px-3">
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span th:text="#{report.expiry.label}">Термін придатності менше ніж (днів):</span>
+                <span class="text-muted" th:text="#{report.expiry.label}">Термін придатності менше ніж (днів):</span>
                 <select class="form-select form-select-sm w-auto"
                         onchange="const p = new URLSearchParams(window.location.search); p.set('expiryDays', this.value); window.location.href = '?' + p.toString();">
                     <option th:value="30" th:selected="${expiryDays == 30}">30</option>
                     <option th:value="60" th:selected="${expiryDays == 60}">60</option>
                     <option th:value="90" th:selected="${expiryDays == 90}">90</option>
                 </select>
-            </div>
-            <div class="mt-2">
                 <span th:if="${expiringItems.empty}" class="text-success">
                     <i class="bi bi-check-circle-fill me-1"></i>
                     <span th:text="#{report.expiry.empty}">Всі товари в порядку</span>
@@ -134,32 +142,36 @@
     </div>
 
     <!-- Row: Margin + Write-offs -->
-    <div class="row g-3 mb-3">
+    <div class="row g-3 mb-3 align-items-start">
         <div class="col-12 col-lg-6">
-            <div class="card h-100">
+            <div class="card">
                 <div class="card-header fw-semibold text-center" th:text="#{report.margin.title}">Маржинальність</div>
                 <div class="card-body p-0">
                     <div th:if="${marginAnalysis.empty}" class="text-center text-muted py-4">
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
-                    <table th:unless="${marginAnalysis.empty}" class="table table-hover mb-0">
+                    <table th:unless="${marginAnalysis.empty}" class="table table-hover table-striped mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th class="text-center" th:text="#{product.form.name}">Товар</th>
-                            <th class="text-center">Закупка, zł</th>
-                            <th class="text-center">Продаж, zł</th>
-                            <th class="text-center">Маржа %</th>
+                            <th th:text="#{product.form.name}">Товар</th>
+                            <th class="text-center" th:text="#{report.col.purchase}">Закупка, zł</th>
+                            <th class="text-center" th:text="#{report.col.sale}">Продаж, zł</th>
+                            <th class="text-center" th:text="#{report.col.profit}">Прибуток, zł</th>
+                            <th class="text-center" th:text="#{report.col.margin}">Маржа %</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="row : ${marginAnalysis}">
-                            <td class="text-center">
+                            <td>
                                 <a th:href="@{/products/{id}(id=${row.productId},from='reports')}"
                                    th:text="${row.productName}"
                                    class="fw-semibold text-decoration-none text-dark"></a>
                             </td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.avgPurchasePrice, 1, 2)}"></td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.avgSalePrice, 1, 2)}"></td>
+                            <td class="text-center fw-semibold"
+                                th:classappend="${row.profit.signum() >= 0} ? 'text-success' : 'text-danger'"
+                                th:text="${#numbers.formatDecimal(row.profit, 1, 2)}"></td>
                             <td class="text-center">
                                 <span th:text="${row.marginPct} + '%'"
                                       th:classappend="${row.marginPct > 20} ? 'text-success fw-semibold' :
@@ -175,7 +187,7 @@
 
         <!-- Write-offs -->
         <div class="col-12 col-lg-6">
-            <div class="card h-100">
+            <div class="card">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                     <span class="mx-auto" th:text="#{report.writeOffs.title}">Списання за період</span>
                     <span th:if="${writeOffsSummary.count > 0}" class="text-muted small fw-normal">
@@ -188,25 +200,32 @@
                     <div th:if="${writeOffsSummary.count == 0}" class="text-center text-muted py-4">
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
-                    <table th:unless="${writeOffsSummary.count == 0}" class="table table-hover mb-0">
+                    <table th:unless="${writeOffsSummary.count == 0}" class="table table-hover table-striped mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th class="text-center" th:text="#{product.form.name}">Товар</th>
+                            <th th:text="#{product.form.name}">Товар</th>
+                            <th class="text-center" th:text="#{movements.filter.writeOffReason}">Причина</th>
                             <th class="text-center" th:text="#{stock.form.quantity}">К-сть</th>
-                            <th class="text-center" th:text="#{report.writeOffs.ops}">Операцій</th>
-                            <th class="text-center">Втрати, zł</th>
+                            <th class="text-center d-none d-md-table-cell" th:text="#{report.writeOffs.ops}">Операцій</th>
+                            <th class="text-center" th:text="#{report.col.loss}">Втрати, zł</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="row : ${writeOffsSummary.byProduct}">
-                            <td class="text-center">
-                                <a th:href="@{/products/{id}(id=${row.productId},from='reports')}"
+                            <td>
+                                <a th:href="@{/movements/history(movementType='WRITE_OFF', productName=${row.productName})}"
                                    th:text="${row.productName}"
                                    class="fw-semibold text-decoration-none text-dark"></a>
                             </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-secondary border"
+                                      th:text="#{writeOffReason.__${row.reason}__}"></span>
+                                <div th:if="${row.clientNames != null}" class="text-muted small mt-1"
+                                     th:text="${row.clientNames}"></div>
+                            </td>
                             <td class="text-center" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
-                            <td class="text-center" th:text="${row.count}"></td>
-                            <td class="text-center text-danger"
+                            <td class="text-center d-none d-md-table-cell" th:text="${row.count}"></td>
+                            <td class="text-center"
                                 th:text="${row.loss != null and row.loss.signum() > 0 ? #numbers.formatDecimal(row.loss, 1, 2) : '—'}"></td>
                         </tr>
                         </tbody>
@@ -217,10 +236,10 @@
     </div>
 
     <!-- Row: Purchases + Top Sales -->
-    <div class="row g-3 mb-3">
+    <div class="row g-3 mb-3 align-items-start">
         <!-- Purchases -->
         <div class="col-12 col-lg-6">
-            <div class="card h-100">
+            <div class="card">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                     <span class="mx-auto" th:text="#{report.purchases.title}">Закупки за період</span>
                     <span th:unless="${purchasesSummary.empty or purchasesSummary[0].count == 0}"
@@ -236,17 +255,17 @@
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
                     <div th:unless="${purchasesSummary.empty or purchasesSummary[0].count == 0}">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover table-striped mb-0">
                             <thead class="table-light">
                             <tr>
-                                <th class="text-center" th:text="#{supplier.form.name}">Постачальник</th>
+                                <th th:text="#{supplier.form.name}">Постачальник</th>
                                 <th class="text-center" th:text="#{report.purchases.ops}">Операцій</th>
-                                <th class="text-center">Сума, zł</th>
+                                <th class="text-center" th:text="#{report.col.amount}">Сума, zł</th>
                             </tr>
                             </thead>
                             <tbody>
                             <tr th:each="row : ${purchasesSummary[0].bySupplier}">
-                                <td class="text-center">
+                                <td>
                                     <a th:href="@{/suppliers/{id}(id=${row.supplierId},from='reports')}"
                                        th:text="${row.supplierName}"
                                        class="fw-semibold text-decoration-none text-dark"></a>
@@ -263,33 +282,36 @@
 
         <!-- Top sales -->
         <div class="col-12 col-lg-6">
-            <div class="card h-100">
-                <div class="card-header fw-semibold text-center" th:text="#{report.sales.title}">Топ продажів за період</div>
+            <div class="card">
+                <div class="card-header fw-semibold text-center">
+                    <span th:text="#{report.sales.title}">Топ продажів за період</span>
+                    <span class="text-muted fw-normal ms-1 small">top 7</span>
+                </div>
                 <div class="card-body p-0">
                     <div th:if="${topSales.empty}" class="text-center text-muted py-4">
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
-                    <table th:unless="${topSales.empty}" class="table table-hover mb-0">
+                    <table th:unless="${topSales.empty}" class="table table-hover table-striped mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th class="text-center" th:text="#{product.form.name}">Товар</th>
-                            <th class="text-center" th:text="#{stock.form.quantity}">К-сть</th>
+                            <th th:text="#{product.form.name}">Товар</th>
+                            <th class="text-center d-none d-md-table-cell" th:text="#{stock.form.quantity}">К-сть</th>
                             <th class="text-center" th:text="#{report.sales.count}">Продажів</th>
-                            <th class="text-center">Сума, zł</th>
-                            <th class="text-center" th:text="#{report.sales.share}">Частка</th>
+                            <th class="text-center" th:text="#{report.col.amount}">Сума, zł</th>
+                            <th class="text-center d-none d-md-table-cell" th:text="#{report.sales.share}">Частка</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="row : ${topSales}">
-                            <td class="text-center">
+                            <td>
                                 <a th:href="@{/products/{id}(id=${row.productId},from='reports')}"
                                    th:text="${row.productName}"
                                    class="fw-semibold text-decoration-none text-dark"></a>
                             </td>
-                            <td class="text-center" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
+                            <td class="text-center d-none d-md-table-cell" th:text="${@qf.format(row.totalQty, row.unit)}"></td>
                             <td class="text-center" th:text="${row.salesCount}"></td>
                             <td class="text-center" th:text="${#numbers.formatDecimal(row.totalRevenue, 1, 2)}"></td>
-                            <td class="text-center text-muted small" th:text="${row.sharePct} + '%'"></td>
+                            <td class="text-center text-muted small d-none d-md-table-cell" th:text="${row.sharePct} + '%'"></td>
                         </tr>
                         </tbody>
                     </table>
@@ -298,26 +320,29 @@
         </div>
     </div>
 
-    <!-- Row: Top Clients -->
-    <div class="row g-3 mb-3">
+    <!-- Row: Top Clients + Slow Movers -->
+    <div class="row g-3 mb-3 align-items-start">
         <div class="col-12 col-lg-6">
-            <div class="card h-100">
-                <div class="card-header fw-semibold text-center" th:text="#{report.clients.title}">Топ клієнтів за період</div>
+            <div class="card">
+                <div class="card-header fw-semibold text-center">
+                    <span th:text="#{report.clients.title}">Топ клієнтів за період</span>
+                    <span class="text-muted fw-normal ms-1 small">top 7</span>
+                </div>
                 <div class="card-body p-0">
                     <div th:if="${topClients.empty}" class="text-center text-muted py-4">
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
-                    <table th:unless="${topClients.empty}" class="table table-hover mb-0">
+                    <table th:unless="${topClients.empty}" class="table table-hover table-striped mb-0">
                         <thead class="table-light">
                         <tr>
-                            <th class="text-center" th:text="#{client.form.name}">Клієнт</th>
+                            <th th:text="#{client.form.name}">Клієнт</th>
                             <th class="text-center" th:text="#{report.sales.count}">Продажів</th>
-                            <th class="text-center">Сума, zł</th>
+                            <th class="text-center" th:text="#{report.col.amount}">Сума, zł</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="row : ${topClients}">
-                            <td class="text-center">
+                            <td>
                                 <a th:href="@{/clients/{id}(id=${row.clientId},from='reports')}"
                                    th:text="${row.clientName}"
                                    class="fw-semibold text-decoration-none text-dark"></a>
@@ -327,6 +352,44 @@
                         </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slow movers -->
+        <div class="col-12 col-lg-6">
+            <div class="card">
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                    <span class="mx-auto" th:text="#{report.slowMovers.title}">Немає продажів за період</span>
+                    <span th:unless="${slowMovers.empty}" class="text-muted small fw-normal"
+                          th:text="${slowMovers.size()}"></span>
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${slowMovers.empty}" class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle-fill text-success me-1"></i>
+                        <span th:text="#{report.noData}">Немає даних за період</span>
+                    </div>
+                    <div th:unless="${slowMovers.empty}">
+                        <div class="text-muted small px-3 pt-2 pb-1" th:text="#{report.slowMovers.hint}"></div>
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th th:text="#{product.form.name}">Товар</th>
+                                <th class="text-center" th:text="#{report.col.stock}">На складі</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="row : ${slowMovers}">
+                                <td>
+                                    <a th:href="@{/products/{id}(id=${row.productId},from='reports')}"
+                                       th:text="${row.productName}"
+                                       class="fw-semibold text-decoration-none text-dark"></a>
+                                </td>
+                                <td class="text-center text-muted" th:text="${@qf.format(row.qty, row.unit)}"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
