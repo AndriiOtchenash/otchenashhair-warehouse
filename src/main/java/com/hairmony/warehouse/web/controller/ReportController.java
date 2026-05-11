@@ -24,20 +24,7 @@ public class ReportController {
             @RequestParam(defaultValue = "30") int expiryDays,
             Model model) {
 
-        ReportPeriod period;
-        if ("LAST_MONTH".equals(preset)) {
-            LocalDate firstOfLastMonth = LocalDate.now().minusMonths(1).withDayOfMonth(1);
-            LocalDate lastOfLastMonth = firstOfLastMonth.withDayOfMonth(
-                    firstOfLastMonth.lengthOfMonth());
-            period = new ReportPeriod(firstOfLastMonth, lastOfLastMonth, "LAST_MONTH");
-        } else if ("ALL_TIME".equals(preset)) {
-            LocalDate earliest = reportService.getEarliestMovementDate();
-            period = new ReportPeriod(earliest, LocalDate.now(), "ALL_TIME");
-        } else if ("CUSTOM".equals(preset) && from != null && to != null) {
-            period = new ReportPeriod(from, to, "CUSTOM");
-        } else {
-            period = ReportPeriod.thisMonth();
-        }
+        ReportPeriod period = resolvePeriod(preset, from, to);
 
         model.addAttribute("period", period);
         model.addAttribute("expiryDays", expiryDays);
@@ -52,5 +39,39 @@ public class ReportController {
         model.addAttribute("slowMovers", reportService.getSlowMovers(period.getFrom(), period.getTo()));
 
         return "reports";
+    }
+
+    @GetMapping("/trends")
+    public String trends(
+            @RequestParam(required = false) String preset,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            Model model) {
+
+        ReportPeriod period = resolvePeriod(preset, from, to);
+        java.util.Map<String, Object> trends = reportService.getTrends(period.getFrom(), period.getTo());
+
+        model.addAttribute("period", period);
+        model.addAttribute("trendLabels", trends.get("labels"));
+        model.addAttribute("trendRevenue", trends.get("revenue"));
+        model.addAttribute("trendPurchases", trends.get("purchases"));
+        model.addAttribute("trendSalesCount", trends.get("salesCount"));
+
+        return "trends";
+    }
+
+    private ReportPeriod resolvePeriod(String preset, LocalDate from, LocalDate to) {
+        if ("LAST_MONTH".equals(preset)) {
+            LocalDate firstOfLastMonth = LocalDate.now().minusMonths(1).withDayOfMonth(1);
+            LocalDate lastOfLastMonth = firstOfLastMonth.withDayOfMonth(firstOfLastMonth.lengthOfMonth());
+            return new ReportPeriod(firstOfLastMonth, lastOfLastMonth, "LAST_MONTH");
+        } else if ("ALL_TIME".equals(preset)) {
+            LocalDate earliest = reportService.getEarliestMovementDate();
+            return new ReportPeriod(earliest, LocalDate.now(), "ALL_TIME");
+        } else if ("CUSTOM".equals(preset) && from != null && to != null) {
+            return new ReportPeriod(from, to, "CUSTOM");
+        } else {
+            return ReportPeriod.thisMonth();
+        }
     }
 }

@@ -234,6 +234,19 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   clientNames (comma-separated distinct clients) for GIFT rows
 - ReportService.getTopClients(from, to) — top 7 by totalSpent
 - ReportService.getMarginAnalysis(from, to) — includes profit (totalRevenue − totalCOGS) per product
+- ReportService.getTrends(from, to) — monthly aggregation: labels (yyyy-MM), revenue[],
+  purchases[], salesCount[]; fills all months in range with zeros to avoid chart gaps;
+  passed to model as trendLabels/trendRevenue/trendPurchases/trendSalesCount for Thymeleaf
+  inline JS; /reports/trends GET handled by ReportController.trends()
+- trends.html — Chart.js 4 from CDN; line chart (revenue vs purchases, fill + tension 0.3);
+  bar chart (sales count); labels formatted via Intl.DateTimeFormat using page lang;
+  accent color read from CSS --accent var at runtime; "no data" state hides revenue chart;
+  period selector identical to /reports; Back → /reports button in page-header (right edge);
+  i18n: report.trends.title/report.trends.revenueVsPurchases/report.trends.salesActivity/btn.trends
+- "Тренди" button in /reports page-header, right-aligned, same row as title on all screen sizes;
+  local CSS override: .page-header { flex-direction: row !important } + .page-header .btn { flex: 0 !important }
+  applied in both reports.html and trends.html to prevent global mobile column-stack override
+- ReportController.resolvePeriod() extracted as private method — shared by /reports and /reports/trends
 - ReportService.getSlowMovers(from, to) — products with stock > 0 but no SALE in period;
   uses StockMovementRepository.findProductIdsWithSalesBetween() +
   StockItemRepository.getStockSummaryPerProduct()
@@ -277,7 +290,7 @@ DB credentials in application-dev.properties (gitignored)
 - Print barcode labels — printable label with product name + barcode from product detail page
 - AI: conversation history / multi-turn chat (currently stateless per request)
 - Reports: previous-period comparison (+/- % for revenue/sales in KPI banner)
-- Reports: trends page (separate page with charts — revenue/sales over time)
+- Reports: trends page — DONE
 
 ### Infrastructure
 - Spring Session for multi-machine session sharing (if needed when scaling beyond 1 machine)
