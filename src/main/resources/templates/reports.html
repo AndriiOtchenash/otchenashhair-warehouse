@@ -104,7 +104,7 @@
                     <div class="text-muted small mb-1" th:text="#{report.summary.revenue}">Виручка</div>
                     <div class="fs-5 fw-bold"
                          th:text="${#numbers.formatDecimal(reportSummary.totalRevenue, 1, 2)} + ' zł'"></div>
-                    <div class="text-muted small mt-1">
+                    <div class="text-muted small mt-1" style="white-space:nowrap;overflow:hidden">
                         <span th:text="#{report.summary.salesCount}">продажів</span>:
                         <strong th:text="${reportSummary.salesCount}"></strong>
                         <span th:if="${revenueDelta != null}" class="ms-1 fw-semibold"
@@ -135,7 +135,7 @@
                     <div class="fs-5 fw-bold"
                          th:classappend="${reportSummary.grossProfit.signum() >= 0} ? 'text-success' : 'text-danger'"
                          th:text="${#numbers.formatDecimal(reportSummary.grossProfit, 1, 2)} + ' zł'"></div>
-                    <div class="text-muted small mt-1">
+                    <div class="text-muted small mt-1" style="white-space:nowrap;overflow:hidden">
                         <span th:text="${reportSummary.marginPct} + '%'"></span>
                         <span th:text="#{report.summary.margin}">маржа</span>
                         <span th:if="${profitDelta != null}" class="ms-1 fw-semibold"
