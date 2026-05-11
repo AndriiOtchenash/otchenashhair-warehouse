@@ -183,24 +183,51 @@
     <!-- Movement history -->
     <div class="card">
         <div class="card-header" th:text="#{product.detail.history}">Історія операцій</div>
-        <div th:unless="${movements.empty}" id="historyFilters"
-             class="d-flex gap-2 align-items-center p-2 border-bottom flex-wrap">
-            <select id="histTypeFilter" class="form-select form-select-sm w-auto" onchange="applyHistoryFilters()">
-                <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
-                <option value="PURCHASE" th:text="#{movementType.PURCHASE}">Purchase</option>
-                <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
-                <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
-                <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
-            </select>
-            <div class="d-flex gap-2 align-items-center">
-                <div class="input-group input-group-sm w-auto">
-                    <span class="input-group-text">від</span>
-                    <input type="date" class="form-control" id="histDateFrom" onchange="applyHistoryFilters()"/>
+        <div th:unless="${movements.empty}" class="p-2 border-bottom">
+            <!-- Row 1: Date range -->
+            <div class="d-flex gap-2 align-items-center mb-2">
+                <div class="input-group input-group-sm" id="dateFromWrap">
+                    <span class="input-group-text" th:text="#{movements.filter.dateFrom}">Від</span>
+                    <input type="date" class="form-control" id="histDateFrom"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            onclick="clearDateFrom()" tabindex="-1" id="clearDateFromBtn" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
                 </div>
-                <div class="input-group input-group-sm w-auto">
-                    <span class="input-group-text">до</span>
-                    <input type="date" class="form-control" id="histDateTo" onchange="applyHistoryFilters()"/>
+                <div class="input-group input-group-sm" id="dateToWrap">
+                    <span class="input-group-text" th:text="#{movements.filter.dateTo}">До</span>
+                    <input type="date" class="form-control" id="histDateTo"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            onclick="clearDateTo()" tabindex="-1" id="clearDateToBtn" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
                 </div>
+            </div>
+            <!-- Row 2: Type select -->
+            <div class="filter-select-wrap mb-2" id="typeSelectWrap">
+                <select id="histTypeFilter" class="form-select form-select-sm" onchange="applyHistoryFilters()">
+                    <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
+                    <option value="PURCHASE" th:text="#{movementType.PURCHASE}">Purchase</option>
+                    <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
+                    <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
+                    <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
+                </select>
+                <button type="button" id="clearTypeBtn"
+                        class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                        onclick="clearHistType()" tabindex="-1" style="display:none">
+                    <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                </button>
+            </div>
+            <!-- Reset -->
+            <div class="mt-2">
+                <button type="button" id="resetFiltersBtn"
+                        class="btn btn-outline-secondary btn-sm" style="display:none"
+                        onclick="resetHistFilters()">
+                    <i class="bi bi-funnel"></i>
+                    <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
+                </button>
             </div>
         </div>
         <div class="card-body p-0">
@@ -373,6 +400,35 @@
                 const toMatch   = !to   || rowDate <= to;
                 row.style.display = (typeMatch && fromMatch && toMatch) ? '' : 'none';
             });
+            updateResetBtn();
+        }
+
+        function updateResetBtn() {
+            const type = document.getElementById('histTypeFilter').value;
+            const from = document.getElementById('histDateFrom').value;
+            const to   = document.getElementById('histDateTo').value;
+            let count = 0;
+            if (type) count++;
+            if (from) count++;
+            if (to)   count++;
+            document.getElementById('resetFiltersBtn').style.display = count ? '' : 'none';
+            document.getElementById('resetFilterCount').textContent = count ? ' (' + count + ')' : '';
+            document.getElementById('clearTypeBtn').style.display     = type ? '' : 'none';
+            document.getElementById('clearDateFromBtn').style.display = from ? '' : 'none';
+            document.getElementById('clearDateToBtn').style.display   = to   ? '' : 'none';
+            document.getElementById('typeSelectWrap').classList.toggle('filter-active', !!type);
+            document.getElementById('dateFromWrap').classList.toggle('filter-active', !!from);
+            document.getElementById('dateToWrap').classList.toggle('filter-active', !!to);
+        }
+
+        function clearHistType()  { document.getElementById('histTypeFilter').value = ''; applyHistoryFilters(); }
+        function clearDateFrom()  { document.getElementById('histDateFrom').value = '';   applyHistoryFilters(); }
+        function clearDateTo()    { document.getElementById('histDateTo').value = '';     applyHistoryFilters(); }
+        function resetHistFilters() {
+            document.getElementById('histTypeFilter').value = '';
+            document.getElementById('histDateFrom').value = '';
+            document.getElementById('histDateTo').value = '';
+            applyHistoryFilters();
         }
 
         document.addEventListener('DOMContentLoaded', function() {

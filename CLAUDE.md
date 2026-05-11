@@ -172,6 +172,24 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   stock level shown prominently in info strip with color: green(OK)/yellow(LOW)/red(OUT)
 - Mobile tables: hide secondary columns with d-none d-md-table-cell;
   keep essential columns (name, status/type, quantity, actions) always visible
+- Filter UX pattern (client detail, product detail, supplier detail): filter bar with
+  Row 1 = від/до date range (two input-group side by side, id=dateFromWrap/dateToWrap);
+  Row 2 = type select + gift button (client detail only) / product name search (supplier detail);
+  Row 3 = product/client name search (client detail only);
+  filter-select-wrap for selects with × button (d-md-none, style=display:none, shown via JS);
+  input-group for date/search with × button (d-md-none); filter-active class on wrapper div
+  (not on select/input itself) for green border; "Скинути (N)" button below filters, visible
+  when ≥1 active; all via updateResetBtn() JS; date inputs use showPicker() onclick for mobile;
+  data-date="yyyy-MM-dd" on each <tr> for client-side date range filtering
+- Client detail quick filter "Подарунки": toggle button in same row as type select;
+  when active — filter-active border, × shown inside button text, type select disabled;
+  data-label attr holds i18n text (btn.quickFilter.gifts); blur() on toggle to avoid focus gray;
+  counted in reset button; i18n: uk=Подарунки, pl=Prezenty, en=Gifts
+- badge-writeoff (.badge-writeoff) and filter-select-wrap CSS are global in layout/main.html
+- Supplier detail: Тип операції column removed (redundant in purchase history context);
+  filter bar added with від/до dates + product name search; .table { min-width: 0 }
+- Dashboard clickable rows pass from=dashboard; product detail Back button handles it → /
+- Movement journal thead: accent-light via --bs-table-bg; th vertical-align: middle
 - Table styles (detail pages + reports): .table th font-size 0.72rem, vertical-align middle;
   mobile: 0.68rem/0.4rem padding for th, 0.8rem/0.4rem for td; table-striped on history tables;
   .table-xs class for extra-compact rows (padding 0.2rem 0.5rem) — used on stock batches table;
@@ -180,6 +198,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Badge colors (global, layout/main.html): .badge-writeoff — soft pink (#f5a3b0 bg, #7d2535 text);
   used for WRITE_OFF movement type badges in history, product detail, client detail
 - Movement journal thead: accent-light background via --bs-table-bg; th vertical-align: middle
+- Date filter labels від/до use #{movements.filter.dateFrom} / #{movements.filter.dateTo}
+  across all three detail pages — no hardcoded text
 
 ## Stock expense validation
 - unitPrice required and > 0 for SALE — service throws IllegalStateException (stock.expense.salePriceRequired)

@@ -51,19 +51,70 @@
     <!-- Movement history -->
     <div class="card">
         <div class="card-header" th:text="#{client.detail.history}">Історія операцій</div>
-        <div th:unless="${movements.empty}" class="d-flex gap-2 align-items-center p-2 border-bottom flex-wrap">
-            <div class="input-group input-group-sm w-auto">
+        <div th:unless="${movements.empty}" class="p-2 border-bottom">
+            <!-- Row 1: Date range -->
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="input-group input-group-sm" id="dateFromWrap" style="flex:1;min-width:0">
+                    <span class="input-group-text" th:text="#{movements.filter.dateFrom}">Від</span>
+                    <input type="date" class="form-control" id="histDateFrom"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            id="clearDateFromBtn" onclick="clearDateFrom()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+                <div class="input-group input-group-sm" id="dateToWrap" style="flex:1;min-width:0">
+                    <span class="input-group-text" th:text="#{movements.filter.dateTo}">До</span>
+                    <input type="date" class="form-control" id="histDateTo"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            id="clearDateToBtn" onclick="clearDateTo()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Row 2: Type select + Gift quick filter -->
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="filter-select-wrap" id="typeSelectWrap" style="flex:1;min-width:0">
+                    <select class="form-select form-select-sm" id="histType" onchange="applyHistoryFilters()">
+                        <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
+                        <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
+                        <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
+                        <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
+                    </select>
+                    <button type="button" id="clearTypeBtn"
+                            class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                            onclick="clearHistType()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+                <button type="button" id="giftFilterBtn"
+                        class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                        th:data-label="#{btn.quickFilter.gifts}"
+                        onclick="toggleGiftFilter()">
+                    <i class="bi bi-gift me-1"></i><span th:text="#{btn.quickFilter.gifts}">Подарунки</span>
+                </button>
+            </div>
+            <!-- Row 3: Search -->
+            <div class="input-group input-group-sm" id="searchGroup">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" style="width: 180px;"
+                <input type="text" class="form-control" id="histSearch"
                        th:placeholder="#{product.form.name}"
                        oninput="applyHistoryFilters()"/>
+                <button type="button" class="btn btn-outline-secondary d-md-none"
+                        onclick="clearHistSearch()" tabindex="-1" id="clearSearchBtn" style="display:none">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
-            <select class="form-select form-select-sm w-auto" onchange="applyHistoryFilters()">
-                <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
-                <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
-                <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
-                <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
-            </select>
+            <!-- Reset -->
+            <div class="mt-2">
+                <button type="button" id="resetFiltersBtn"
+                        class="btn btn-outline-secondary btn-sm" style="display:none"
+                        onclick="resetHistFilters()">
+                    <i class="bi bi-funnel"></i>
+                    <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             <div th:if="${movements.empty}" class="text-center text-muted py-4">
@@ -85,7 +136,7 @@
                 <tbody>
                 <tr th:each="m : ${movements}"
                     th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted'"
-                    th:attr="data-type=${m.movementType.name()},data-name=${m.product.name}">
+                    th:attr="data-type=${m.movementType.name()},data-name=${m.product.name},data-reason=${m.writeOffReason ?: ''},data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')}">
                     <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
                     <td>
                         <a th:href="@{/products/{id}(id=${m.product.id},from='client',clientId=${client.id})}"
@@ -171,17 +222,101 @@
     </div>
 
     <script>
+        let giftFilterActive = false;
+
+        function toggleGiftFilter() {
+            giftFilterActive = !giftFilterActive;
+            updateGiftBtn();
+            applyHistoryFilters();
+            document.getElementById('giftFilterBtn').blur();
+        }
+
+        function updateGiftBtn() {
+            const btn      = document.getElementById('giftFilterBtn');
+            const typeSelect = document.getElementById('histType');
+            const label = btn.dataset.label || 'Подарунки';
+            if (giftFilterActive) {
+                btn.classList.add('filter-active');
+                btn.innerHTML = '<i class="bi bi-gift me-1"></i>' + label + ' <i class="bi bi-x-lg ms-1" style="font-size:0.9rem"></i>';
+                typeSelect.disabled = true;
+                typeSelect.value = '';
+                document.getElementById('typeSelectWrap').classList.remove('filter-active');
+            } else {
+                btn.classList.remove('filter-active');
+                btn.innerHTML = '<i class="bi bi-gift me-1"></i>' + label;
+                typeSelect.disabled = false;
+            }
+        }
+
         function applyHistoryFilters() {
-            const controls = document.querySelectorAll('.border-bottom input[type="text"], .border-bottom select');
-            const q    = (controls[0]?.value || '').toLowerCase();
-            const type = controls[1]?.value || '';
+            const q       = (document.getElementById('histSearch').value || '').toLowerCase();
+            const type    = document.getElementById('histType').value || '';
+            const dateFrom = document.getElementById('histDateFrom').value || '';
+            const dateTo   = document.getElementById('histDateTo').value || '';
             document.querySelectorAll('tbody tr').forEach(row => {
-                const rowName = (row.dataset.name || '').toLowerCase();
-                const rowType = row.dataset.type || '';
-                const nameMatch = !q    || rowName.includes(q);
-                const typeMatch = !type || rowType === type;
-                row.style.display = (nameMatch && typeMatch) ? '' : 'none';
+                const nameMatch = !q    || (row.dataset.name || '').toLowerCase().includes(q);
+                const typeMatch = !type || (row.dataset.type || '') === type;
+                const giftMatch = !giftFilterActive ||
+                    (row.dataset.type === 'WRITE_OFF' && row.dataset.reason === 'GIFT');
+                const rowDate   = row.dataset.date || '';
+                const fromMatch = !dateFrom || rowDate >= dateFrom;
+                const toMatch   = !dateTo   || rowDate <= dateTo;
+                row.style.display = (nameMatch && typeMatch && giftMatch && fromMatch && toMatch) ? '' : 'none';
             });
+            updateResetBtn();
+        }
+
+        function updateResetBtn() {
+            const q       = document.getElementById('histSearch').value || '';
+            const type    = document.getElementById('histType').value || '';
+            const dateFrom = document.getElementById('histDateFrom').value || '';
+            const dateTo   = document.getElementById('histDateTo').value || '';
+            let count = 0;
+            if (dateFrom)       count++;
+            if (dateTo)         count++;
+            if (type)           count++;
+            if (giftFilterActive) count++;
+            if (q)              count++;
+            document.getElementById('resetFiltersBtn').style.display = count ? '' : 'none';
+            document.getElementById('resetFilterCount').textContent = count ? ' (' + count + ')' : '';
+            document.getElementById('clearSearchBtn').style.display    = q        ? '' : 'none';
+            document.getElementById('clearTypeBtn').style.display      = type     ? '' : 'none';
+            document.getElementById('clearDateFromBtn').style.display  = dateFrom ? '' : 'none';
+            document.getElementById('clearDateToBtn').style.display    = dateTo   ? '' : 'none';
+            document.getElementById('searchGroup').classList.toggle('filter-active', !!q);
+            document.getElementById('typeSelectWrap').classList.toggle('filter-active', !!type && !giftFilterActive);
+            document.getElementById('dateFromWrap').classList.toggle('filter-active', !!dateFrom);
+            document.getElementById('dateToWrap').classList.toggle('filter-active', !!dateTo);
+        }
+
+        function clearHistSearch() {
+            document.getElementById('histSearch').value = '';
+            applyHistoryFilters();
+        }
+
+        function clearHistType() {
+            document.getElementById('histType').value = '';
+            applyHistoryFilters();
+        }
+
+        function clearDateFrom() {
+            document.getElementById('histDateFrom').value = '';
+            applyHistoryFilters();
+        }
+
+        function clearDateTo() {
+            document.getElementById('histDateTo').value = '';
+            applyHistoryFilters();
+        }
+
+        function resetHistFilters() {
+            giftFilterActive = false;
+            updateGiftBtn();
+            document.getElementById('histSearch').value = '';
+            document.getElementById('histType').value = '';
+            document.getElementById('histDateFrom').value = '';
+            document.getElementById('histDateTo').value = '';
+            applyHistoryFilters();
         }
 
         document.addEventListener('DOMContentLoaded', function() {
