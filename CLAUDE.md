@@ -247,6 +247,10 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   local CSS override: .page-header { flex-direction: row !important } + .page-header .btn { flex: 0 !important }
   applied in both reports.html and trends.html to prevent global mobile column-stack override
 - ReportController.resolvePeriod() extracted as private method — shared by /reports and /reports/trends
+- Previous-period comparison in KPI banner: ▲+12.3% / ▼-5.1% inline in existing subtitle lines
+  (no extra card height); previousPeriod() maps THIS_MONTH/LAST_MONTH → prev month,
+  CUSTOM → same duration shifted back, ALL_TIME → null (hidden); delta() returns null when
+  previous = 0 to avoid division by zero; shown for revenue, purchases, gross profit
 - ReportService.getSlowMovers(from, to) — products with stock > 0 but no SALE in period;
   uses StockMovementRepository.findProductIdsWithSalesBetween() +
   StockItemRepository.getStockSummaryPerProduct()
@@ -289,8 +293,6 @@ DB credentials in application-dev.properties (gitignored)
   delete/cancel/deactivate endpoints to restrict to ADMIN only
 - Print barcode labels — printable label with product name + barcode from product detail page
 - AI: conversation history / multi-turn chat (currently stateless per request)
-- Reports: previous-period comparison (+/- % for revenue/sales in KPI banner)
-- Reports: trends page — DONE
 
 ### Infrastructure
 - Spring Session for multi-machine session sharing (if needed when scaling beyond 1 machine)
