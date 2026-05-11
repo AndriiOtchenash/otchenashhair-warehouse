@@ -3,6 +3,13 @@
       th:replace="~{layout/main :: layout(${client.name}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        .table th { font-size: 0.72rem; vertical-align: middle; }
+        @media (max-width: 767.98px) {
+            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+        }
+    </style>
     <div class="page-header">
         <div>
             <h1 class="page-title" th:text="${client.name}"></h1>
@@ -63,7 +70,7 @@
                 <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
                 <span th:text="#{client.detail.noHistory}">Операцій немає</span>
             </div>
-            <table th:unless="${movements.empty}" class="table table-hover mb-0">
+            <table th:unless="${movements.empty}" class="table table-sm table-hover table-striped mb-0">
                 <thead class="table-light">
                 <tr>
                     <th th:text="#{product.detail.date}">Дата</th>
@@ -88,7 +95,7 @@
                     <td>
                         <span class="badge rounded-pill"
                               th:classappend="${m.movementType.name() == 'SALE'} ? 'bg-primary' :
-                                             (${m.movementType.name() == 'WRITE_OFF'} ? 'bg-danger' : 'bg-secondary')"
+                                             (${m.movementType.name() == 'WRITE_OFF'} ? 'badge-writeoff' : 'bg-secondary')"
                               th:text="#{movementType.__${m.movementType}__}">
                         </span>
                         <div th:if="${m.writeOffReason != null}" class="mt-1">

@@ -268,7 +268,7 @@ public class StockService {
 
     @Transactional(readOnly = true)
     public List<StockDashboardRowDto> getDashboard() {
-        List<Product> products = productRepository.findAllByActiveTrue();
+        List<Product> products = productRepository.findAllByActiveTrueOrderByNameAsc();
 
         Map<Long, BigDecimal> quantityMap = new HashMap<>();
         stockItemRepository.getTotalQuantityPerProduct()

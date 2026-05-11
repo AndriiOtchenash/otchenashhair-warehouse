@@ -1,5 +1,6 @@
 package com.hairmony.warehouse.service;
 
+import com.hairmony.warehouse.domain.product.Unit;
 import com.hairmony.warehouse.domain.stock.*;
 import com.hairmony.warehouse.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -113,6 +114,7 @@ public class ReportService {
                 })
                 .sorted((a, b) -> ((BigDecimal) b.get("totalRevenue"))
                         .compareTo((BigDecimal) a.get("totalRevenue")))
+                .limit(7)
                 .toList();
     }
 
@@ -127,7 +129,8 @@ public class ReportService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         List<Map<String, Object>> byProduct = writeOffs.stream()
-                .collect(Collectors.groupingBy(m -> m.getProduct().getId()))
+                .collect(Collectors.groupingBy(m ->
+                        m.getProduct().getId() + "_" + m.getWriteOffReason()))
                 .entrySet().stream()
                 .map(e -> {
                     List<StockMovement> group = e.getValue();
@@ -139,16 +142,24 @@ public class ReportService {
                             .filter(m -> m.getStockItem() != null && m.getStockItem().getPurchasePrice() != null)
                             .map(m -> m.getQuantity().multiply(m.getStockItem().getPurchasePrice()))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    String clientNames = group.stream()
+                            .filter(m -> m.getClient() != null)
+                            .map(m -> m.getClient().getName())
+                            .distinct()
+                            .collect(Collectors.joining(", "));
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("productId", first.getProduct().getId());
                     row.put("productName", first.getProduct().getName());
                     row.put("unit", first.getProduct().getUnit().name());
+                    row.put("reason", first.getWriteOffReason());
+                    row.put("clientNames", clientNames.isEmpty() ? null : clientNames);
                     row.put("totalQty", totalQty);
                     row.put("loss", loss);
                     row.put("count", group.size());
                     return row;
                 })
-                .sorted((a, b) -> ((BigDecimal) b.get("totalQty")).compareTo((BigDecimal) a.get("totalQty")))
+                .sorted(Comparator.comparing((Map<String, Object> a) -> (String) a.get("productName"))
+                        .thenComparing(a -> ((BigDecimal) a.get("totalQty")).negate()))
                 .toList();
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -182,6 +193,7 @@ public class ReportService {
                     return row;
                 })
                 .sorted((a, b) -> ((BigDecimal) b.get("totalSpent")).compareTo((BigDecimal) a.get("totalSpent")))
+                .limit(7)
                 .toList();
     }
 
@@ -223,6 +235,24 @@ public class ReportService {
         return List.of(result);
     }
 
+    // Slow movers: products with stock > 0 but no sales in the period
+    public List<Map<String, Object>> getSlowMovers(LocalDate from, LocalDate to) {
+        Set<Long> soldIds = movementRepository.findProductIdsWithSalesBetween(
+                from.atStartOfDay(), to.atTime(23, 59, 59));
+
+        return stockItemRepository.getStockSummaryPerProduct().stream()
+                .filter(row -> !soldIds.contains((Long) row[0]))
+                .map(row -> {
+                    Map<String, Object> r = new LinkedHashMap<>();
+                    r.put("productId", row[0]);
+                    r.put("productName", row[1]);
+                    r.put("unit", ((Unit) row[2]).name());
+                    r.put("qty", row[3]);
+                    return r;
+                })
+                .toList();
+    }
+
     // Margin analysis
     public List<Map<String, Object>> getMarginAnalysis(LocalDate from, LocalDate to) {
         List<StockMovement> sales = movementRepository.findSalesBetween(
@@ -249,6 +279,13 @@ public class ReportService {
                             ? margin.divide(avgPurchasePrice, 4, RoundingMode.HALF_UP)
                                     .multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP)
                             : BigDecimal.ZERO;
+                    BigDecimal totalRevenue = group.stream()
+                            .map(m -> m.getQuantity().multiply(m.getUnitPrice()))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal totalCOGS = group.stream()
+                            .map(m -> m.getQuantity().multiply(m.getStockItem().getPurchasePrice()))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal profit = totalRevenue.subtract(totalCOGS);
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("productId", first.getProduct().getId());
                     row.put("productName", first.getProduct().getName());
@@ -256,6 +293,7 @@ public class ReportService {
                     row.put("avgSalePrice", avgSalePrice);
                     row.put("margin", margin);
                     row.put("marginPct", marginPct);
+                    row.put("profit", profit);
                     return row;
                 })
                 .sorted((a, b) -> ((BigDecimal) b.get("marginPct"))

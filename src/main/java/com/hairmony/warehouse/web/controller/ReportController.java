@@ -49,6 +49,7 @@ public class ReportController {
         model.addAttribute("topClients", reportService.getTopClients(period.getFrom(), period.getTo()));
         model.addAttribute("purchasesSummary", reportService.getPurchasesSummary(period.getFrom(), period.getTo()));
         model.addAttribute("marginAnalysis", reportService.getMarginAnalysis(period.getFrom(), period.getTo()));
+        model.addAttribute("slowMovers", reportService.getSlowMovers(period.getFrom(), period.getTo()));
 
         return "reports";
     }

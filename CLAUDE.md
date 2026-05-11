@@ -46,8 +46,13 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
   activeStatus param + client-side toggle; filters (status/category/brand/search),
-  clickable rows → product detail, active filter highlight (.filter-active)
-  KPI "countOk" = OK+LOW, "lowStock" = LOW+OUT, "countOut" = OUT only
+  clickable rows → product detail, active filter highlight (.filter-active);
+  KPI "countOk" = OK+LOW, "lowStock" = LOW+OUT, "countOut" = OUT only;
+  filter layout: Brand + Category selects on one row, Search full-width below;
+  filters wrapped in <form onsubmit="return false"> for correct iOS/Android Prev/Next
+  navigation between fields (filtering stays client-side/instant);
+  × clear buttons on Brand and Category selects (mobile, d-md-none, JS-controlled);
+  "Скинути (N)" reset button below search, visible when ≥1 of category/brand/search active
 - Products CRUD with soft delete, restore, detail page, brand autocomplete
 - Stock batch (StockItem) edit modal on product detail — expiry date, batch number, price
 - Categories CRUD with modal editing and Bootstrap delete modal (Ні/Так);
@@ -102,9 +107,14 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   guard against double-cancel and cancelling a cancellation
 - Reports page (/reports) — period presets (THIS_MONTH, LAST_MONTH, ALL_TIME, CUSTOM);
   KPI summary banner (revenue, purchases, gross profit + margin%, sales count);
-  stock value snapshot; top sales with salesCount and share%; write-offs summary;
-  top clients (clickable → client detail); purchases by supplier; margin analysis;
-  configurable expiry alert window
+  stock value snapshot (labelled "current snapshot" to distinguish from period KPIs);
+  top sales top-7 with salesCount and share%; write-offs summary by product+reason
+  with GIFT recipient name shown; top clients top-7 (clickable → client detail);
+  purchases by supplier; margin analysis with absolute profit column (zł);
+  slow movers table — products with stock > 0 but no sales in selected period;
+  configurable expiry alert window;
+  desktop layout: 2-col pairs use align-items-start (no height stretching);
+  table styles: .table th font-size 0.72rem, mobile 0.68rem/0.8rem, table-striped on all tables
 - i18n: uk (primary), pl, en; all UI strings via #{} — no hardcoded text in templates
 - QuantityFormatter (@qf bean) — integers for PCS, decimals for ML/G
 - CurrentUriInterceptor — active nav highlighting
@@ -157,8 +167,19 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   Back/Cancel in form template handle returnTo=detail → /entity/{id}
 - Detail pages layout: info strip (d-flex flex-wrap gap-4) above history table,
   phone/contact in page header subtitle, no duplicate data
+- Product detail page exception: desktop uses info strip (d-none d-md-block) + full-width tables;
+  mobile uses original table-in-card layout (d-md-none) — two separate blocks in template;
+  stock level shown prominently in info strip with color: green(OK)/yellow(LOW)/red(OUT)
 - Mobile tables: hide secondary columns with d-none d-md-table-cell;
   keep essential columns (name, status/type, quantity, actions) always visible
+- Table styles (detail pages + reports): .table th font-size 0.72rem, vertical-align middle;
+  mobile: 0.68rem/0.4rem padding for th, 0.8rem/0.4rem for td; table-striped on history tables;
+  .table-xs class for extra-compact rows (padding 0.2rem 0.5rem) — used on stock batches table;
+  .table-auto resets font-size to inherit (used on product info table to keep default size);
+  supplier detail: .table { min-width: 0 } so history table fits mobile width without scroll
+- Badge colors (global, layout/main.html): .badge-writeoff — soft pink (#f5a3b0 bg, #7d2535 text);
+  used for WRITE_OFF movement type badges in history, product detail, client detail
+- Movement journal thead: accent-light background via --bs-table-bg; th vertical-align: middle
 
 ## Stock expense validation
 - unitPrice required and > 0 for SALE — service throws IllegalStateException (stock.expense.salePriceRequired)
@@ -188,12 +209,19 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - ReportService.getReportSummary(from, to) — totalRevenue, totalPurchases,
   grossProfit (revenue − COGS), marginPct, salesCount
 - ReportService.getStockValue() — current stock value from StockItemRepository
-- ReportService.getTopSales(from, to) — salesCount, sharePct per product
-- ReportService.getWriteOffsSummary(from, to) — by product + totalLoss
-- ReportService.getTopClients(from, to) — by client, sorted by totalSpent
+- ReportService.getTopSales(from, to) — top 7 by revenue; salesCount, sharePct per product
+- ReportService.getWriteOffsSummary(from, to) — grouped by product+reason; row includes
+  clientNames (comma-separated distinct clients) for GIFT rows
+- ReportService.getTopClients(from, to) — top 7 by totalSpent
+- ReportService.getMarginAnalysis(from, to) — includes profit (totalRevenue − totalCOGS) per product
+- ReportService.getSlowMovers(from, to) — products with stock > 0 but no SALE in period;
+  uses StockMovementRepository.findProductIdsWithSalesBetween() +
+  StockItemRepository.getStockSummaryPerProduct()
 - ReportService.getEarliestMovementDate() — used for ALL_TIME preset
 - StockItemRepository.getTotalStockValue() — SUM(quantity * purchasePrice)
+- StockItemRepository.getStockSummaryPerProduct() — product id/name/unit + total qty (stock > 0)
 - StockMovementRepository.findWriteOffsBetween() / findEarliestMovementDate()
+- StockMovementRepository.findProductIdsWithSalesBetween() — for slow movers
 
 ## Security
 - DB-based authentication via UserDetailsServiceImpl
@@ -228,10 +256,15 @@ DB credentials in application-dev.properties (gitignored)
   delete/cancel/deactivate endpoints to restrict to ADMIN only
 - Print barcode labels — printable label with product name + barcode from product detail page
 - AI: conversation history / multi-turn chat (currently stateless per request)
+- Reports: previous-period comparison (+/- % for revenue/sales in KPI banner)
+- Reports: trends page (separate page with charts — revenue/sales over time)
 
 ### Infrastructure
 - Spring Session for multi-machine session sharing (if needed when scaling beyond 1 machine)
 - User management page (if multiple users needed)
+- Swagger/OpenAPI — intentionally skipped: app is server-rendered Thymeleaf MVC,
+  not a REST API; only 3 internal @ResponseBody endpoints (barcode/search);
+  revisit if a mobile app or external integrations are added
 
 ### Quality
 - Unit tests written (29 tests, no DB required, run with ./mvnw test):
