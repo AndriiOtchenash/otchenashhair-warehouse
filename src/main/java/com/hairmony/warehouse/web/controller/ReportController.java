@@ -105,22 +105,28 @@ public class ReportController {
     private BigDecimal delta(BigDecimal current, BigDecimal previous) {
         if (previous == null) return null;
         if (previous.compareTo(BigDecimal.ZERO) == 0) {
-            return current.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.valueOf(100.0) : null;
+            return current.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.valueOf(100) : null;
         }
-        return current.subtract(previous)
+        return compact(current.subtract(previous)
                 .divide(previous.abs(), 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))
-                .setScale(1, RoundingMode.HALF_UP);
+                .setScale(1, RoundingMode.HALF_UP));
     }
 
     // % change for integer counts
     private BigDecimal deltaInt(int current, int previous) {
         if (previous == 0) {
-            return current > 0 ? BigDecimal.valueOf(100.0) : null;
+            return current > 0 ? BigDecimal.valueOf(100) : null;
         }
-        return BigDecimal.valueOf(current - previous)
+        return compact(BigDecimal.valueOf(current - previous)
                 .divide(BigDecimal.valueOf(previous), 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))
-                .setScale(1, RoundingMode.HALF_UP);
+                .setScale(1, RoundingMode.HALF_UP));
+    }
+
+    // Strip ".0" suffix: 12.3 stays 12.3, 100.0 becomes 100
+    private BigDecimal compact(BigDecimal v) {
+        return v.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) == 0
+                ? v.setScale(0) : v;
     }
 }
