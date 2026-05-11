@@ -52,6 +52,49 @@
     <!-- Purchase history -->
     <div class="card">
         <div class="card-header" th:text="#{supplier.detail.history}">Історія закупок</div>
+        <div th:unless="${movements.empty}" class="p-2 border-bottom">
+            <!-- Row 1: Date range -->
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="input-group input-group-sm" id="dateFromWrap" style="flex:1;min-width:0">
+                    <span class="input-group-text" th:text="#{movements.filter.dateFrom}">Від</span>
+                    <input type="date" class="form-control" id="histDateFrom"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            id="clearDateFromBtn" onclick="clearDateFrom()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+                <div class="input-group input-group-sm" id="dateToWrap" style="flex:1;min-width:0">
+                    <span class="input-group-text" th:text="#{movements.filter.dateTo}">До</span>
+                    <input type="date" class="form-control" id="histDateTo"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            id="clearDateToBtn" onclick="clearDateTo()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Row 2: Product name search -->
+            <div class="input-group input-group-sm" id="searchGroup">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="histSearch"
+                       th:placeholder="#{product.form.name}"
+                       oninput="applyHistoryFilters()"/>
+                <button type="button" class="btn btn-outline-secondary d-md-none"
+                        onclick="clearHistSearch()" tabindex="-1" id="clearSearchBtn" style="display:none">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <!-- Reset -->
+            <div class="mt-2">
+                <button type="button" id="resetFiltersBtn"
+                        class="btn btn-outline-secondary btn-sm" style="display:none"
+                        onclick="resetHistFilters()">
+                    <i class="bi bi-funnel"></i>
+                    <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
+                </button>
+            </div>
+        </div>
         <div class="card-body p-0">
             <div th:if="${movements.empty}" class="text-center text-muted py-4">
                 <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
@@ -62,7 +105,6 @@
                 <tr>
                     <th th:text="#{product.detail.date}">Дата</th>
                     <th th:text="#{product.form.name}">Товар</th>
-                    <th th:text="#{stock.form.movementType}">Тип</th>
                     <th th:text="#{stock.form.quantity}">Кількість</th>
                     <th class="d-none d-md-table-cell" th:text="#{stock.form.purchasePrice}">Ціна</th>
                     <th class="d-none d-md-table-cell" th:text="#{stock.form.notes}">Примітки</th>
@@ -70,19 +112,14 @@
                 </thead>
                 <tbody>
                 <tr th:each="m : ${movements}"
-                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted' : (${m.originalMovementId != null} ? 'table-secondary' : '')">
+                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted' : (${m.originalMovementId != null} ? 'table-secondary' : '')"
+                    th:attr="data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')},data-name=${m.product.name}">
                     <td style="white-space:nowrap" th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy')}"></td>
                     <td>
                         <a th:href="@{/products/{id}(id=${m.product.id},from='supplier',supplierId=${supplier.id})}"
                            th:text="${m.product.name}"
                            th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted text-decoration-line-through' : 'fw-semibold text-dark'"
                            class="text-decoration-none"></a>
-                    </td>
-                    <td>
-                        <span class="badge rounded-pill"
-                              th:classappend="${m.movementType.name() == 'PURCHASE'} ? 'bg-success' : 'bg-secondary'"
-                              th:text="#{movementType.__${m.movementType}__}">
-                        </span>
                     </td>
                     <td>
                         <span th:text="${@qf.format(m.quantity, m.product.unit.name())}"></span>
@@ -96,6 +133,62 @@
             </table>
         </div>
     </div>
+
+    <script>
+        function applyHistoryFilters() {
+            const q        = (document.getElementById('histSearch').value || '').toLowerCase();
+            const dateFrom = document.getElementById('histDateFrom').value || '';
+            const dateTo   = document.getElementById('histDateTo').value || '';
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const nameMatch = !q        || (row.dataset.name || '').toLowerCase().includes(q);
+                const rowDate   = row.dataset.date || '';
+                const fromMatch = !dateFrom || rowDate >= dateFrom;
+                const toMatch   = !dateTo   || rowDate <= dateTo;
+                row.style.display = (nameMatch && fromMatch && toMatch) ? '' : 'none';
+            });
+            updateResetBtn();
+        }
+
+        function updateResetBtn() {
+            const q        = document.getElementById('histSearch').value || '';
+            const dateFrom = document.getElementById('histDateFrom').value || '';
+            const dateTo   = document.getElementById('histDateTo').value || '';
+            let count = 0;
+            if (dateFrom) count++;
+            if (dateTo)   count++;
+            if (q)        count++;
+            document.getElementById('resetFiltersBtn').style.display = count ? '' : 'none';
+            document.getElementById('resetFilterCount').textContent = count ? ' (' + count + ')' : '';
+            document.getElementById('clearSearchBtn').style.display   = q        ? '' : 'none';
+            document.getElementById('clearDateFromBtn').style.display = dateFrom ? '' : 'none';
+            document.getElementById('clearDateToBtn').style.display   = dateTo   ? '' : 'none';
+            document.getElementById('searchGroup').classList.toggle('filter-active', !!q);
+            document.getElementById('dateFromWrap').classList.toggle('filter-active', !!dateFrom);
+            document.getElementById('dateToWrap').classList.toggle('filter-active', !!dateTo);
+        }
+
+        function clearHistSearch() {
+            document.getElementById('histSearch').value = '';
+            applyHistoryFilters();
+        }
+
+        function clearDateFrom() {
+            document.getElementById('histDateFrom').value = '';
+            applyHistoryFilters();
+        }
+
+        function clearDateTo() {
+            document.getElementById('histDateTo').value = '';
+            applyHistoryFilters();
+        }
+
+        function resetHistFilters() {
+            document.getElementById('histSearch').value = '';
+            document.getElementById('histDateFrom').value = '';
+            document.getElementById('histDateTo').value = '';
+            applyHistoryFilters();
+        }
+    </script>
 </div>
 </body>
 </html>

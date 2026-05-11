@@ -21,21 +21,6 @@
         .table td.fw-semibold {
             font-size: 0.90rem;
         }
-        /* × button sits next to select on mobile */
-        @media (max-width: 767.98px) {
-            .filter-select-wrap {
-                display: flex;
-                align-items: center;
-                gap: 0.4rem;
-            }
-            .filter-select-wrap > select {
-                flex: 1;
-                min-width: 0;
-            }
-            .filter-select-wrap > button {
-                flex-shrink: 0;
-            }
-        }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{dashboard.title}">Склад</h1>

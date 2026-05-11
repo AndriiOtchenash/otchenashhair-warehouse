@@ -201,7 +201,15 @@
                 width: 100% !important;
             }
         }
+        .card-header { background-color: var(--accent-light) !important; }
+        .filter-active { border: 2px solid var(--accent) !important; }
+        button.filter-active { background-color: transparent !important; color: inherit !important; box-shadow: none !important; }
         .badge-writeoff { background-color: #f5a3b0 !important; color: #7d2535 !important; }
+        @media (max-width: 767.98px) {
+            .filter-select-wrap { display: flex; align-items: center; gap: 0.4rem; }
+            .filter-select-wrap > select { flex: 1; min-width: 0; }
+            .filter-select-wrap > button { flex-shrink: 0; }
+        }
     </style>
 </head>
 <body>
