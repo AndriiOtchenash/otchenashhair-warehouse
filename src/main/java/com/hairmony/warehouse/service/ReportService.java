@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -251,6 +252,58 @@ public class ReportService {
                     return r;
                 })
                 .toList();
+    }
+
+    // Monthly trends: revenue, purchases, sales count per month
+    public Map<String, Object> getTrends(LocalDate from, LocalDate to) {
+        List<StockMovement> sales = movementRepository.findSalesBetween(
+                from.atStartOfDay(), to.atTime(23, 59, 59));
+        List<StockMovement> purchases = movementRepository.findPurchasesBetween(
+                from.atStartOfDay(), to.atTime(23, 59, 59));
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM");
+
+        // Pre-fill all months in range with zeros so chart has no gaps
+        TreeMap<String, BigDecimal[]> byMonth = new TreeMap<>();
+        LocalDate cursor = from.withDayOfMonth(1);
+        while (!cursor.isAfter(to)) {
+            byMonth.put(cursor.format(fmt), new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+            cursor = cursor.plusMonths(1);
+        }
+
+        for (StockMovement m : sales) {
+            String month = m.getCreatedAt().format(fmt);
+            byMonth.computeIfAbsent(month, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+            if (m.getUnitPrice() != null) {
+                byMonth.get(month)[0] = byMonth.get(month)[0]
+                        .add(m.getQuantity().multiply(m.getUnitPrice()));
+            }
+            byMonth.get(month)[2] = byMonth.get(month)[2].add(BigDecimal.ONE);
+        }
+
+        for (StockMovement m : purchases) {
+            String month = m.getCreatedAt().format(fmt);
+            byMonth.computeIfAbsent(month, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+            if (m.getUnitPrice() != null) {
+                byMonth.get(month)[1] = byMonth.get(month)[1]
+                        .add(m.getQuantity().multiply(m.getUnitPrice()));
+            }
+        }
+
+        List<String> labels = new ArrayList<>(byMonth.keySet());
+        List<BigDecimal> revenue = labels.stream()
+                .map(k -> byMonth.get(k)[0].setScale(2, RoundingMode.HALF_UP)).toList();
+        List<BigDecimal> purchasesData = labels.stream()
+                .map(k -> byMonth.get(k)[1].setScale(2, RoundingMode.HALF_UP)).toList();
+        List<Integer> salesCount = labels.stream()
+                .map(k -> byMonth.get(k)[2].intValue()).toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("labels", labels);
+        result.put("revenue", revenue);
+        result.put("purchases", purchasesData);
+        result.put("salesCount", salesCount);
+        return result;
     }
 
     // Margin analysis
