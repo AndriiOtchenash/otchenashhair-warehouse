@@ -21,6 +21,21 @@
         .table td.fw-semibold {
             font-size: 0.90rem;
         }
+        /* × button sits next to select on mobile */
+        @media (max-width: 767.98px) {
+            .filter-select-wrap {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+            .filter-select-wrap > select {
+                flex: 1;
+                min-width: 0;
+            }
+            .filter-select-wrap > button {
+                flex-shrink: 0;
+            }
+        }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{dashboard.title}">Склад</h1>
@@ -89,40 +104,74 @@
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="mb-3">
-        <!-- Category, Brand, Search -->
-        <div class="d-flex flex-column flex-md-row gap-2">
-            <select id="categorySelect" class="form-select form-select-sm" onchange="filterCategory(this.value)">
-                <option value="" th:text="#{dashboard.filter.allCategories}">Всі категорії</option>
-                <option th:each="cat : ${categories}"
-                        th:value="${cat}"
-                        th:text="${cat}">
-                </option>
-            </select>
+    <!--
+        form onsubmit="return false" — обёртка нужна только браузеру:
+        на iOS/Android кнопки Prev/Next в нативном пикере корректно
+        перемещаются между полями одной формы.
+        Фильтрация остаётся мгновенной, на стороне клиента.
+    -->
+    <form onsubmit="return false" class="mb-3">
 
-            <select id="brandSelect" class="form-select form-select-sm" onchange="filterBrand(this.value)">
-                <option value="" th:text="#{dashboard.filter.allBrands}">Всі бренди</option>
-                <option th:each="br : ${brands}"
-                        th:value="${br}"
-                        th:text="${br}">
-                </option>
-            </select>
+        <!-- Row 1: Category + Brand -->
+        <div class="d-flex flex-row gap-2 mb-2">
 
-            <div class="flex-grow-1">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control"
-                           th:placeholder="#{dashboard.filter.search}"
-                           oninput="filterSearch(this.value); toggleClearBtn(this)"/>
-                    <button type="button" class="btn btn-outline-secondary d-md-none"
-                            onclick="clearSearch()" tabindex="-1" style="display:none">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </div>
+            <!-- Brand -->
+            <div class="filter-select-wrap" style="flex:1;min-width:0">
+                <select name="brand" id="brandSelect" class="form-select form-select-sm">
+                    <option value="" th:text="#{dashboard.filter.allBrands}">Всі бренди</option>
+                    <option th:each="br : ${brands}"
+                            th:value="${br}"
+                            th:text="${br}">
+                    </option>
+                </select>
+                <button type="button" id="clearBrandBtn"
+                        class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                        onclick="clearBrand()" tabindex="-1" style="display:none">
+                    <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                </button>
             </div>
+
+            <!-- Category -->
+            <div class="filter-select-wrap" style="flex:1;min-width:0">
+                <select name="category" id="categorySelect" class="form-select form-select-sm">
+                    <option value="" th:text="#{dashboard.filter.allCategories}">Всі категорії</option>
+                    <option th:each="cat : ${categories}"
+                            th:value="${cat}"
+                            th:text="${cat}">
+                    </option>
+                </select>
+                <button type="button" id="clearCategoryBtn"
+                        class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                        onclick="clearCategory()" tabindex="-1" style="display:none">
+                    <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                </button>
+            </div>
+
         </div>
-    </div>
+
+        <!-- Row 2: Search -->
+        <div class="input-group input-group-sm" id="searchGroup">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" name="search" id="searchInput" class="form-control"
+                   th:placeholder="#{dashboard.filter.search}"
+                   oninput="filterSearch(this.value); toggleClearBtn(this)"/>
+            <button type="button" class="btn btn-outline-secondary d-md-none"
+                    onclick="clearSearch()" tabindex="-1" style="display:none">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <!-- Reset all filters — visible only when ≥1 filter is active -->
+        <div class="mt-2">
+            <button type="button" id="resetFiltersBtn"
+                    class="btn btn-outline-secondary btn-sm" style="display:none"
+                    onclick="resetAllFilters()">
+                <i class="bi bi-funnel"></i>
+                <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
+            </button>
+        </div>
+
+    </form>
 
     <!-- Stock table -->
     <div class="card">
@@ -205,31 +254,29 @@
         </div>
     </div>
 
-
     <script>
-        // Read initial filter from URL
         const urlParams = new URLSearchParams(window.location.search);
-        let activeStatus = urlParams.get('status') || 'OK';
+        let activeStatus   = urlParams.get('status')   || 'OK';
         let activeCategory = urlParams.get('category') || '';
-        let activeBrand = urlParams.get('brand') || '';
-        let activeSearch = '';
+        let activeBrand    = urlParams.get('brand')    || '';
+        let activeSearch   = '';
 
         function applyFilters() {
-            const rows = document.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                const status = row.dataset.status;
+            document.querySelectorAll('tbody tr').forEach(function (row) {
+                const status   = row.dataset.status;
                 const category = row.dataset.category || '';
-                const brand = row.dataset.brand || '';
-                const name = row.dataset.name || '';
+                const brand    = row.dataset.brand    || '';
+                const name     = row.dataset.name     || '';
 
-                const statusMatch = activeStatus === 'all'
+                const statusMatch =
+                    activeStatus === 'all'
                     || (activeStatus === 'attention' && (status === 'LOW' || status === 'OUT'))
-                    || (activeStatus === 'OK' && (status === 'OK' || status === 'LOW'))
-                    || (activeStatus === 'out' && status === 'OUT');
+                    || (activeStatus === 'OK'        && (status === 'OK'  || status === 'LOW'))
+                    || (activeStatus === 'out'       && status === 'OUT');
 
                 const categoryMatch = activeCategory === '' || category === activeCategory;
-                const brandMatch = activeBrand === '' || brand === activeBrand;
-                const searchMatch = activeSearch === '' || name.toLowerCase().includes(activeSearch.toLowerCase());
+                const brandMatch    = activeBrand    === '' || brand    === activeBrand;
+                const searchMatch   = activeSearch   === '' || name.toLowerCase().includes(activeSearch.toLowerCase());
 
                 row.style.display = (statusMatch && categoryMatch && brandMatch && searchMatch) ? '' : 'none';
             });
@@ -238,19 +285,35 @@
         function updateUrl() {
             const params = new URLSearchParams(window.location.search);
             params.set('status', activeStatus);
-            if (activeCategory) params.set('category', activeCategory);
-            else params.delete('category');
-            if (activeBrand) params.set('brand', activeBrand);
-            else params.delete('brand');
-            const newUrl = window.location.pathname + '?' + params.toString();
-            window.history.replaceState({}, '', newUrl);
+            if (activeCategory) params.set('category', activeCategory); else params.delete('category');
+            if (activeBrand)    params.set('brand',    activeBrand);    else params.delete('brand');
+            window.history.replaceState({}, '', window.location.pathname + '?' + params.toString());
         }
 
         function updateKpiCards() {
-            document.querySelectorAll('.kpi-card').forEach(card => {
+            document.querySelectorAll('.kpi-card').forEach(function (card) {
                 card.classList.toggle('kpi-active', card.dataset.kpiStatus === activeStatus);
             });
         }
+
+        function updateResetBtn() {
+            var count = (activeCategory !== '' ? 1 : 0)
+                      + (activeBrand    !== '' ? 1 : 0)
+                      + (activeSearch   !== '' ? 1 : 0);
+            var btn   = document.getElementById('resetFiltersBtn');
+            var label = document.getElementById('resetFilterCount');
+            if (btn)   btn.style.display  = count > 0 ? '' : 'none';
+            if (label) label.textContent  = count > 0 ? ' (' + count + ')' : '';
+        }
+
+        function updateFilterActive() {
+            var catSelect   = document.getElementById('categorySelect');
+            var brandSelect = document.getElementById('brandSelect');
+            if (catSelect)   catSelect.classList.toggle('filter-active',   catSelect.value   !== '');
+            if (brandSelect) brandSelect.classList.toggle('filter-active', brandSelect.value !== '');
+        }
+
+        // ── filter actions ────────────────────────────────────────────
 
         function filterStatus(status) {
             activeStatus = status;
@@ -259,18 +322,14 @@
             applyFilters();
         }
 
-        function updateFilterActive() {
-            var catSelect = document.getElementById('categorySelect');
-            var brandSelect = document.getElementById('brandSelect');
-            if (catSelect) catSelect.classList.toggle('filter-active', catSelect.value !== '');
-            if (brandSelect) brandSelect.classList.toggle('filter-active', brandSelect.value !== '');
-        }
-
         function filterCategory(value) {
             activeCategory = value;
             updateUrl();
             applyFilters();
             updateFilterActive();
+            updateResetBtn();
+            var btn = document.getElementById('clearCategoryBtn');
+            if (btn) btn.style.display = value ? '' : 'none';
         }
 
         function filterBrand(value) {
@@ -278,11 +337,54 @@
             updateUrl();
             applyFilters();
             updateFilterActive();
+            updateResetBtn();
+            var btn = document.getElementById('clearBrandBtn');
+            if (btn) btn.style.display = value ? '' : 'none';
         }
 
         function filterSearch(value) {
             activeSearch = value;
             applyFilters();
+            updateResetBtn();
+            var group = document.getElementById('searchGroup');
+            if (group) group.classList.toggle('filter-active', value !== '');
+        }
+
+        // ── clear buttons ─────────────────────────────────────────────
+
+        function clearCategory() {
+            var sel = document.getElementById('categorySelect');
+            if (sel) { sel.value = ''; filterCategory(''); }
+        }
+
+        function clearBrand() {
+            var sel = document.getElementById('brandSelect');
+            if (sel) { sel.value = ''; filterBrand(''); }
+        }
+
+        function clearSearch() {
+            var input = document.getElementById('searchInput');
+            if (input) { input.value = ''; filterSearch(''); toggleClearBtn(input); }
+        }
+
+        function resetAllFilters() {
+            var catSel   = document.getElementById('categorySelect');
+            var brandSel = document.getElementById('brandSelect');
+            var search   = document.getElementById('searchInput');
+            if (catSel)   { catSel.value   = ''; }
+            if (brandSel) { brandSel.value = ''; }
+            if (search)   { search.value   = ''; toggleClearBtn(search); }
+            activeCategory = ''; activeBrand = ''; activeSearch = '';
+            updateUrl();
+            applyFilters();
+            updateFilterActive();
+            updateResetBtn();
+            var g = document.getElementById('searchGroup');
+            if (g) g.classList.remove('filter-active');
+            var cc = document.getElementById('clearCategoryBtn');
+            var cb = document.getElementById('clearBrandBtn');
+            if (cc) cc.style.display = 'none';
+            if (cb) cb.style.display = 'none';
         }
 
         function toggleClearBtn(input) {
@@ -290,30 +392,38 @@
             if (btn) btn.style.display = input.value ? '' : 'none';
         }
 
-        function clearSearch() {
-            var input = document.querySelector('.input-group input[type="text"]');
-            if (input) { input.value = ''; filterSearch(''); toggleClearBtn(input); }
-        }
+        // ── init ──────────────────────────────────────────────────────
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // Restore select values from URL params
-            const catSelect = document.getElementById('categorySelect');
-            if (catSelect && activeCategory) catSelect.value = activeCategory;
+        document.addEventListener('DOMContentLoaded', function () {
+            var catSelect   = document.getElementById('categorySelect');
+            var brandSelect = document.getElementById('brandSelect');
 
-            const brandSelect = document.getElementById('brandSelect');
-            if (brandSelect && activeBrand) brandSelect.value = activeBrand;
+            if (catSelect   && activeCategory) catSelect.value   = activeCategory;
+            if (brandSelect && activeBrand)    brandSelect.value = activeBrand;
+
+            // Restore × button visibility from URL params
+            var clearCatBtn   = document.getElementById('clearCategoryBtn');
+            var clearBrandBtn = document.getElementById('clearBrandBtn');
+            if (clearCatBtn)   clearCatBtn.style.display   = activeCategory ? '' : 'none';
+            if (clearBrandBtn) clearBrandBtn.style.display = activeBrand    ? '' : 'none';
+
+            // Wire up select onchange after DOM is ready (keeps HTML clean)
+            if (catSelect)   catSelect.addEventListener('change',   function () { filterCategory(this.value); });
+            if (brandSelect) brandSelect.addEventListener('change', function () { filterBrand(this.value); });
 
             updateFilterActive();
             updateKpiCards();
             applyFilters();
+            updateResetBtn();
+            var searchGroup = document.getElementById('searchGroup');
+            if (searchGroup) searchGroup.classList.toggle('filter-active', activeSearch !== '');
 
             if (!('ontouchstart' in window)) {
-                document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
                     new bootstrap.Tooltip(el);
                 });
             }
         });
-
     </script>
 </div>
 </body>
