@@ -101,9 +101,12 @@ public class ReportController {
         return new ReportPeriod(current.getFrom().minusDays(days + 1), current.getFrom().minusDays(1), null);
     }
 
-    // % change vs previous; null = no previous data (prev was 0)
+    // % change vs previous; null only when both are zero (nothing to show)
     private BigDecimal delta(BigDecimal current, BigDecimal previous) {
-        if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) return null;
+        if (previous == null) return null;
+        if (previous.compareTo(BigDecimal.ZERO) == 0) {
+            return current.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.valueOf(100.0) : null;
+        }
         return current.subtract(previous)
                 .divide(previous.abs(), 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))
@@ -112,7 +115,9 @@ public class ReportController {
 
     // % change for integer counts
     private BigDecimal deltaInt(int current, int previous) {
-        if (previous == 0) return null;
+        if (previous == 0) {
+            return current > 0 ? BigDecimal.valueOf(100.0) : null;
+        }
         return BigDecimal.valueOf(current - previous)
                 .divide(BigDecimal.valueOf(previous), 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))

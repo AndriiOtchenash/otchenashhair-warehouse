@@ -249,8 +249,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - ReportController.resolvePeriod() extracted as private method — shared by /reports and /reports/trends
 - Previous-period comparison in KPI banner: ▲+12.3% / ▼-5.1% inline in existing subtitle lines
   (no extra card height); previousPeriod() maps THIS_MONTH/LAST_MONTH → prev month,
-  CUSTOM → same duration shifted back, ALL_TIME → null (hidden); delta() returns null when
-  previous = 0 to avoid division by zero; shown for revenue, purchases, gross profit
+  CUSTOM → same duration shifted back, ALL_TIME → null (hidden);
+  delta(): prev=0 + curr>0 → +100% (growth signal), prev=0 + curr=0 → null (hidden);
+  shown for revenue, purchases, gross profit
 - ReportService.getSlowMovers(from, to) — products with stock > 0 but no SALE in period;
   uses StockMovementRepository.findProductIdsWithSalesBetween() +
   StockItemRepository.getStockSummaryPerProduct()
