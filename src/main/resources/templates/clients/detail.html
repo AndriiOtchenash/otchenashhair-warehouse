@@ -91,6 +91,10 @@
                                              (${m.movementType.name() == 'WRITE_OFF'} ? 'bg-danger' : 'bg-secondary')"
                               th:text="#{movementType.__${m.movementType}__}">
                         </span>
+                        <div th:if="${m.writeOffReason != null}" class="mt-1">
+                            <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
+                                  th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
+                        </div>
                     </td>
                     <td>
                         <span th:text="${@qf.format(m.quantity, m.product.unit.name())}"></span>

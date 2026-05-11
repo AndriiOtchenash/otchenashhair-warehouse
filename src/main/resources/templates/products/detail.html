@@ -10,13 +10,13 @@
         </div>
         <div class="d-flex gap-2">
             <a th:href="@{/movements/income(productId=${product.id})}"
-               class="btn btn-primary btn-sm">
-                <i class="bi bi-arrow-down-circle me-1"></i>
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-down-circle me-1 text-success"></i>
                 <span th:text="#{stock.income.title}">Прихід</span>
             </a>
             <a th:href="@{/movements/expense(productId=${product.id})}"
-               class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-arrow-up-circle me-1"></i>
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-up-circle me-1 text-danger"></i>
                 <span th:text="#{stock.expense.title}">Витрата</span>
             </a>
             <a th:href="@{/products/{id}/edit(id=${product.id},returnTo='detail')}"
@@ -178,6 +178,10 @@
                                                      (${m.movementType.name() == 'WRITE_OFF'} ? 'bg-danger' : 'bg-secondary'))"
                                       th:text="#{movementType.__${m.movementType}__}">
                                 </span>
+                                <div th:if="${m.writeOffReason != null}" class="mt-1">
+                                    <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
+                                          th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
+                                </div>
                             </td>
                             <td th:text="${m.quantity}"></td>
                             <td th:text="${m.unitPrice ?: '—'}"></td>
