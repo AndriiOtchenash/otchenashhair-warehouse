@@ -264,7 +264,7 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 ## Security
 - DB-based authentication via UserDetailsServiceImpl
 - BCrypt password encoding
-- All routes protected except /login, /logout, /reports/**, static resources (/favicon.svg, /css/**, /js/**, /images/**, /webjars/**)
+- All routes protected except /login, /logout, static resources (/favicon.svg, /css/**, /js/**, /images/**, /webjars/**)
 - Default user: admin (change password after first login)
 
 ## Deploy
