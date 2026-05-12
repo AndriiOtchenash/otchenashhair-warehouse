@@ -282,6 +282,88 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 Run with VM option: -Dspring.profiles.active=dev
 DB credentials in application-dev.properties (gitignored)
 
+## Strategic direction: retention + repeat sales + product protocols
+
+External analysis confirms current inventory management is solid. Recommended next focus:
+shift from "know your stock" → "know what to order, sell, and recommend — and to whom."
+The highest value for a trichologist is the system proactively suggesting actions.
+
+### Event taxonomy: domain events vs application events
+
+**Domain events** — core business facts, published immediately after the transaction:
+- `SaleCompletedEvent`
+- `PurchaseCompletedEvent`
+- `WriteOffCompletedEvent`
+
+**Application / recommendation events** — derived insights, result of analysis:
+- `ClientNeedsFollowupEvent` — FollowupService analyzed history after SaleCompletedEvent
+- `ProductExpiryRiskDetectedEvent` — @Scheduled scan found batches expiring within N days
+
+Flow example:
+```
+SALE saved → SaleCompletedEvent → FollowupService analyzes → ClientNeedsFollowupEvent
+@Scheduled  → find expiring batches                        → ProductExpiryRiskDetectedEvent
+```
+
+### Key architectural rules
+
+**1. @TransactionalEventListener(phase = AFTER_COMMIT) — mandatory for domain events**
+Without this: listener runs, email sent, transaction rolls back → email for a sale that never happened.
+```java
+@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+public void handle(SaleCompletedEvent event) { ... }
+```
+
+**2. Expiry is NOT a real-time event — use @Scheduled**
+No one changed anything; time just passed. Correct approach:
+```java
+@Scheduled(cron = "0 9 * * *")  // daily scan
+→ find batches expiring within N days
+→ publish ProductExpiryRiskDetectedEvent
+```
+
+**3. StockDepletedEvent — trigger on threshold crossing, not on zero**
+Avoids event spam when stock stays at 0 across multiple transactions:
+```java
+if (previousQty > minStock && newQty <= minStock) { publish(...) }
+```
+
+**4. Thin listeners — listener calls service, logic lives in service**
+```java
+@EventListener
+public void handle(SaleCompletedEvent e) {
+    followupService.analyzeAfterSale(e.clientId(), e.productId());
+}
+```
+
+### Package structure
+```
+domain/event/
+    SaleCompletedEvent
+    PurchaseCompletedEvent
+    WriteOffCompletedEvent
+application/event/
+    ClientNeedsFollowupEvent
+    ProductExpiryRiskDetectedEvent
+application/listener/
+    FollowupListener
+    NotificationListener
+```
+
+### Implementation order (least to most model change)
+1. **Domain events + email notifications** — SaleCompletedEvent, PurchaseCompletedEvent,
+   StockDepletedEvent (threshold crossing) → spring-boot-starter-mail + @Scheduled.
+   Fast win, no schema change.
+2. **ClientNeedsFollowupEvent by heuristic** — "client bought X, 30+ days ago, no repeat"
+   derived from existing stock_movements; FollowupService triggered by SaleCompletedEvent.
+3. **Full protocol model** (future, significant scope) — new entities: Visit, Protocol
+   linking treatment types to recommended products.
+
+### Domain gaps for step 3 (not started)
+- Visit / session entity (currently only purchase history exists)
+- Treatment protocol (treatment type → product list)
+- Follow-up scheduling
+
 ## TODO
 
 ### Features
