@@ -73,6 +73,7 @@ public class ClientController {
             model.addAttribute("currentPageUrl", "/clientcare/clients/" + id);
             return "clientcare/clients/detail";
         }
+        model.addAttribute("backUrl", "/clients");
         model.addAttribute("editUrl", "/clients/" + id + "/edit?returnTo=detail");
         model.addAttribute("currentPageUrl", "/clients/" + id);
         return "clients/detail";
