@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{clientcare.followups.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <style>
+        .table th { font-size: 0.72rem; vertical-align: middle; }
+        @media (max-width: 767px) {
+            .table th { font-size: 0.68rem; padding: 0.4rem; }
+            .table td { font-size: 0.8rem; padding: 0.4rem; }
+            .followup-card .card-body { overflow-x: visible; }
+            .followup-table { min-width: 0 !important; width: 100%; }
+        }
+        .days-badge {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .days-urgent { background: #f8d7da; color: #842029; }
+        .days-warn   { background: #fff3cd; color: #664d03; }
+        .days-ok     { background: #d1e7dd; color: #0a3622; }
+        .filter-pill {
+            font-size: 0.78rem;
+            padding: 0.2rem 0.7rem;
+            border-radius: 20px;
+            border: 1px solid #ced4da;
+            background: #fff;
+            cursor: pointer;
+            color: #495057;
+            transition: all 0.15s;
+        }
+        .filter-pill:hover { border-color: var(--accent); color: var(--accent); }
+        .filter-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    </style>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="#{clientcare.followups.title}">Follow-up черга</h1>
+            <div class="text-muted" style="font-size:0.85rem;"
+                 th:text="#{clientcare.followups.subtitle(${clients.size()})}">
+                Клієнтів: 0
+            </div>
+        </div>
+        <a th:href="@{/clientcare}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span th:text="#{btn.back}">Назад</span>
+        </a>
+    </div>
+
+    <!-- Quick filter -->
+    <div th:unless="${clients.isEmpty()}" class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+        <span class="text-muted" style="font-size:0.8rem;" th:text="#{clientcare.filter.label}">Показати від:</span>
+        <a th:href="@{/clientcare/followups}"
+           class="filter-pill" th:classappend="${activeMinDays == 0} ? ' active'"
+           th:text="#{clientcare.filter.all}">Всі</a>
+        <a th:href="@{/clientcare/followups(minDays=30)}"
+           class="filter-pill" th:classappend="${activeMinDays == 30} ? ' active'">
+            30+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+        <a th:href="@{/clientcare/followups(minDays=60)}"
+           class="filter-pill" th:classappend="${activeMinDays == 60} ? ' active'">
+            60+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+        <a th:href="@{/clientcare/followups(minDays=90)}"
+           class="filter-pill" th:classappend="${activeMinDays == 90} ? ' active'">
+            90+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+        <span class="text-muted ms-auto" style="font-size:0.8rem;">
+            <span id="visibleCount" th:text="${clients.size()}">0</span>
+            / <span th:text="${clients.size()}">0</span>
+        </span>
+    </div>
+
+    <div th:if="${clients.isEmpty()}" class="alert alert-info" th:text="#{clientcare.followups.empty}">
+        Клієнтів з покупками не знайдено
+    </div>
+
+    <div th:unless="${clients.isEmpty()}" class="card followup-card">
+        <div class="card-header" th:text="#{clientcare.followups.title}">Follow-up черга</div>
+        <div class="card-body p-0">
+            <table class="table table-striped mb-0 followup-table">
+                <thead>
+                <tr>
+                    <th th:text="#{clientcare.followups.client}">Клієнт</th>
+                    <th class="d-none d-md-table-cell" th:text="#{clientcare.followups.phone}">Телефон</th>
+                    <th th:text="#{clientcare.followups.lastPurchase}">Остання покупка</th>
+                    <th th:text="#{clientcare.followups.daysSince}">Днів тому</th>
+                    <th class="d-none d-md-table-cell" th:text="#{clientcare.followups.totalSpent}">Сума покупок</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${clients}" th:data-days="${c.daysSinceLastPurchase}">
+                    <td>
+                        <span th:text="${c.clientName}">Ім'я</span>
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        <span th:if="${c.hasPhone()}" th:text="${c.clientPhone}" class="text-muted"></span>
+                        <span th:unless="${c.hasPhone()}" class="text-muted">—</span>
+                    </td>
+                    <td>
+                        <span class="d-none d-md-inline" th:text="${#temporals.format(c.lastPurchaseAt, 'dd.MM.yyyy')}">01.01.2025</span>
+                        <span class="d-md-none" th:text="${#temporals.format(c.lastPurchaseAt, 'dd.MM')}">01.01</span>
+                    </td>
+                    <td>
+                        <span class="days-badge"
+                              th:classappend="${c.daysSinceLastPurchase > 60} ? 'days-urgent' : (${c.daysSinceLastPurchase > 30} ? 'days-warn' : 'days-ok')"
+                              th:text="${c.daysSinceLastPurchase}">0</span>
+                    </td>
+                    <td class="d-none d-md-table-cell text-end">
+                        <span th:text="${#numbers.formatDecimal(c.totalSpent, 1, 'POINT', 2, 'COMMA')} + ' zł'">0.00 zł</span>
+                    </td>
+                    <td class="text-end" style="white-space:nowrap;">
+                        <a th:href="@{/clients/{id}(id=${c.clientId}, from='clientcare')}"
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-arrow-right d-md-none"></i>
+                            <span class="d-none d-md-inline" th:text="#{clientcare.followups.open}">Відкрити</span>
+                        </a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            const min = /*[[${activeMinDays}]]*/ 0;
+            if (min > 0) applyMinDays(min);
+        });
+
+        function applyMinDays(min) {
+            const rows = document.querySelectorAll('.followup-table tbody tr');
+            let visible = 0;
+            rows.forEach(function (row) {
+                const days = parseInt(row.dataset.days);
+                const show = days >= min;
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            const counter = document.getElementById('visibleCount');
+            if (counter) counter.textContent = visible;
+        }
+    </script>
+</div>
+</body>
+</html>

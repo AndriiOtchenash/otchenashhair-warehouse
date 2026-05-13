@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(${client.name}, ~{::content})}">
+<body>
+<div th:fragment="content">
+
+    <style>
+        .photo-gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        @media (max-width: 575.98px) {
+            .photo-gallery-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 0.625rem;
+            }
+        }
+        .gallery-tile {
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .gallery-tile-thumb {
+            display: block;
+            aspect-ratio: 1;
+            overflow: hidden;
+            background: #f1f3f5;
+            text-decoration: none;
+        }
+        .gallery-tile-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: opacity 0.15s;
+        }
+        .gallery-tile-thumb img:hover { opacity: 0.88; }
+        .gallery-tile-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            color: #adb5bd;
+            font-size: 3rem;
+        }
+        .gallery-tile-body {
+            padding: 0.5rem 0.625rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex: 1;
+        }
+        .gallery-tile-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        .gallery-tile-notes {
+            font-size: 0.78rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .gallery-tile-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            margin-top: auto;
+            padding-top: 0.375rem;
+        }
+        .zone-pill { cursor: pointer; }
+    </style>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="${client.name}"></h1>
+            <span class="text-muted small" th:text="#{scalp.photo.gallery.title}">Галерея фото</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:href="@{/clientcare/photos/new(clientId=${client.id})}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>
+                <span th:text="#{scalp.photo.add}">Додати фото</span>
+            </a>
+            <a th:href="${returnTo != null ? returnTo : '/clientcare/clients/' + client.id}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>
+                <span th:text="#{btn.back}">Назад</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Zone filter pills -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${returnTo})}"
+           class="btn btn-sm zone-pill"
+           th:classappend="${activeZone == null or activeZone.isEmpty()} ? 'btn-primary' : 'btn-outline-secondary'">
+            <span th:text="#{scalp.photo.gallery.allZones}">Всі зони</span>
+            <span class="badge ms-1"
+                  th:classappend="${activeZone == null or activeZone.isEmpty()} ? 'bg-light text-dark' : 'bg-secondary'"
+                  th:text="${totalCount}"></span>
+        </a>
+        <th:block th:each="zone : ${zones}">
+            <a th:if="${zoneCounts.containsKey(zone)}"
+               th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, zone=${zone.name()}, returnTo=${returnTo})}"
+               class="btn btn-sm zone-pill"
+               th:classappend="${activeZone == zone.name()} ? 'btn-primary' : 'btn-outline-secondary'">
+                <span th:text="#{|scalp.zone.${zone}|}"></span>
+                <span class="badge ms-1"
+                      th:classappend="${activeZone == zone.name()} ? 'bg-light text-dark' : 'bg-secondary'"
+                      th:text="${zoneCounts.get(zone)}"></span>
+            </a>
+        </th:block>
+    </div>
+
+    <!-- Gallery grid -->
+    <div th:if="${photos.isEmpty()}" class="text-muted py-4 text-center">
+        <i class="bi bi-images fs-1 d-block mb-2"></i>
+        <span th:text="#{scalp.photo.empty}">Фото поки немає</span>
+    </div>
+
+    <div th:unless="${photos.isEmpty()}" class="photo-gallery-grid">
+        <div th:each="photo : ${photos}" class="gallery-tile">
+            <a th:href="${photo.driveUrl}" target="_blank" rel="noopener"
+               class="gallery-tile-thumb">
+                <img th:if="${photo.driveFileId != null}"
+                     th:src="'https://drive.google.com/thumbnail?id=' + ${photo.driveFileId} + '&sz=w400'"
+                     th:alt="#{|scalp.zone.${photo.zone}|}"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+                <span th:if="${photo.driveFileId != null}"
+                      class="gallery-tile-fallback" style="display:none">
+                    <i class="bi bi-image"></i>
+                </span>
+                <span th:unless="${photo.driveFileId != null}"
+                      class="gallery-tile-fallback">
+                    <i class="bi bi-image"></i>
+                </span>
+            </a>
+            <div class="gallery-tile-body">
+                <div class="gallery-tile-meta">
+                    <span class="badge bg-secondary" style="font-size:0.68rem"
+                          th:text="#{|scalp.zone.${photo.zone}|}">Зона</span>
+                    <span class="text-muted" style="font-size:0.78rem"
+                          th:text="${#temporals.format(photo.takenAt, 'dd.MM.yyyy')}"></span>
+                </div>
+                <div th:if="${photo.notes != null and !photo.notes.isEmpty()}"
+                     class="gallery-tile-notes"
+                     th:text="${photo.notes}"></div>
+                <div class="gallery-tile-actions">
+                    <a th:href="@{/clientcare/photos/{id}/edit(id=${photo.id}, returnTo='gallery')}"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <form th:action="@{/clientcare/photos/{id}/delete(id=${photo.id})}"
+                          method="post" class="d-inline">
+                        <input type="hidden" name="clientId" th:value="${client.id}"/>
+                        <input type="hidden" name="returnTo" value="gallery"/>
+                        <button type="submit"
+                                class="btn btn-outline-danger btn-sm"
+                                th:onclick="'return confirm(\'' + #{scalp.photo.delete.confirm} + '\')'">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

@@ -41,7 +41,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             005-stock-items, 006-stock-movements, 007-categories,
             008-fix-categories, 009-insert-admin-user,
             010-add-movement-cancel (adds original_movement_id FK on stock_movements),
-            011-add-writeoff-reason (adds write_off_reason VARCHAR(30) on stock_movements)
+            011-add-writeoff-reason (adds write_off_reason VARCHAR(30) on stock_movements),
+            012-create-scalp-photos (scalp_photos table + index on client_id),
+            013-create-visits (visits table + index on client_id)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -282,9 +284,200 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 Run with VM option: -Dspring.profiles.active=dev
 DB credentials in application-dev.properties (gitignored)
 
+## OtchenashHair ClientCare — module architecture
+
+### Decision (2026-05-13)
+Application split into two logical modules within one Spring Boot app:
+- **OtchenashHair Warehouse** — existing inventory management, not touched
+- **OtchenashHair ClientCare** — new module: follow-ups, visits, protocols, AI recommendations
+
+### Core rules
+- Warehouse URLs unchanged — zero migration risk
+- ClientCare URLs: `/clientcare/**`
+- `/clients` — warehouse client directory (purchase history, stock operations)
+- `/clientcare/clients` — ClientCare master client list (all clients, full profile, scalp photos)
+- Shared domain entities (Client, Product, StockMovement) remain in `domain/` — neither module owns them
+- No new entities in MVP wave — all data from existing stock_movements
+
+### Package structure
+```
+com.hairmony.warehouse/
+  domain/           ← SHARED (entities, repos — unchanged)
+  repository/       ← SHARED (unchanged)
+  config/           ← SHARED (unchanged)
+  warehouse/        ← existing controllers/services stay here
+    web/controller/
+    service/
+    web/dto/
+  clientcare/       ← new module
+    web/controller/
+    service/
+    web/dto/
+```
+
+### Layout and navigation
+- `layout/main.html` — warehouse layout + module switcher pills in topbar
+- `layout/clientcare.html` — ClientCare layout with sidebar: Огляд / Клієнти / Follow-up черга
+- `CurrentUriInterceptor` — adds `activeModule` (warehouse/clientcare) and `currentUri` to model
+- Mobile topbar: `[≡] OtchenashHair  [Склад] [ClientCare]` (pill switcher, active = accent color)
+- Desktop: module switcher at top of sidebar
+- ClientCare sidebar nav items: `bi-grid` Огляд→`/clientcare`, `bi-people` Клієнти→`/clientcare/clients`, `bi-list-check` Follow-up→`/clientcare/followups`
+
+### ClientCare — what's done
+
+**Wave 1 — DONE (2026-05-13, no schema change)**
+
+Data source: `StockMovementRepository.findClientSaleStats()` — groups SALE movements by client,
+excludes cancelled SALEs (NOT EXISTS CANCELLATION with originalMovementId = sale.id).
+
+Dashboard `/clientcare` — 6 KPI cards with deep links:
+| Card | Link |
+|---|---|
+| Кому написати (>30 days + phone) | `/clientcare/followups` |
+| Давно не купували (>60 days) | `/clientcare/followups?minDays=60` |
+| VIP без активності (top 20% + >30 days) | `/clientcare/followups?minDays=30` |
+| Нещодавні клієнти (<14 days) | `/clientcare/followups` |
+| Повторна покупка можлива (25–40 days) | `/clientcare/followups` |
+| Всі клієнти | `/clientcare/followups` |
+
+`/clientcare/followups?minDays=N` — URL-based filter (0/30/60/90); `minDays` read by controller,
+passed to model as `activeMinDays`; pills are `<a href>` links (server-highlighted via th:classappend);
+JS on load applies filter to rows via `data-days` attr (no extra request); visible counter updates.
+Queue sorted by days desc; color badges green/yellow/red; dd.MM on mobile / dd.MM.yyyy on desktop;
+icon-only button on mobile; link → `/clients/{id}?from=clientcare` (renders clientcare detail, back → followups).
+Mobile: full-width table (min-width: 0). Sidebar stays open on module switch (sessionStorage).
+
+`ClientCareDashboardDto` fields: `totalClients` (all in DB), `totalClientsInQueue` (with non-cancelled SALEs),
+plus 5 KPI counts. Card "Всі клієнти-покупці" shows `totalClientsInQueue`.
+"Всього клієнтів: N" — clickable link to `/clientcare/clients`; desktop: subtitle under h1; mobile: right-aligned on same row as h1 (inner `d-flex w-100`, outer `w-100` to fill page-header width).
+
+**Wave 2a — DONE (2026-05-13, migration 012)**
+
+Scalp Photos MVP — `ScalpPhoto` entity with Google Drive URL links; no OAuth, no file upload.
+
+Entity stack: `domain/scalp/ScalpZone.java` (enum), `domain/scalp/ScalpPhoto.java`,
+`repository/ScalpPhotoRepository.java` (findAllByClientIdOrderByTakenAtDescCreatedAtDesc),
+`clientcare/service/ScalpPhotoService.java` (save with driveFileId regex extraction; delete with ownership guard; findById + update for edit),
+`clientcare/web/controller/ScalpPhotoController.java` (GET/POST /clientcare/photos/new, GET/POST /clientcare/photos/{id}/edit, POST /clientcare/photos/{id}/delete, GET /clientcare/clients/{clientId}/photos),
+`clientcare/web/dto/ScalpPhotoDto.java` (`@Pattern` + `@PastOrPresent` + `@DateTimeFormat(ISO.DATE)` on takenAt).
+
+Gallery page `/clientcare/clients/{clientId}/photos` — zone filter pills, CSS grid (`minmax(200px,1fr)`), Drive thumbnail (`sz=w400`), pencil edit + delete per tile.
+`returnTo=${currentPageUrl}` passed from "Всі фото" link → gallery Back button returns to correct context (warehouse or clientcare).
+
+Liquibase migration 012 — `scalp_photos` table + index on client_id.
+DB: `001–013` migrations total.
+
+**`/clientcare/clients` — ClientCare master client list (2026-05-13)**
+
+`ClientController` maps to both `{"/clients", "/clientcare/clients"}` — one controller, two contexts.
+`isClientCare(HttpServletRequest)` helper determines context via URI prefix.
+- `GET /clientcare/clients` → `clientcare/clients/list.html` (clientcare layout, `findAll()`)
+- `POST /clientcare/clients` (create) → redirect `/clientcare/clients`
+- `POST /clientcare/clients/{id}/delete` → redirect `/clientcare/clients`
+- Edit/create forms: use `/clientcare/clients/{id}/edit`, redirect back to clientcare context
+
+**Shared client detail fragment:**
+`fragments/client-detail.html` — single source of content for client detail page.
+Both `clients/detail.html` and `clientcare/clients/detail.html` are thin wrappers (`th:insert`):
+- `clients/detail.html` → `layout/main`
+- `clientcare/clients/detail.html` → `layout/clientcare`
+
+`ClientController.detail()` sets context-aware model attributes:
+| Context | `backUrl` | `editUrl` | `currentPageUrl` |
+|---|---|---|---|
+| warehouse | `/clients` | `/clients/{id}/edit?returnTo=detail` | `/clients/{id}` |
+| `from=clientcare` (followups) | `/clientcare/followups` | `/clients/{id}/edit?returnTo=detail` | `/clients/{id}?from=clientcare` |
+| `/clientcare/clients/{id}` | `/clientcare/clients` | `/clientcare/clients/{id}/edit?returnTo=detail` | `/clientcare/clients/{id}` |
+
+"Додати фото" button lives in the "Фото шкіри голови" card header (not page header).
+
+### ClientCare — roadmap
+
+**Wave 2a — DONE — Scalp Photos + Client list + Shared detail fragment**
+`ScalpPhoto` entity, Google Drive links, gallery in shared client detail fragment.
+`/clientcare/clients` master client list. One `ClientController` handles both modules via dual mapping.
+Shared `fragments/client-detail.html` — single source of client detail content for both layouts.
+
+**Wave 2b — Google Drive direct upload**
+User selects a photo → app uploads to Google Drive via Service Account → stores fileId + driveUrl automatically.
+No manual URL pasting. `ScalpPhoto` entity and `scalp_photos` table unchanged — `driveFileId`/`driveUrl` still the same columns, just filled by the API instead of regex.
+
+Chosen approach: **Service Account** (not user OAuth).
+- One Google Cloud Project, Drive API enabled
+- Service account JSON key → Fly.io secret `GOOGLE_SERVICE_ACCOUNT_JSON`
+- Shared Drive folder, rasshared to the service account email
+- Upload flow: multipart `POST /clientcare/photos/upload` → `GoogleDriveService.upload()` → returns fileId+webViewLink
+- Maven deps to add: `google-api-client`, `google-apis-drive-v3`
+- Form change: `<input type="file" accept="image/*">` replaces `<input type="url">`
+- Per-client subfolder: `OtchenashHair/{client.name}/` — create if not exists
+
+Not started. Prerequisite: Google Cloud project + service account setup (done outside the app).
+
+**Wave 2c — FollowUp entity (when queue becomes unmanageable)**
+`FollowUp` (id, client, type, status, dueDate, note, createdAt, completedAt)
+Actions: DONE / SNOOZE / NOTE. Trigger: manual or via SaleCompletedEvent AFTER_COMMIT.
+
+**Wave 3 — Visit entity — DONE (2026-05-13, migration 013)**
+`Visit` entity: id, client_id, visit_date, complaint, scalp_condition, recommendations, next_visit_date, notes, created_at.
+Migration 013 — `visits` table + index on client_id.
+`domain/visit/Visit.java`, `repository/VisitRepository.java`, `clientcare/service/VisitService.java` (JPA, dirty-checking for updates).
+`VisitController` at `/clientcare/visits` — CRUD with cross-field validation (nextVisitDate ≥ visitDate, server-side + `th:min` client-side).
+`VisitDto` — `@DateTimeFormat(ISO.DATE)` on visitDate + nextVisitDate (required for `<input type="date">` binding in edit mode).
+Visit form — all textarea fields auto-resize (JS `scrollHeight`), uniform min-height.
+Visits visible in both warehouse and clientcare client detail (shared fragment, no condition).
+Card shows: date, скарга, стан, Рекомендації: ..., Нотатки: ..., наступний візит. Sorted by visitDate desc.
+
+**Wave 4 — Protocol entity**
+`Protocol` (id, name, products, durationDays)
+
+---
+
+## ClientCare — technical notes
+
+### Scalp Photos (Wave 2a — DONE)
+- `driveUrl` is the source of truth; `driveFileId` nullable (best-effort regex extract)
+- No Google API, no OAuth — Wave 2a is manual link mode only
+- Wave 2b: Service Account upload — see roadmap above
+- `ScalpPhotoService` in `clientcare/service/`; controller at `ScalpPhotoController` (no class-level @RequestMapping, full paths per method)
+- Gallery page at `/clientcare/clients/{clientId}/photos` — zone filter pills, CSS grid, thumbnail preview via `drive.google.com/thumbnail?id={fileId}&sz=w400`; "Відкрити фото" button removed (tapping tile opens Drive directly)
+- Gallery Back button uses `returnTo` param (passed from "Всі фото" link as `currentPageUrl`) — returns to correct context (warehouse `/clients/{id}` or clientcare `/clientcare/clients/{id}`)
+- Zone filter pills preserve `returnTo` on each link
+- Detail page shows last 6 photos as compact grid (`minmax(110px,1fr)`); "Всі фото" link passes `returnTo=${currentPageUrl}`
+- Thumbnail fallback: `onerror` hides `<img>`, shows `bi-image` icon (handles private/broken files)
+- "Додати фото" button lives in the "Фото шкіри голови" card-header
+- `ScalpPhotoDto` — `@DateTimeFormat(ISO.DATE)` on `takenAt` (required for edit form date binding)
+
+### Visits (Wave 3 — DONE)
+- `VisitService` fully JPA-based; update uses dirty checking (no explicit save)
+- `@DateTimeFormat(ISO.DATE)` mandatory on all `LocalDate` DTO fields for `<input type="date">` edit binding
+- Cross-field validation: `nextVisitDate >= visitDate` — validated in controller (`validateNextVisitDate()` private method), `th:min` on input for client-side guard
+- `@FutureOrPresent` intentionally omitted from `nextVisitDate` — would block editing old visits where next date already passed
+- Auto-resize textareas: `resize:none; overflow:hidden; min-height:2.6rem` + JS `scrollHeight` on `input` event + on page load
+
+### Security
+- `/error` added to Security permitAll — always show real error page instead of redirect loop
+
+### Event architecture (future, Wave 2+)
+Domain events (published AFTER_COMMIT):
+- `SaleCompletedEvent` → `FollowupService.analyzeAfterSale()`
+- `PurchaseCompletedEvent`
+- `WriteOffCompletedEvent`
+
+Rules:
+- `@TransactionalEventListener(phase = AFTER_COMMIT)` — mandatory, prevents events on rolled-back txns
+- Expiry scanning via `@Scheduled(cron = "0 9 * * *")` — not a real-time event
+- `StockDepletedEvent` fires on threshold crossing only (`previousQty > min && newQty <= min`)
+- Thin listeners: listener calls service, logic lives in service
+
 ## TODO
 
-### Features
+### ClientCare
+- Wave 2b — Google Drive direct upload via Service Account (see roadmap for full spec)
+- Wave 2c — FollowUp entity — DONE/SNOOZE/NOTE actions on follow-up queue
+- Wave 3 — DONE — Visit entity with JPA + migration 013
+- Wave 4 — Protocol entity — treatment type → recommended product list
+
+### Warehouse features
 - Low stock email notifications — daily digest when items drop below minStockLevel;
   Spring @Scheduled + spring-boot-starter-mail
 - Export to Excel — reports page + movement history; Apache POI (xlsx)

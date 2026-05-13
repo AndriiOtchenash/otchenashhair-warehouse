@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(${visit.id != null} ? #{visit.form.title.edit} : #{visit.form.title.new}, ~{::content})}">
+<body>
+<div th:fragment="content">
+
+    <style>
+        .auto-resize {
+            resize: none;
+            overflow: hidden;
+            min-height: 2.6rem;
+        }
+    </style>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title"
+                th:text="${visit.id != null} ? #{visit.form.title.edit} : #{visit.form.title.new}">
+                Новий візит
+            </h1>
+            <div class="text-muted" style="font-size:0.85rem;" th:text="${client.name}"></div>
+        </div>
+        <a th:href="@{/clientcare/clients/{id}(id=${visit.clientId})}"
+           class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span th:text="#{btn.back}">Назад</span>
+        </a>
+    </div>
+
+    <div class="card" style="max-width: 640px;">
+        <div class="card-body">
+            <form th:action="${visit.id != null}
+                              ? @{/clientcare/visits/{id}/edit(id=${visit.id})}
+                              : @{/clientcare/visits/new}"
+                  th:object="${visit}" method="post">
+                <input type="hidden" th:field="*{clientId}"/>
+                <input type="hidden" th:field="*{id}"/>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{visit.form.visitDate}">Дата візиту</label>
+                    <input type="date" class="form-control" th:field="*{visitDate}"
+                           th:classappend="${#fields.hasErrors('visitDate')} ? 'is-invalid'"
+                           th:max="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
+                           onclick="this.showPicker&&this.showPicker()"/>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('visitDate')}"
+                         th:errors="*{visitDate}"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{visit.form.complaint}">Скарга</label>
+                    <textarea class="form-control auto-resize" th:field="*{complaint}"
+                              th:placeholder="#{visit.form.complaint.hint}"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{visit.form.scalpCondition}">Стан шкіри голови</label>
+                    <textarea class="form-control auto-resize" th:field="*{scalpCondition}"
+                              th:placeholder="#{visit.form.scalpCondition.hint}"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{visit.form.recommendations}">Рекомендації</label>
+                    <textarea class="form-control auto-resize" th:field="*{recommendations}"
+                              th:placeholder="#{visit.form.recommendations.hint}"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{visit.form.nextVisitDate}">Наступний візит</label>
+                    <input type="date" class="form-control" th:field="*{nextVisitDate}"
+                           th:classappend="${#fields.hasErrors('nextVisitDate')} ? 'is-invalid'"
+                           th:min="${visit.visitDate != null ? #temporals.format(visit.visitDate, 'yyyy-MM-dd') : ''}"
+                           onclick="this.showPicker&&this.showPicker()"/>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('nextVisitDate')}"
+                         th:errors="*{nextVisitDate}"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold" th:text="#{visit.form.notes}">Нотатки</label>
+                    <textarea class="form-control auto-resize" th:field="*{notes}"></textarea>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
+                    <a th:href="@{/clientcare/clients/{id}(id=${visit.clientId})}"
+                       class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+        document.querySelectorAll('textarea.auto-resize').forEach(ta => {
+            ta.addEventListener('input', () => autoResize(ta));
+            autoResize(ta);
+        });
+    </script>
+
+</div>
+</body>
+</html>

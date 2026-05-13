@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="body">
+    <style>
+        .table th { font-size: 0.72rem; vertical-align: middle; }
+        @media (max-width: 767.98px) {
+            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+        }
+        /* Scalp photo compact grid */
+        .scalp-photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 0.5rem;
+        }
+        .scalp-photo-tile {
+            position: relative;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0.375rem;
+            overflow: hidden;
+            font-size: 0.75rem;
+        }
+        .scalp-photo-thumb {
+            display: block;
+            aspect-ratio: 1;
+            overflow: hidden;
+            background: #f1f3f5;
+            text-decoration: none;
+        }
+        .scalp-photo-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .scalp-photo-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            color: #adb5bd;
+            font-size: 2rem;
+        }
+        .scalp-photo-meta {
+            padding: 0.2rem 0.35rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.2rem;
+            flex-wrap: wrap;
+        }
+        .scalp-photo-notes {
+            padding: 0 0.35rem 0.2rem;
+            color: #6c757d;
+            font-size: 0.7rem;
+            font-style: italic;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .scalp-photo-delete {
+            position: absolute;
+            top: 0.2rem;
+            right: 0.2rem;
+            background: rgba(255,255,255,0.88);
+            border: none;
+            border-radius: 50%;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #dc3545;
+            font-size: 0.72rem;
+            cursor: pointer;
+            padding: 0;
+            opacity: 0.55;
+        }
+        .scalp-photo-tile:hover .scalp-photo-delete { opacity: 1; }
+    </style>
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="${client.name}"></h1>
+            <span class="text-muted small" th:if="${client.phone != null and !client.phone.isEmpty()}">
+                <span th:text="#{client.form.phone.short}">тел.</span>&nbsp;<span th:text="${client.phone}"></span>
+            </span>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:href="${editUrl}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-pencil me-1"></i>
+                <span th:text="#{btn.edit}">Редагувати</span>
+            </a>
+            <a th:href="${backUrl}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>
+                <span th:text="#{btn.back}">Назад</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Client info strip -->
+    <div class="card mb-3">
+        <div class="card-header" th:text="#{client.detail.info}">Інформація</div>
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap gap-4">
+                <div>
+                    <span class="text-muted small" th:text="#{client.detail.totalOps}">Операцій</span>:
+                    <strong th:text="${movements.size()}"></strong>
+                </div>
+                <div th:if="${client.notes != null and !client.notes.isEmpty()}">
+                    <span class="text-muted small" th:text="#{client.form.notes}">Примітки</span>:
+                    <span th:text="${client.notes}"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visits (ClientCare only) -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span th:text="#{visit.section.title}">Візити</span>
+                <span class="badge bg-secondary"
+                      th:unless="${visits.isEmpty()}"
+                      th:text="${visits.size()}"></span>
+            </div>
+            <a th:href="@{/clientcare/visits/new(clientId=${client.id})}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>
+                <span th:text="#{visit.add}">Додати візит</span>
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <div th:if="${visits.isEmpty()}" class="text-muted small py-3 text-center">
+                <i class="bi bi-calendar-x d-block fs-3 mb-1 opacity-50"></i>
+                <span th:text="#{visit.empty}">Візитів поки немає</span>
+            </div>
+            <div th:unless="${visits.isEmpty()}">
+                <div th:each="visit, vStat : ${visits}"
+                     th:classappend="${!vStat.last} ? 'border-bottom'"
+                     class="px-3 py-2">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div style="min-width:0; flex:1">
+                            <div class="fw-semibold"
+                                 th:text="${#temporals.format(visit.visitDate, 'dd.MM.yyyy')}"></div>
+                            <div th:if="${visit.complaint != null and !visit.complaint.isEmpty()}"
+                                 class="text-muted small mt-1">
+                                <span class="fw-semibold" th:text="#{visit.form.complaint}">Скарга</span>:
+                                <span th:text="${visit.complaint}"></span>
+                            </div>
+                            <div th:if="${visit.scalpCondition != null and !visit.scalpCondition.isEmpty()}"
+                                 class="text-muted small mt-1">
+                                <span class="fw-semibold" th:text="#{visit.form.scalpCondition}">Стан</span>:
+                                <span th:text="${visit.scalpCondition}"></span>
+                            </div>
+                            <div th:if="${visit.recommendations != null and !visit.recommendations.isEmpty()}"
+                                 class="small mt-1">
+                                <span class="fw-semibold" th:text="#{visit.form.recommendations}">Рекомендації</span>:
+                                <span th:text="${visit.recommendations}"></span>
+                            </div>
+                            <div th:if="${visit.notes != null and !visit.notes.isEmpty()}"
+                                 class="text-muted small mt-1 fst-italic">
+                                <span class="fw-semibold fst-normal" th:text="#{visit.form.notes}">Нотатки</span>:
+                                <span th:text="${visit.notes}"></span>
+                            </div>
+                            <div th:if="${visit.nextVisitDate != null}"
+                                 class="text-muted small mt-1">
+                                <i class="bi bi-calendar-check me-1"></i>
+                                <span th:text="#{visit.form.nextVisitDate}">Наступний</span>:
+                                <strong th:text="${#temporals.format(visit.nextVisitDate, 'dd.MM.yyyy')}"></strong>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-1 flex-shrink-0">
+                            <a th:href="@{/clientcare/visits/{id}/edit(id=${visit.id})}"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form th:action="@{/clientcare/visits/{id}/delete(id=${visit.id})}"
+                                  method="post" class="d-inline">
+                                <input type="hidden" name="clientId" th:value="${client.id}"/>
+                                <button type="submit"
+                                        class="btn btn-outline-danger btn-sm"
+                                        th:onclick="'return confirm(\'' + #{visit.delete.confirm} + '\')'">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scalp Photos -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span th:text="#{scalp.photo.title}">Фото шкіри голови</span>
+                <span class="badge bg-secondary"
+                      th:unless="${scalpPhotos.isEmpty()}"
+                      th:text="${scalpPhotos.size()}"></span>
+            </div>
+            <a th:href="@{/clientcare/photos/new(clientId=${client.id})}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>
+                <span th:text="#{scalp.photo.add}">Додати фото</span>
+            </a>
+        </div>
+        <div class="card-body py-2">
+            <div th:if="${scalpPhotos.isEmpty()}" class="text-muted small py-1"
+                 th:text="#{scalp.photo.empty}">Фото поки немає</div>
+            <div th:unless="${scalpPhotos.isEmpty()}">
+                <div class="scalp-photo-grid">
+                    <div th:each="photo, pStat : ${scalpPhotos}"
+                         th:if="${pStat.index < 6}"
+                         class="scalp-photo-tile">
+                        <a th:href="${photo.driveUrl}" target="_blank" rel="noopener"
+                           class="scalp-photo-thumb">
+                            <img th:if="${photo.driveFileId != null}"
+                                 th:src="'https://drive.google.com/thumbnail?id=' + ${photo.driveFileId} + '&sz=w200'"
+                                 th:alt="#{|scalp.zone.${photo.zone}|}"
+                                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+                            <span th:if="${photo.driveFileId != null}"
+                                  class="scalp-photo-fallback" style="display:none">
+                                <i class="bi bi-image"></i>
+                            </span>
+                            <span th:unless="${photo.driveFileId != null}"
+                                  class="scalp-photo-fallback">
+                                <i class="bi bi-image"></i>
+                            </span>
+                        </a>
+                        <div class="scalp-photo-meta">
+                            <span class="badge bg-secondary" style="font-size:0.6rem"
+                                  th:text="#{|scalp.zone.${photo.zone}|}">Зона</span>
+                            <span class="text-muted" style="font-size:0.68rem"
+                                  th:text="${#temporals.format(photo.takenAt, 'dd.MM.yy')}"></span>
+                        </div>
+                        <div th:if="${photo.notes != null and !photo.notes.isEmpty()}"
+                             class="scalp-photo-notes"
+                             th:text="${photo.notes}"></div>
+                        <form th:action="@{/clientcare/photos/{id}/delete(id=${photo.id})}"
+                              method="post">
+                            <input type="hidden" name="clientId" th:value="${client.id}"/>
+                            <button type="submit" class="scalp-photo-delete"
+                                    th:onclick="'return confirm(\'' + #{scalp.photo.delete.confirm} + '\')'">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="mt-2 d-flex align-items-center gap-2">
+                    <a th:if="${scalpPhotos.size() > 6}"
+                       th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${currentPageUrl})}"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-images me-1"></i>
+                        <span th:text="#{scalp.photo.viewAll}">Всі фото</span>
+                        <span class="badge bg-secondary ms-1" th:text="${scalpPhotos.size()}"></span>
+                    </a>
+                    <a th:if="${scalpPhotos.size() <= 6 and !scalpPhotos.isEmpty()}"
+                       th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${currentPageUrl})}"
+                       class="text-muted small text-decoration-none">
+                        <i class="bi bi-grid me-1"></i>
+                        <span th:text="#{scalp.photo.viewAll}">Всі фото</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movement history -->
+    <div class="card">
+        <div class="card-header" th:text="#{client.detail.history}">Історія операцій</div>
+        <div th:unless="${movements.empty}" class="p-2 border-bottom">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="input-group input-group-sm" id="dateFromWrap" style="flex:1;min-width:0">
+                    <span class="input-group-text" th:text="#{movements.filter.dateFrom}">Від</span>
+                    <input type="date" class="form-control" id="histDateFrom"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            id="clearDateFromBtn" onclick="clearDateFrom()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+                <div class="input-group input-group-sm" id="dateToWrap" style="flex:1;min-width:0">
+                    <span class="input-group-text" th:text="#{movements.filter.dateTo}">До</span>
+                    <input type="date" class="form-control" id="histDateTo"
+                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                            id="clearDateToBtn" onclick="clearDateTo()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="filter-select-wrap" id="typeSelectWrap" style="flex:1;min-width:0">
+                    <select class="form-select form-select-sm" id="histType" onchange="applyHistoryFilters()">
+                        <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
+                        <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
+                        <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
+                        <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
+                    </select>
+                    <button type="button" id="clearTypeBtn"
+                            class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                            onclick="clearHistType()" tabindex="-1" style="display:none">
+                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                    </button>
+                </div>
+                <button type="button" id="giftFilterBtn"
+                        class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                        th:data-label="#{btn.quickFilter.gifts}"
+                        onclick="toggleGiftFilter()">
+                    <i class="bi bi-gift me-1"></i><span th:text="#{btn.quickFilter.gifts}">Подарунки</span>
+                </button>
+            </div>
+            <div class="input-group input-group-sm" id="searchGroup">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="histSearch"
+                       th:placeholder="#{product.form.name}"
+                       oninput="applyHistoryFilters()"/>
+                <button type="button" class="btn btn-outline-secondary d-md-none"
+                        onclick="clearHistSearch()" tabindex="-1" id="clearSearchBtn" style="display:none">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="mt-2">
+                <button type="button" id="resetFiltersBtn"
+                        class="btn btn-outline-secondary btn-sm" style="display:none"
+                        onclick="resetHistFilters()">
+                    <i class="bi bi-funnel"></i>
+                    <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div th:if="${movements.empty}" class="text-center text-muted py-4">
+                <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
+                <span th:text="#{client.detail.noHistory}">Операцій немає</span>
+            </div>
+            <table th:unless="${movements.empty}" class="table table-sm table-hover table-striped mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th th:text="#{product.detail.date}">Дата</th>
+                    <th th:text="#{product.form.name}">Товар</th>
+                    <th th:text="#{stock.form.movementType}">Тип</th>
+                    <th th:text="#{stock.form.quantity}">Кількість</th>
+                    <th th:text="#{stock.form.salePrice}">Ціна</th>
+                    <th th:text="#{stock.form.notes}">Примітки</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="m : ${movements}"
+                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted'"
+                    th:attr="data-type=${m.movementType.name()},data-name=${m.product.name},data-reason=${m.writeOffReason ?: ''},data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')}">
+                    <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+                    <td>
+                        <a th:href="@{/products/{id}(id=${m.product.id},from='client',clientId=${client.id})}"
+                           th:text="${m.product.name}"
+                           class="text-decoration-none fw-semibold text-dark"></a>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill"
+                              th:classappend="${m.movementType.name() == 'SALE'} ? 'bg-primary' :
+                                             (${m.movementType.name() == 'WRITE_OFF'} ? 'badge-writeoff' : 'bg-secondary')"
+                              th:text="#{movementType.__${m.movementType}__}"></span>
+                        <div th:if="${m.writeOffReason != null}" class="mt-1">
+                            <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
+                                  th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
+                        </div>
+                    </td>
+                    <td>
+                        <span th:text="${@qf.format(m.quantity, m.product.unit.name())}"></span>
+                        <span class="text-muted small" th:text="#{unit.__${m.product.unit}__}"></span>
+                    </td>
+                    <td th:text="${m.unitPrice != null ? m.unitPrice + ' zł' : '—'}"></td>
+                    <td th:text="${m.notes ?: '—'}"></td>
+                    <td>
+                        <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                th:title="#{movement.edit.button}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editMovementModal"
+                                th:attr="data-movement-id=${m.id},
+                                         data-movement-type=${m.movementType.name()},
+                                         data-client-id=${m.client != null ? m.client.id : ''},
+                                         data-notes=${m.notes ?: ''}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <span th:if="${cancelledMovementIds.contains(m.id)}"
+                              class="text-muted small" style="font-size:0.7rem"
+                              th:text="#{movement.cancel.badge}"></span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit movement modal -->
+    <div class="modal fade" id="editMovementModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{movement.edit.title}">Редагувати операцію</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editMovementForm" method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                    <input type="hidden" name="returnTo" th:value="${currentPageUrl}"/>
+                    <div class="modal-body">
+                        <div id="editMovClientField" class="mb-3">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
+                            <select class="form-select" name="clientId" id="editMovClientSelect">
+                                <option value="" th:text="#{stock.form.selectClient}">-- Оберіть клієнта --</option>
+                                <option th:each="c : ${clients}"
+                                        th:value="${c.id}"
+                                        th:text="${c.name}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
+                            <textarea class="form-control" name="notes" id="editMovNotes" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal" th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                th:text="#{btn.save}">Зберегти</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let giftFilterActive = false;
+
+        function toggleGiftFilter() {
+            giftFilterActive = !giftFilterActive;
+            updateGiftBtn();
+            applyHistoryFilters();
+            document.getElementById('giftFilterBtn').blur();
+        }
+
+        function updateGiftBtn() {
+            const btn = document.getElementById('giftFilterBtn');
+            const typeSelect = document.getElementById('histType');
+            const label = btn.dataset.label || 'Подарунки';
+            if (giftFilterActive) {
+                btn.classList.add('filter-active');
+                btn.innerHTML = '<i class="bi bi-gift me-1"></i>' + label + ' <i class="bi bi-x-lg ms-1" style="font-size:0.9rem"></i>';
+                typeSelect.disabled = true;
+                typeSelect.value = '';
+                document.getElementById('typeSelectWrap').classList.remove('filter-active');
+            } else {
+                btn.classList.remove('filter-active');
+                btn.innerHTML = '<i class="bi bi-gift me-1"></i>' + label;
+                typeSelect.disabled = false;
+            }
+        }
+
+        function applyHistoryFilters() {
+            const q        = (document.getElementById('histSearch').value || '').toLowerCase();
+            const type     = document.getElementById('histType').value || '';
+            const dateFrom = document.getElementById('histDateFrom').value || '';
+            const dateTo   = document.getElementById('histDateTo').value || '';
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const nameMatch = !q    || (row.dataset.name || '').toLowerCase().includes(q);
+                const typeMatch = !type || (row.dataset.type || '') === type;
+                const giftMatch = !giftFilterActive ||
+                    (row.dataset.type === 'WRITE_OFF' && row.dataset.reason === 'GIFT');
+                const rowDate   = row.dataset.date || '';
+                const fromMatch = !dateFrom || rowDate >= dateFrom;
+                const toMatch   = !dateTo   || rowDate <= dateTo;
+                row.style.display = (nameMatch && typeMatch && giftMatch && fromMatch && toMatch) ? '' : 'none';
+            });
+            updateResetBtn();
+        }
+
+        function updateResetBtn() {
+            const q        = document.getElementById('histSearch').value || '';
+            const type     = document.getElementById('histType').value || '';
+            const dateFrom = document.getElementById('histDateFrom').value || '';
+            const dateTo   = document.getElementById('histDateTo').value || '';
+            let count = 0;
+            if (dateFrom) count++;
+            if (dateTo)   count++;
+            if (type)     count++;
+            if (giftFilterActive) count++;
+            if (q)        count++;
+            document.getElementById('resetFiltersBtn').style.display = count ? '' : 'none';
+            document.getElementById('resetFilterCount').textContent  = count ? ' (' + count + ')' : '';
+            document.getElementById('clearSearchBtn').style.display   = q        ? '' : 'none';
+            document.getElementById('clearTypeBtn').style.display     = type     ? '' : 'none';
+            document.getElementById('clearDateFromBtn').style.display = dateFrom ? '' : 'none';
+            document.getElementById('clearDateToBtn').style.display   = dateTo   ? '' : 'none';
+            document.getElementById('searchGroup').classList.toggle('filter-active', !!q);
+            document.getElementById('typeSelectWrap').classList.toggle('filter-active', !!type && !giftFilterActive);
+            document.getElementById('dateFromWrap').classList.toggle('filter-active', !!dateFrom);
+            document.getElementById('dateToWrap').classList.toggle('filter-active', !!dateTo);
+        }
+
+        function clearHistSearch() { document.getElementById('histSearch').value = ''; applyHistoryFilters(); }
+        function clearHistType()   { document.getElementById('histType').value   = ''; applyHistoryFilters(); }
+        function clearDateFrom()   { document.getElementById('histDateFrom').value = ''; applyHistoryFilters(); }
+        function clearDateTo()     { document.getElementById('histDateTo').value   = ''; applyHistoryFilters(); }
+
+        function resetHistFilters() {
+            giftFilterActive = false;
+            updateGiftBtn();
+            document.getElementById('histSearch').value   = '';
+            document.getElementById('histType').value     = '';
+            document.getElementById('histDateFrom').value = '';
+            document.getElementById('histDateTo').value   = '';
+            applyHistoryFilters();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const editMovModal = document.getElementById('editMovementModal');
+            if (editMovModal) {
+                editMovModal.addEventListener('show.bs.modal', function(event) {
+                    const btn = event.relatedTarget;
+                    const movementType = btn.getAttribute('data-movement-type');
+                    document.getElementById('editMovementForm').action =
+                        '/movements/' + btn.getAttribute('data-movement-id') + '/edit';
+                    document.getElementById('editMovNotes').value = btn.getAttribute('data-notes') || '';
+                    const clientField  = document.getElementById('editMovClientField');
+                    const clientSelect = document.getElementById('editMovClientSelect');
+                    if (movementType === 'SALE') {
+                        clientField.style.display = '';
+                        clientSelect.value = btn.getAttribute('data-client-id') || '';
+                    } else {
+                        clientField.style.display = 'none';
+                        clientSelect.value = '';
+                    }
+                });
+            }
+        });
+    </script>
+</th:block>
+</body>
+</html>

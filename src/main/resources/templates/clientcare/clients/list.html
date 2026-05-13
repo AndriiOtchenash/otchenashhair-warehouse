@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{client.list.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{client.list.title}">Клієнти</h1>
+        <button class="btn btn-primary btn-sm" type="button"
+                data-bs-toggle="collapse" data-bs-target="#newClientForm"
+                aria-expanded="false">
+            <i class="bi bi-plus-lg me-1"></i>
+            <span th:text="#{client.form.title.new}">Новий клієнт</span>
+        </button>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mb-3">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-3">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Collapsible new-client form -->
+    <div class="collapse mb-3" id="newClientForm">
+        <div class="card">
+            <div class="card-header" th:text="#{client.form.title.new}">Новий клієнт</div>
+            <div class="card-body">
+                <form th:action="@{/clientcare/clients}" th:object="${newClient}" method="post">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" th:field="*{name}"
+                                   th:placeholder="#{client.form.name}"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                            <div class="invalid-feedback" th:errors="*{name}"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" th:field="*{phone}"
+                                   th:placeholder="#{client.form.phone}"/>
+                        </div>
+                        <div class="col-md-4">
+                            <textarea class="form-control" th:field="*{notes}" rows="1"
+                                      th:placeholder="#{client.form.notes}"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-check-lg me-1"></i>
+                                <span th:text="#{btn.save}">Зберегти</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <div class="input-group input-group-sm" style="max-width:300px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control"
+                   th:placeholder="#{common.search}"
+                   oninput="filterSearch(this.value); toggleClearBtn(this)"/>
+            <button type="button" class="btn btn-outline-secondary d-md-none"
+                    onclick="clearSearch()" tabindex="-1" style="display:none">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div th:if="${clients.empty}" class="text-center text-muted py-5">
+                <i class="bi bi-people fs-1 d-block mb-2"></i>
+                <span th:text="#{client.list.empty}">Клієнти не знайдено</span>
+            </div>
+            <table th:unless="${clients.empty}" class="table table-hover mb-0 table-auto">
+                <thead class="table-light">
+                <tr>
+                    <th th:text="#{client.form.name}">Ім'я</th>
+                    <th class="d-none d-md-table-cell" th:text="#{client.form.phone}">Телефон</th>
+                    <th class="text-end" th:text="#{table.actions}">Дії</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${clients}"
+                    th:attr="data-name=${c.name},data-phone=${c.phone ?: ''}"
+                    th:onclick="|window.location='@{/clientcare/clients/{id}(id=${c.id})}'|"
+                    style="cursor:pointer">
+                    <td>
+                        <a th:href="@{/clientcare/clients/{id}(id=${c.id})}"
+                           class="fw-semibold text-decoration-none text-dark"
+                           th:text="${c.name}"
+                           th:if="${c.notes == null or c.notes.isEmpty()}"></a>
+                        <a th:href="@{/clientcare/clients/{id}(id=${c.id})}"
+                           class="fw-semibold text-decoration-none text-dark"
+                           th:text="${c.name}"
+                           th:unless="${c.notes == null or c.notes.isEmpty()}"
+                           th:title="${c.notes}"
+                           data-bs-toggle="tooltip"
+                           data-bs-placement="right"
+                           style="border-bottom: 1px dashed #6c757d;"></a>
+                    </td>
+                    <td class="d-none d-md-table-cell" th:text="${c.phone ?: '—'}"></td>
+                    <td class="text-end" onclick="event.stopPropagation()">
+                        <div class="d-flex gap-1 justify-content-end">
+                            <a th:href="@{/clientcare/clients/{id}/edit(id=${c.id})}"
+                               class="btn btn-sm btn-outline-secondary"
+                               th:title="#{btn.edit}"
+                               data-bs-toggle="tooltip">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button th:if="${!clientsWithMovements.contains(c.id)}"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    th:title="#{btn.delete}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteClientModal"
+                                    th:attr="data-client-name=${c.name},
+                                             data-action=@{/clientcare/clients/{id}/delete(id=${c.id})}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <button th:if="${clientsWithMovements.contains(c.id)}"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    disabled
+                                    th:title="#{client.delete.error.hasMovements}"
+                                    data-bs-toggle="tooltip">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div class="modal fade" id="deleteClientModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{btn.delete}">Видалити</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        <span th:text="#{confirm.delete.client}">Видалити клієнта</span>
+                        <strong id="deleteClientName"></strong>?
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                    <form id="deleteClientForm" method="post">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                        <button type="submit" class="btn btn-danger btn-sm" th:text="#{btn.yes}">Так</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterSearch(value) {
+            const q = value.toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const name = (row.dataset.name || '').toLowerCase();
+                const phone = (row.dataset.phone || '').toLowerCase();
+                row.style.display = (!q || name.includes(q) || phone.includes(q)) ? '' : 'none';
+            });
+        }
+        function toggleClearBtn(input) {
+            var btn = input.nextElementSibling;
+            if (btn) btn.style.display = input.value ? '' : 'none';
+        }
+        function clearSearch() {
+            var input = document.querySelector('.input-group input[type="text"]');
+            if (input) { input.value = ''; filterSearch(''); toggleClearBtn(input); }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
+            var deleteModal = document.getElementById('deleteClientModal');
+            if (deleteModal) {
+                deleteModal.addEventListener('show.bs.modal', function(event) {
+                    var btn = event.relatedTarget;
+                    document.getElementById('deleteClientName').textContent = btn.getAttribute('data-client-name');
+                    document.getElementById('deleteClientForm').action = btn.getAttribute('data-action');
+                });
+            }
+        });
+    </script>
+</div>
+</body>
+</html>
