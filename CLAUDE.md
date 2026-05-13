@@ -348,7 +348,8 @@ icon-only button on mobile; link → `/clients/{id}?from=clientcare` (renders cl
 Mobile: full-width table (min-width: 0). Sidebar stays open on module switch (sessionStorage).
 
 `ClientCareDashboardDto` fields: `totalClients` (all in DB), `totalClientsInQueue` (with non-cancelled SALEs),
-plus 5 KPI counts. Subtitle shows "Всього клієнтів: N". Card "Всі клієнти" shows `totalClientsInQueue`.
+plus 5 KPI counts. Card "Всі клієнти-покупці" shows `totalClientsInQueue`.
+"Всього клієнтів: N" — clickable link to `/clientcare/clients`; desktop: subtitle under h1; mobile: right-aligned on same row as h1 (inner `d-flex w-100`, outer `w-100` to fill page-header width).
 
 **Wave 2a — DONE (2026-05-13, migration 012)**
 
@@ -356,12 +357,15 @@ Scalp Photos MVP — `ScalpPhoto` entity with Google Drive URL links; no OAuth, 
 
 Entity stack: `domain/scalp/ScalpZone.java` (enum), `domain/scalp/ScalpPhoto.java`,
 `repository/ScalpPhotoRepository.java` (findAllByClientIdOrderByTakenAtDescCreatedAtDesc),
-`clientcare/service/ScalpPhotoService.java` (save with driveFileId regex extraction; delete with ownership guard),
-`clientcare/web/controller/ScalpPhotoController.java` (GET/POST /clientcare/photos/new, POST /clientcare/photos/{id}/delete),
-`clientcare/web/dto/ScalpPhotoDto.java` (`@Pattern` validation on driveUrl).
+`clientcare/service/ScalpPhotoService.java` (save with driveFileId regex extraction; delete with ownership guard; findById + update for edit),
+`clientcare/web/controller/ScalpPhotoController.java` (GET/POST /clientcare/photos/new, GET/POST /clientcare/photos/{id}/edit, POST /clientcare/photos/{id}/delete, GET /clientcare/clients/{clientId}/photos),
+`clientcare/web/dto/ScalpPhotoDto.java` (`@Pattern` + `@PastOrPresent` + `@DateTimeFormat(ISO.DATE)` on takenAt).
+
+Gallery page `/clientcare/clients/{clientId}/photos` — zone filter pills, CSS grid (`minmax(200px,1fr)`), Drive thumbnail (`sz=w400`), pencil edit + delete per tile.
+`returnTo=${currentPageUrl}` passed from "Всі фото" link → gallery Back button returns to correct context (warehouse or clientcare).
 
 Liquibase migration 012 — `scalp_photos` table + index on client_id.
-DB: `001–012` migrations total.
+DB: `001–013` migrations total.
 
 **`/clientcare/clients` — ClientCare master client list (2026-05-13)**
 
@@ -417,9 +421,11 @@ Actions: DONE / SNOOZE / NOTE. Trigger: manual or via SaleCompletedEvent AFTER_C
 `Visit` entity: id, client_id, visit_date, complaint, scalp_condition, recommendations, next_visit_date, notes, created_at.
 Migration 013 — `visits` table + index on client_id.
 `domain/visit/Visit.java`, `repository/VisitRepository.java`, `clientcare/service/VisitService.java` (JPA, dirty-checking for updates).
-`VisitController` at `/clientcare/visits` — CRUD with cross-field validation (nextVisitDate ≥ visitDate).
+`VisitController` at `/clientcare/visits` — CRUD with cross-field validation (nextVisitDate ≥ visitDate, server-side + `th:min` client-side).
+`VisitDto` — `@DateTimeFormat(ISO.DATE)` on visitDate + nextVisitDate (required for `<input type="date">` binding in edit mode).
+Visit form — all textarea fields auto-resize (JS `scrollHeight`), uniform min-height.
 Visits visible in both warehouse and clientcare client detail (shared fragment, no condition).
-Sorted by visitDate desc, createdAt desc.
+Card shows: date, скарга, стан, Рекомендації: ..., Нотатки: ..., наступний візит. Sorted by visitDate desc.
 
 **Wave 4 — Protocol entity**
 `Protocol` (id, name, products, durationDays)
@@ -433,10 +439,20 @@ Sorted by visitDate desc, createdAt desc.
 - No Google API, no OAuth — Wave 2a is manual link mode only
 - Wave 2b: Service Account upload — see roadmap above
 - `ScalpPhotoService` in `clientcare/service/`; controller at `ScalpPhotoController` (no class-level @RequestMapping, full paths per method)
-- Gallery page at `/clientcare/clients/{clientId}/photos` — zone filter pills, CSS grid, thumbnail preview via `drive.google.com/thumbnail?id={fileId}&sz=w400`
-- Detail page shows last 6 photos as compact grid (`minmax(110px,1fr)`); "Всі фото" link to gallery
+- Gallery page at `/clientcare/clients/{clientId}/photos` — zone filter pills, CSS grid, thumbnail preview via `drive.google.com/thumbnail?id={fileId}&sz=w400`; "Відкрити фото" button removed (tapping tile opens Drive directly)
+- Gallery Back button uses `returnTo` param (passed from "Всі фото" link as `currentPageUrl`) — returns to correct context (warehouse `/clients/{id}` or clientcare `/clientcare/clients/{id}`)
+- Zone filter pills preserve `returnTo` on each link
+- Detail page shows last 6 photos as compact grid (`minmax(110px,1fr)`); "Всі фото" link passes `returnTo=${currentPageUrl}`
 - Thumbnail fallback: `onerror` hides `<img>`, shows `bi-image` icon (handles private/broken files)
 - "Додати фото" button lives in the "Фото шкіри голови" card-header
+- `ScalpPhotoDto` — `@DateTimeFormat(ISO.DATE)` on `takenAt` (required for edit form date binding)
+
+### Visits (Wave 3 — DONE)
+- `VisitService` fully JPA-based; update uses dirty checking (no explicit save)
+- `@DateTimeFormat(ISO.DATE)` mandatory on all `LocalDate` DTO fields for `<input type="date">` edit binding
+- Cross-field validation: `nextVisitDate >= visitDate` — validated in controller (`validateNextVisitDate()` private method), `th:min` on input for client-side guard
+- `@FutureOrPresent` intentionally omitted from `nextVisitDate` — would block editing old visits where next date already passed
+- Auto-resize textareas: `resize:none; overflow:hidden; min-height:2.6rem` + JS `scrollHeight` on `input` event + on page load
 
 ### Security
 - `/error` added to Security permitAll — always show real error page instead of redirect loop
@@ -459,7 +475,6 @@ Rules:
 - Wave 2b — Google Drive direct upload via Service Account (see roadmap for full spec)
 - Wave 2c — FollowUp entity — DONE/SNOOZE/NOTE actions on follow-up queue
 - Wave 3 — DONE — Visit entity with JPA + migration 013
-- Wave 3 — Visit entity — consultation record with diagnosis and recommendation notes
 - Wave 4 — Protocol entity — treatment type → recommended product list
 
 ### Warehouse features
