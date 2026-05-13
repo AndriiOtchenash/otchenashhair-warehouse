@@ -13,7 +13,10 @@ public class CurrentUriInterceptor implements HandlerInterceptor {
                            Object handler,
                            ModelAndView modelAndView) {
         if (modelAndView != null && !modelAndView.getViewName().startsWith("redirect:")) {
-            modelAndView.addObject("currentUri", request.getRequestURI());
+            String uri = request.getRequestURI();
+            modelAndView.addObject("currentUri", uri);
+            modelAndView.addObject("activeModule",
+                    uri.startsWith("/clientcare") ? "clientcare" : "warehouse");
         }
     }
 }

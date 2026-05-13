@@ -1,9 +1,12 @@
 package com.hairmony.warehouse.web.controller;
 
+import com.hairmony.warehouse.clientcare.service.ScalpPhotoService;
+import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.domain.stock.StockMovement;
 import com.hairmony.warehouse.service.ClientService;
 import com.hairmony.warehouse.service.StockService;
 import com.hairmony.warehouse.web.dto.ClientDto;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -20,25 +23,32 @@ import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping("/clients")
+@RequestMapping({"/clients", "/clientcare/clients"})
 public class ClientController {
 
     private final ClientService clientService;
     private final StockService stockService;
+    private final ScalpPhotoService scalpPhotoService;
+    private final VisitService visitService;
     private final MessageSource messageSource;
 
+    private boolean isClientCare(HttpServletRequest request) {
+        return request.getRequestURI().startsWith("/clientcare");
+    }
+
     @GetMapping
-    public String list(Model model) {
+    public String list(Model model, HttpServletRequest request) {
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("newClient", new ClientDto());
         model.addAttribute("clientsWithMovements", clientService.getClientIdsWithMovements());
-        return "clients/list";
+        return isClientCare(request) ? "clientcare/clients/list" : "clients/list";
     }
 
     @GetMapping("/{id}")
     public String detail(@PathVariable Long id, Model model,
                          @RequestParam(required = false) String from,
-                         @RequestParam(required = false) Long productId) {
+                         @RequestParam(required = false) Long productId,
+                         HttpServletRequest request) {
         List<StockMovement> movements = stockService.getMovementsByClient(id);
         Set<Long> cancelledIds = stockService.getCancelledMovementIds(
                 movements.stream().map(StockMovement::getId).collect(Collectors.toSet()));
@@ -46,8 +56,25 @@ public class ClientController {
         model.addAttribute("movements", movements);
         model.addAttribute("cancelledMovementIds", cancelledIds);
         model.addAttribute("clients", clientService.findAll());
+        model.addAttribute("scalpPhotos", scalpPhotoService.findByClientId(id));
+        model.addAttribute("visits", visitService.findByClientId(id));
         if (from != null) model.addAttribute("from", from);
         if (productId != null) model.addAttribute("productId", productId);
+
+        if ("clientcare".equals(from)) {
+            model.addAttribute("backUrl", "/clientcare/followups");
+            model.addAttribute("editUrl", "/clients/" + id + "/edit?returnTo=detail");
+            model.addAttribute("currentPageUrl", "/clients/" + id + "?from=clientcare");
+            return "clientcare/clients/detail";
+        }
+        if (isClientCare(request)) {
+            model.addAttribute("backUrl", "/clientcare/clients");
+            model.addAttribute("editUrl", "/clientcare/clients/" + id + "/edit?returnTo=detail");
+            model.addAttribute("currentPageUrl", "/clientcare/clients/" + id);
+            return "clientcare/clients/detail";
+        }
+        model.addAttribute("editUrl", "/clients/" + id + "/edit?returnTo=detail");
+        model.addAttribute("currentPageUrl", "/clients/" + id);
         return "clients/detail";
     }
 
@@ -69,7 +96,8 @@ public class ClientController {
                             Model model,
                             @RequestParam(required = false) String returnTo,
                             @RequestParam(required = false) Long productId,
-                            @RequestParam(required = false) Long movementId) {
+                            @RequestParam(required = false) Long movementId,
+                            HttpServletRequest request) {
         if (result.hasErrors()) {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (productId != null) model.addAttribute("productId", productId);
@@ -92,47 +120,57 @@ public class ClientController {
                     : "?newClientId=" + saved.getId();
             return "redirect:/movements/history" + query;
         }
-        return "redirect:/clients";
+        return isClientCare(request) ? "redirect:/clientcare/clients" : "redirect:/clients";
     }
 
     @GetMapping("/{id}/edit")
     public String editForm(@PathVariable Long id, Model model,
-                           @RequestParam(required = false) String returnTo) {
+                           @RequestParam(required = false) String returnTo,
+                           HttpServletRequest request) {
         model.addAttribute("client", clientService.findById(id));
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
+        if (isClientCare(request)) model.addAttribute("clientCareContext", true);
         return "clients/form";
     }
 
     @PostMapping
     public String create(@Valid @ModelAttribute("newClient") ClientDto dto,
-                         BindingResult result, Model model) {
+                         BindingResult result, Model model,
+                         HttpServletRequest request) {
         if (result.hasErrors()) {
             model.addAttribute("clients", clientService.findAll());
-            return "clients/list";
+            model.addAttribute("clientsWithMovements", clientService.getClientIdsWithMovements());
+            return isClientCare(request) ? "clientcare/clients/list" : "clients/list";
         }
         clientService.save(dto);
-        return "redirect:/clients";
+        return isClientCare(request) ? "redirect:/clientcare/clients" : "redirect:/clients";
     }
 
     @PostMapping("/{id}/edit")
     public String update(@PathVariable Long id,
                          @Valid @ModelAttribute("client") ClientDto dto,
                          BindingResult result,
-                         @RequestParam(required = false) String returnTo) {
+                         @RequestParam(required = false) String returnTo,
+                         HttpServletRequest request) {
         if (result.hasErrors()) return "clients/form";
         clientService.update(id, dto);
-        if ("detail".equals(returnTo)) return "redirect:/clients/" + id;
-        return "redirect:/clients";
+        if ("detail".equals(returnTo)) {
+            return isClientCare(request)
+                    ? "redirect:/clientcare/clients/" + id
+                    : "redirect:/clients/" + id;
+        }
+        return isClientCare(request) ? "redirect:/clientcare/clients" : "redirect:/clients";
     }
 
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes,
+                         HttpServletRequest request) {
         try {
             clientService.delete(id);
         } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("errorMessage",
                     messageSource.getMessage(e.getMessage(), null, e.getMessage(), LocaleContextHolder.getLocale()));
         }
-        return "redirect:/clients";
+        return isClientCare(request) ? "redirect:/clientcare/clients" : "redirect:/clients";
     }
 }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/main :: layout(${client.name}, ~{::content})}">
+      th:replace="~{layout/clientcare :: layout(${client.name}, ~{::content})}">
 <body>
 <div th:fragment="content" th:insert="~{fragments/client-detail :: body}"></div>
 </body>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(${photo.id != null} ? #{scalp.photo.form.title.edit} : #{scalp.photo.form.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title"
+                th:text="${photo.id != null} ? #{scalp.photo.form.title.edit} : #{scalp.photo.form.title}">
+                Додати фото шкіри голови
+            </h1>
+            <div class="text-muted" style="font-size:0.85rem;" th:text="${client.name}"></div>
+        </div>
+        <a th:href="${returnTo == 'gallery'}
+                    ? @{/clientcare/clients/{id}/photos(id=${photo.clientId})}
+                    : @{/clientcare/clients/{id}(id=${photo.clientId})}"
+           class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span th:text="#{btn.back}">Назад</span>
+        </a>
+    </div>
+
+    <div class="card" style="max-width: 520px;">
+        <div class="card-body">
+            <form th:action="${photo.id != null}
+                              ? @{/clientcare/photos/{id}/edit(id=${photo.id})}
+                              : @{/clientcare/photos/new}"
+                  th:object="${photo}" method="post">
+                <input type="hidden" th:field="*{clientId}"/>
+                <input type="hidden" th:field="*{id}"/>
+                <input type="hidden" name="returnTo" th:value="${returnTo}"/>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{scalp.photo.form.driveUrl}">Google Drive URL</label>
+                    <input type="url" class="form-control" th:field="*{driveUrl}"
+                           th:classappend="${#fields.hasErrors('driveUrl')} ? 'is-invalid'"
+                           placeholder="https://drive.google.com/file/d/..."/>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('driveUrl')}"
+                         th:errors="*{driveUrl}"></div>
+                    <div class="form-text text-muted" th:text="#{scalp.photo.form.driveUrl.hint}">
+                        Вставте посилання на Google Drive
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{scalp.photo.form.takenAt}">Дата консультації</label>
+                    <input type="date" class="form-control" th:field="*{takenAt}"
+                           th:classappend="${#fields.hasErrors('takenAt')} ? 'is-invalid'"
+                           th:max="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
+                           onclick="this.showPicker&&this.showPicker()"/>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('takenAt')}"
+                         th:errors="*{takenAt}"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{scalp.photo.form.zone}">Зона</label>
+                    <select class="form-select" th:field="*{zone}"
+                            th:classappend="${#fields.hasErrors('zone')} ? 'is-invalid'">
+                        <option value="" th:text="#{scalp.photo.form.zone.select}">— оберіть зону —</option>
+                        <option th:each="z : ${zones}"
+                                th:value="${z}"
+                                th:text="#{|scalp.zone.${z}|}"></option>
+                    </select>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('zone')}"
+                         th:errors="*{zone}"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold" th:text="#{scalp.photo.form.notes}">Примітки</label>
+                    <textarea class="form-control" th:field="*{notes}" rows="2"></textarea>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
+                    <a th:href="${returnTo == 'gallery'}
+                                ? @{/clientcare/clients/{id}/photos(id=${photo.clientId})}
+                                : @{/clientcare/clients/{id}(id=${photo.clientId})}"
+                       class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

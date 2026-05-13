@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{clientcare.dashboard.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <style>
+        .kpi-card { cursor: default; transition: box-shadow 0.15s, transform 0.1s; }
+        .kpi-card:hover { box-shadow: 0 4px 12px rgba(74,124,89,0.18) !important; transform: translateY(-1px); }
+        .kpi-number { font-size: 2.4rem; font-weight: 700; line-height: 1; color: #1e2d24; }
+        .kpi-hint { font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem; }
+        .kpi-icon { font-size: 1.6rem; opacity: 0.7; }
+    </style>
+
+    <div class="page-header">
+        <div class="w-100">
+            <!-- mobile: h1 і посилання в одному рядку; desktop: h1 як блок -->
+            <div class="d-flex align-items-center justify-content-between w-100 d-md-block">
+                <h1 class="page-title mb-0" th:text="#{clientcare.dashboard.title}">ClientCare</h1>
+                <a th:href="@{/clientcare/clients}" class="text-decoration-none text-muted d-md-none ms-3"
+                   style="font-size:0.85rem; white-space:nowrap;">
+                    <i class="bi bi-people me-1"></i>
+                    <span th:text="#{clientcare.dashboard.totalClients(${dashboard.totalClients})}">Всього клієнтів: 0</span>
+                </a>
+            </div>
+            <!-- desktop: subtitle під заголовком -->
+            <a th:href="@{/clientcare/clients}" class="text-decoration-none text-muted d-none d-md-block"
+               style="font-size:0.85rem;">
+                <i class="bi bi-people me-1"></i>
+                <span th:text="#{clientcare.dashboard.totalClients(${dashboard.totalClients})}">Всього клієнтів: 0</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+
+        <!-- Кому написати -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number text-warning" th:text="${dashboard.needsContactCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.needsContact}">Кому написати</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.needsContact.hint}">Є телефон, &gt;30 днів</div>
+                        </div>
+                        <i class="bi bi-telephone-outbound kpi-icon text-warning"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Давно не купували -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups(minDays=60)}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number text-danger" th:text="${dashboard.longAbsentCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.longAbsent}">Давно не купували</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.longAbsent.hint}">&gt;60 днів</div>
+                        </div>
+                        <i class="bi bi-clock-history kpi-icon text-danger"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- VIP без активності -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups(minDays=30)}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number" style="color:#7b5ea7;" th:text="${dashboard.vipInactiveCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.vipInactive}">VIP без активності</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.vipInactive.hint}">Топ-20%, &gt;30 днів</div>
+                        </div>
+                        <i class="bi bi-star kpi-icon" style="color:#7b5ea7;"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Нещодавні клієнти -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number text-success" th:text="${dashboard.recentCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.recent}">Нещодавні</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.recent.hint}">&lt;14 днів тому</div>
+                        </div>
+                        <i class="bi bi-person-check kpi-icon text-success"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Повторна покупка можлива -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number" style="color:#1976a6;" th:text="${dashboard.repeatPossibleCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.repeatPossible}">Повторна покупка</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.repeatPossible.hint}">25–40 днів тому</div>
+                        </div>
+                        <i class="bi bi-arrow-repeat kpi-icon" style="color:#1976a6;"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Всі клієнти-покупці → черга -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number" style="color:#555;" th:text="${dashboard.totalClientsInQueue}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.allClients}">Всі клієнти-покупці</div>
+                        </div>
+                        <i class="bi bi-people kpi-icon" style="color:#555;"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>

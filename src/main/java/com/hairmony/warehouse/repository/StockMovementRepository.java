@@ -43,4 +43,18 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     @Query("SELECT DISTINCT m.product.id FROM StockMovement m WHERE m.movementType = 'SALE' AND m.createdAt >= :from AND m.createdAt <= :to")
     Set<Long> findProductIdsWithSalesBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("""
+            SELECT m.client.id, m.client.name, m.client.phone,
+                   MAX(m.createdAt), SUM(m.quantity * m.unitPrice)
+            FROM StockMovement m
+            WHERE m.movementType = 'SALE' AND m.client IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM StockMovement c
+                  WHERE c.movementType = 'CANCELLATION' AND c.originalMovementId = m.id
+              )
+            GROUP BY m.client.id, m.client.name, m.client.phone
+            ORDER BY MAX(m.createdAt) DESC
+            """)
+    List<Object[]> findClientSaleStats();
 }
