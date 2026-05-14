@@ -9,6 +9,16 @@
         .kpi-number { font-size: 2.4rem; font-weight: 700; line-height: 1; color: #1e2d24; }
         .kpi-hint { font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem; }
         .kpi-icon { font-size: 1.6rem; opacity: 0.7; }
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6c757d;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 0.1rem;
+        }
     </style>
 
     <div class="page-header">
@@ -31,6 +41,46 @@
         </div>
     </div>
 
+    <!-- ── Візити ── -->
+    <div class="section-label" th:text="#{clientcare.section.visits}">Візити</div>
+    <div class="row g-3">
+
+        <!-- Пропущені візити -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups(visitFilter='overdue')}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number text-danger" th:text="${dashboard.overdueVisitCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.overdueVisit}">Пропущені візити</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.overdueVisit.hint}">Дата пройшла, не прийшли</div>
+                        </div>
+                        <i class="bi bi-calendar-x kpi-icon text-danger"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Заплановані візити -->
+        <div class="col-6 col-md-4">
+            <a th:href="@{/clientcare/followups(visitFilter='scheduled')}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number text-success" th:text="${dashboard.upcomingVisitCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.upcomingVisit}">Заплановані візити</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.upcomingVisit.hint}">Майбутній прийом</div>
+                        </div>
+                        <i class="bi bi-calendar-check kpi-icon text-success"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+    </div>
+
+    <!-- ── Покупки ── -->
+    <div class="section-label mt-4" th:text="#{clientcare.section.purchases}">Покупки</div>
     <div class="row g-3">
 
         <!-- Кому написати -->
@@ -43,7 +93,7 @@
                             <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.needsContact}">Кому написати</div>
                             <div class="kpi-hint" th:text="#{clientcare.card.needsContact.hint}">Є телефон, &gt;30 днів</div>
                         </div>
-                        <i class="bi bi-telephone-outbound kpi-icon text-warning"></i>
+                        <i class="bi bi-chat-dots kpi-icon text-warning"></i>
                     </div>
                 </div>
             </a>

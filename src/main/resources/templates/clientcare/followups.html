@@ -33,41 +33,79 @@
         }
         .filter-pill:hover { border-color: var(--accent); color: var(--accent); }
         .filter-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .fu-actions { display: flex; align-items: center; gap: 0.25rem; justify-content: flex-end; flex-wrap: nowrap; }
+        .filter-row-label { font-size: 0.8rem; min-width: 4.5rem; }
+        @media (max-width: 767px) {
+            .filter-row-label { width: 100%; min-width: 0; font-size: 0.75rem; }
+            .filter-pill { font-size: 0.75rem; padding: 0.18rem 0.55rem; }
+        }
+        .badge-done { background: #d1e7dd; color: #0a3622; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.45rem; border-radius: 5px; white-space: nowrap; }
+        .badge-note-icon { cursor: default; color: #6c757d; }
+        .activity-btn-wrap { position: relative; display: inline-block; }
+        .activity-count-badge {
+            position: absolute; top: -5px; right: -6px;
+            background: var(--accent); color: #fff;
+            font-size: 0.6rem; font-weight: 700;
+            min-width: 1.1rem; height: 1.1rem;
+            border-radius: 999px; line-height: 1.1rem;
+            text-align: center; padding: 0 0.2rem;
+            pointer-events: none;
+        }
     </style>
 
     <div class="page-header">
-        <div>
-            <h1 class="page-title" th:text="#{clientcare.followups.title}">Follow-up черга</h1>
-            <div class="text-muted" style="font-size:0.85rem;"
-                 th:text="#{clientcare.followups.subtitle(${clients.size()})}">
-                Клієнтів: 0
+        <div class="w-100">
+            <!-- mobile: h1 + лічильник в одному рядку -->
+            <div class="d-flex align-items-center justify-content-between w-100 d-md-block">
+                <h1 class="page-title mb-0" th:text="#{clientcare.followups.title}">Follow-up черга</h1>
+                <span class="text-muted d-md-none ms-3"
+                      style="font-size:0.85rem; white-space:nowrap;"
+                      th:text="#{clientcare.followups.subtitle(${clients.size()})}">Клієнтів: 0</span>
             </div>
+            <!-- desktop: subtitle під заголовком -->
+            <div class="text-muted d-none d-md-block" style="font-size:0.85rem;"
+                 th:text="#{clientcare.followups.subtitle(${clients.size()})}">Клієнтів: 0</div>
         </div>
-        <a th:href="@{/clientcare}" class="btn btn-outline-secondary btn-sm">
+        <a th:href="@{/clientcare}" class="btn btn-outline-secondary btn-sm flex-shrink-0 ms-3 d-none d-md-inline-flex">
             <i class="bi bi-arrow-left me-1"></i>
             <span th:text="#{btn.back}">Назад</span>
         </a>
     </div>
 
-    <!-- Quick filter -->
-    <div th:unless="${clients.isEmpty()}" class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-        <span class="text-muted" style="font-size:0.8rem;" th:text="#{clientcare.filter.label}">Показати від:</span>
-        <a th:href="@{/clientcare/followups}"
-           class="filter-pill" th:classappend="${activeMinDays == 0} ? ' active'"
-           th:text="#{clientcare.filter.all}">Всі</a>
-        <a th:href="@{/clientcare/followups(minDays=30)}"
-           class="filter-pill" th:classappend="${activeMinDays == 30} ? ' active'">
-            30+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-        <a th:href="@{/clientcare/followups(minDays=60)}"
-           class="filter-pill" th:classappend="${activeMinDays == 60} ? ' active'">
-            60+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-        <a th:href="@{/clientcare/followups(minDays=90)}"
-           class="filter-pill" th:classappend="${activeMinDays == 90} ? ' active'">
-            90+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-        <span class="text-muted ms-auto" style="font-size:0.8rem;">
-            <span id="visibleCount" th:text="${clients.size()}">0</span>
-            / <span th:text="${clients.size()}">0</span>
-        </span>
+    <!-- Filters -->
+    <div class="d-flex flex-column gap-2 mb-3" style="row-gap: 0.6rem;">
+        <!-- Purchase activity -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted filter-row-label" th:text="#{clientcare.filter.purchase.label}">Покупки:</span>
+            <a th:href="@{/clientcare/followups(visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+               class="filter-pill" th:classappend="${activeMinDays == 0} ? ' active'"
+               th:text="#{clientcare.filter.all}">Всі</a>
+            <a th:href="@{/clientcare/followups(minDays=30, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+               class="filter-pill" th:classappend="${activeMinDays == 30} ? ' active'">
+                30+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+            <a th:href="@{/clientcare/followups(minDays=60, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+               class="filter-pill" th:classappend="${activeMinDays == 60} ? ' active'">
+                60+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+            <a th:href="@{/clientcare/followups(minDays=90, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+               class="filter-pill" th:classappend="${activeMinDays == 90} ? ' active'">
+                90+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+        </div>
+        <!-- Visit signal -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted filter-row-label" th:text="#{clientcare.filter.visit.label}">Візити:</span>
+            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null})}"
+               class="filter-pill" th:classappend="${activeVisitFilter == 'all'} ? ' active'"
+               th:text="#{clientcare.filter.all}">Всі</a>
+            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='overdue')}"
+               class="filter-pill" th:classappend="${activeVisitFilter == 'overdue'} ? ' active'"
+               th:text="#{clientcare.filter.visit.overdue}">Прострочені</a>
+            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='scheduled')}"
+               class="filter-pill" th:classappend="${activeVisitFilter == 'scheduled'} ? ' active'"
+               th:text="#{clientcare.filter.visit.scheduled}">Заплановані</a>
+            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='none')}"
+               class="filter-pill" th:classappend="${activeVisitFilter == 'none'} ? ' active'"
+               th:text="#{clientcare.filter.visit.none}">Без візиту</a>
+        </div>
     </div>
 
     <div th:if="${clients.isEmpty()}" class="alert alert-info" th:text="#{clientcare.followups.empty}">
@@ -81,40 +119,102 @@
                 <thead>
                 <tr>
                     <th th:text="#{clientcare.followups.client}">Клієнт</th>
-                    <th class="d-none d-md-table-cell" th:text="#{clientcare.followups.phone}">Телефон</th>
-                    <th th:text="#{clientcare.followups.lastPurchase}">Остання покупка</th>
-                    <th th:text="#{clientcare.followups.daysSince}">Днів тому</th>
-                    <th class="d-none d-md-table-cell" th:text="#{clientcare.followups.totalSpent}">Сума покупок</th>
-                    <th></th>
+                    <th class="d-none d-md-table-cell text-center" th:text="#{clientcare.followups.phone}">Телефон</th>
+                    <th class="text-center" th:text="#{clientcare.followups.signals}">Сигнали</th>
+                    <th class="d-none d-md-table-cell text-end" th:text="#{clientcare.followups.totalSpent}">Сума покупок</th>
+                    <th class="text-center" th:text="#{followup.col.actions}">Дії</th>
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="c : ${clients}" th:data-days="${c.daysSinceLastPurchase}">
+                <tr th:each="c : ${clients}">
                     <td>
-                        <span th:text="${c.clientName}">Ім'я</span>
+                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                            <a th:href="@{/clients/{id}(id=${c.clientId}, from='clientcare')}"
+                               class="d-md-none text-decoration-none text-body fw-medium"
+                               style="font-size:0.9rem;"
+                               th:text="${c.clientName}">Ім'я</a>
+                            <span class="d-none d-md-inline" th:text="${c.clientName}">Ім'я</span>
+                            <!-- DONE badge -->
+                            <th:block th:with="fu=${latestFollowUps.get(c.clientId)}">
+                                <span th:if="${fu != null and fu.action().name() == 'DONE'}"
+                                      class="badge-done"
+                                      th:data-client-badge="${c.clientId}">
+                                    <i class="bi bi-check2"></i>
+                                    <span th:text="#{followup.badge.done}">Виконано</span>
+                                </span>
+                                <!-- NOTE icon removed — see activity log modal -->
+                            </th:block>
+                        </div>
                     </td>
                     <td class="d-none d-md-table-cell">
                         <span th:if="${c.hasPhone()}" th:text="${c.clientPhone}" class="text-muted"></span>
                         <span th:unless="${c.hasPhone()}" class="text-muted">—</span>
                     </td>
                     <td>
-                        <span class="d-none d-md-inline" th:text="${#temporals.format(c.lastPurchaseAt, 'dd.MM.yyyy')}">01.01.2025</span>
-                        <span class="d-md-none" th:text="${#temporals.format(c.lastPurchaseAt, 'dd.MM')}">01.01</span>
-                    </td>
-                    <td>
-                        <span class="days-badge"
-                              th:classappend="${c.daysSinceLastPurchase > 60} ? 'days-urgent' : (${c.daysSinceLastPurchase > 30} ? 'days-warn' : 'days-ok')"
-                              th:text="${c.daysSinceLastPurchase}">0</span>
+                        <div class="d-flex flex-column gap-1">
+                            <!-- Visit signal -->
+                            <span th:if="${c.visitOverdue()}"
+                                  class="days-badge days-urgent"
+                                  th:text="#{followup.signal.visit.overdue(${-c.daysUntilNextVisit()})}">Візит: N дн тому</span>
+                            <span th:if="${c.visitToday()}"
+                                  class="days-badge days-warn"
+                                  th:text="#{followup.signal.visit.today}">Візит: сьогодні</span>
+                            <span th:if="${c.visitUpcoming()}"
+                                  class="days-badge days-warn"
+                                  th:text="#{followup.signal.visit.upcoming(${c.daysUntilNextVisit()})}">Візит: через N дн</span>
+                            <!-- Purchase signal -->
+                            <span th:if="${c.hasPurchaseSignal()}"
+                                  class="days-badge"
+                                  th:classappend="${c.daysSinceLastPurchase() > 60} ? 'days-urgent' : (${c.daysSinceLastPurchase() > 30} ? 'days-warn' : 'days-ok')"
+                                  th:text="#{followup.signal.purchase(${c.daysSinceLastPurchase()})}">Покупка: N дн</span>
+                        </div>
                     </td>
                     <td class="d-none d-md-table-cell text-end">
                         <span th:text="${#numbers.formatDecimal(c.totalSpent, 1, 'POINT', 2, 'COMMA')} + ' zł'">0.00 zł</span>
                     </td>
-                    <td class="text-end" style="white-space:nowrap;">
-                        <a th:href="@{/clients/{id}(id=${c.clientId}, from='clientcare')}"
-                           class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-arrow-right d-md-none"></i>
-                            <span class="d-none d-md-inline" th:text="#{clientcare.followups.open}">Відкрити</span>
-                        </a>
+                    <td>
+                        <div class="fu-actions">
+                            <!-- Done — opens modal for optional comment -->
+                            <button type="button" class="btn btn-outline-success btn-sm"
+                                    th:title="#{followup.action.done}"
+                                    th:data-client-id="${c.clientId}"
+                                    th:data-return-to="${returnTo}"
+                                    onclick="openDoneModal(this)">
+                                <i class="bi bi-check2 d-md-none"></i>
+                                <span class="d-none d-md-inline" th:text="#{followup.action.done}">Виконано</span>
+                            </button>
+                            <!-- Snooze -->
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    th:title="#{followup.action.snooze}"
+                                    th:data-client-id="${c.clientId}"
+                                    th:data-return-to="${returnTo}"
+                                    onclick="openSnoozeModal(this)">
+                                <i class="bi bi-clock d-md-none"></i>
+                                <span class="d-none d-md-inline" th:text="#{followup.action.snooze}">Відкласти</span>
+                            </button>
+                            <!-- Activity log -->
+                            <span class="activity-btn-wrap">
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        th:title="#{followup.activity.title}"
+                                        th:data-client-id="${c.clientId}"
+                                        th:data-client-name="${c.clientName}"
+                                        th:data-return-to="${returnTo}"
+                                        onclick="openActivityModal(this)">
+                                    <i class="bi bi-list-ul d-md-none" style="font-size:1.15rem; line-height:1; vertical-align:middle;"></i>
+                                    <span class="d-none d-md-inline" th:text="#{followup.activity.title}">Активність</span>
+                                </button>
+                                <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
+                                      class="activity-count-badge"
+                                      th:data-activity-badge="${c.clientId}"
+                                      th:text="${activityCounts.get(c.clientId)}"></span>
+                            </span>
+                            <!-- Open client — desktop only -->
+                            <a th:href="@{/clients/{id}(id=${c.clientId}, from='clientcare')}"
+                               class="btn btn-outline-primary btn-sm d-none d-md-inline-flex"
+                               th:title="#{clientcare.followups.open}">
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 </tbody>
@@ -122,23 +222,514 @@
         </div>
     </div>
 
+    <!-- Done modal -->
+    <div class="modal fade" id="doneModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="doneForm" method="post">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title fw-semibold" th:text="#{followup.done.modal.title}">Що зроблено?</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <input type="hidden" name="returnTo" id="doneReturnTo"/>
+                        <textarea name="note" id="doneNote" class="form-control" rows="3"
+                                  th:placeholder="#{followup.done.modal.placeholder}"
+                                  style="resize:none; font-size:0.85rem;"></textarea>
+                        <div class="text-muted mt-2" style="font-size:0.75rem;">
+                            <i class="bi bi-eye-slash me-1"></i>
+                            <span th:text="#{followup.done.modal.autohide}">Клієнт зникне з черги на 7 днів</span>
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal" th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" class="btn btn-success btn-sm"
+                                th:text="#{followup.action.done}">Виконано</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snooze modal -->
+    <div class="modal fade" id="snoozeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="snoozeForm" method="post">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title fw-semibold" th:text="#{followup.snooze.modal.title}">Відкласти</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <input type="hidden" id="snoozeDays" name="days" value="7"/>
+                        <input type="hidden" name="returnTo" id="snoozeReturnTo"/>
+                        <!-- Day selector 2×2 -->
+                        <div class="d-grid gap-2 mb-3" style="grid-template-columns:1fr 1fr;">
+                            <button type="button" class="btn btn-outline-secondary snooze-day-btn"
+                                    data-days="3" th:text="#{followup.snooze.3}">3 дні</button>
+                            <button type="button" class="btn btn-secondary snooze-day-btn active"
+                                    data-days="7" th:text="#{followup.snooze.7}">7 днів</button>
+                            <button type="button" class="btn btn-outline-secondary snooze-day-btn"
+                                    data-days="14" th:text="#{followup.snooze.14}">14 днів</button>
+                            <button type="button" class="btn btn-outline-secondary snooze-day-btn"
+                                    data-days="30" th:text="#{followup.snooze.30}">30 днів</button>
+                        </div>
+                        <!-- Reason -->
+                        <textarea name="note" id="snoozeNote" class="form-control" rows="3"
+                                  th:placeholder="#{followup.snooze.modal.placeholder}"
+                                  style="resize:none; font-size:0.85rem;"></textarea>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal" th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" class="btn btn-warning btn-sm"
+                                th:text="#{followup.action.snooze}">Відкласти</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unsnooze decision modal -->
+    <div class="modal fade" id="unsnoozeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-semibold">
+                        <span th:text="#{followup.unsnooze.title}">Що сталося?</span>
+                        <span class="text-muted fw-normal ms-1" id="unsnoozeClientName" style="font-size:0.85rem;"></span>
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Decision buttons -->
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill unsnooze-opt active"
+                                data-opt="return" onclick="selectUnsnoozeOpt('return')"
+                                th:text="#{followup.unsnooze.return}">↩ В чергу</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill unsnooze-opt"
+                                data-opt="done" onclick="selectUnsnoozeOpt('done')"
+                                th:text="#{followup.unsnooze.done}">✓ Виконано</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill unsnooze-opt"
+                                data-opt="resnooze" onclick="selectUnsnoozeOpt('resnooze')"
+                                th:text="#{followup.unsnooze.resnooze}">⏰ Перенести</button>
+                    </div>
+                    <!-- Day selector 2×2 (resnooze only) -->
+                    <div id="resnoozedays" class="d-grid gap-2 mb-3" style="display:none!important; grid-template-columns:1fr 1fr;">
+                        <button type="button" class="btn btn-outline-secondary resnooze-day" data-days="3"  th:text="#{followup.snooze.3}">3 дні</button>
+                        <button type="button" class="btn btn-secondary          resnooze-day active" data-days="7"  th:text="#{followup.snooze.7}">7 днів</button>
+                        <button type="button" class="btn btn-outline-secondary resnooze-day" data-days="14" th:text="#{followup.snooze.14}">14 днів</button>
+                        <button type="button" class="btn btn-outline-secondary resnooze-day" data-days="30" th:text="#{followup.snooze.30}">30 днів</button>
+                    </div>
+                    <!-- Note -->
+                    <textarea id="unsnoozeNote" class="form-control" rows="2"
+                              style="resize:none; font-size:0.85rem;"
+                              th:placeholder="#{followup.unsnooze.placeholder}"></textarea>
+                    <div class="text-muted mt-1" style="font-size:0.75rem;"
+                         th:text="#{followup.done.modal.hint}">Необов'язково</div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                            data-bs-dismiss="modal" th:text="#{btn.cancel}">Скасувати</button>
+                    <button type="button" class="btn btn-primary btn-sm"
+                            onclick="submitUnsnooze()"
+                            th:text="#{followup.unsnooze.confirm}">Продовжити</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snoozed section -->
+    <div th:unless="${snoozed.isEmpty()}" class="mt-3">
+        <button class="btn btn-sm btn-link text-muted px-0 collapsed"
+                type="button" data-bs-toggle="collapse" data-bs-target="#snoozedSection">
+            <i class="bi bi-clock me-1"></i>
+            <span th:text="#{followup.snoozed.section(${snoozed.size()})}">Відкладені (0)</span>
+            <i class="bi bi-chevron-down ms-1" style="font-size:0.7rem;"></i>
+        </button>
+        <div class="collapse" id="snoozedSection">
+            <div class="card mt-2">
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0" style="min-width:0;">
+                        <tbody>
+                        <tr th:each="c : ${snoozed}">
+                            <td>
+                                <div th:text="${c.clientName}" style="font-size:0.85rem;"></div>
+                                <div class="text-muted" style="font-size:0.75rem;">
+                                    <i class="bi bi-clock me-1"></i>
+                                    <span th:with="fu=${latestFollowUps.get(c.clientId())}"
+                                          th:text="#{followup.snoozed.until(${#temporals.format(fu.dueDate(), 'dd.MM')})}">до 21.05</span>
+                                </div>
+                            </td>
+                            <td class="text-end" style="white-space:nowrap;">
+                                <!-- Activity log -->
+                                <span class="activity-btn-wrap">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            th:data-client-id="${c.clientId}"
+                                            th:data-client-name="${c.clientName}"
+                                            th:data-return-to="${returnTo}"
+                                            onclick="openActivityModal(this)"
+                                            th:title="#{followup.activity.title}">
+                                        <i class="bi bi-list-ul" style="font-size:1.15rem; line-height:1; vertical-align:middle;"></i>
+                                    </button>
+                                    <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
+                                          class="activity-count-badge"
+                                          th:data-activity-badge="${c.clientId}"
+                                          th:text="${activityCounts.get(c.clientId)}"></span>
+                                </span>
+                                <!-- Unsnooze decision modal -->
+                                <button type="button" class="btn btn-outline-warning btn-sm"
+                                        th:data-client-id="${c.clientId}"
+                                        th:data-client-name="${c.clientName}"
+                                        th:data-return-to="${returnTo}"
+                                        onclick="openUnsnoozeModal(this)"
+                                        th:title="#{followup.snoozed.cancel}">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Done section -->
+    <div th:unless="${done.isEmpty()}" class="mt-2">
+        <button class="btn btn-sm btn-link text-muted px-0 collapsed"
+                type="button" data-bs-toggle="collapse" data-bs-target="#doneSection">
+            <i class="bi bi-check2-circle me-1"></i>
+            <span th:text="#{followup.done.section(${done.size()})}">Виконані (0)</span>
+            <i class="bi bi-chevron-down ms-1" style="font-size:0.7rem;"></i>
+        </button>
+        <div class="collapse" id="doneSection">
+            <div class="card mt-2">
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0" style="min-width:0;">
+                        <tbody>
+                        <tr th:each="c : ${done}">
+                            <td>
+                                <div th:text="${c.clientName}" style="font-size:0.85rem;"></div>
+                                <div class="text-muted" style="font-size:0.75rem;">
+                                    <i class="bi bi-eye-slash me-1"></i>
+                                    <span th:with="fu=${latestFollowUps.get(c.clientId())}"
+                                          th:text="#{followup.done.until(${#temporals.format(fu.dueDate(), 'dd.MM')})}">до 21.05</span>
+                                </div>
+                            </td>
+                            <td class="text-end" style="white-space:nowrap;">
+                                <!-- Activity log -->
+                                <span class="activity-btn-wrap">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            th:data-client-id="${c.clientId}"
+                                            th:data-client-name="${c.clientName}"
+                                            th:data-return-to="${returnTo}"
+                                            onclick="openActivityModal(this)"
+                                            th:title="#{followup.activity.title}">
+                                        <i class="bi bi-list-ul" style="font-size:1.15rem; line-height:1; vertical-align:middle;"></i>
+                                    </button>
+                                    <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
+                                          class="activity-count-badge"
+                                          th:data-activity-badge="${c.clientId}"
+                                          th:text="${activityCounts.get(c.clientId)}"></span>
+                                </span>
+                                <!-- Undo done — reset to queue -->
+                                <button type="button" class="btn btn-outline-success btn-sm"
+                                        th:data-client-id="${c.clientId}"
+                                        th:data-return-to="${returnTo}"
+                                        onclick="undoDone(this)"
+                                        th:title="#{followup.done.undo}">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity log modal -->
+    <div class="modal fade" id="activityModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+            <div class="modal-content" style="max-height:90vh;">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-semibold" id="activityModalTitle"></h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <!-- Activity log (AJAX) -->
+                <div class="modal-body p-0" style="overflow-y:auto; flex:1;">
+                    <div id="activityLog">
+                        <div class="text-center py-3 text-muted" style="font-size:0.85rem;">
+                            <div class="spinner-border spinner-border-sm me-1"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- New note input -->
+                <div class="modal-footer p-2 border-top flex-column align-items-stretch gap-1">
+                    <!-- Collapsed state: add + clear all -->
+                    <div id="noteAddBtn" class="d-flex gap-2">
+                        <button type="button"
+                                class="btn btn-success btn-sm flex-fill"
+                                onclick="showNoteInput()"
+                                th:text="#{followup.activity.addNote}">+ Додати нотатку</button>
+                        <button id="clearAllBtn" type="button"
+                                class="btn btn-outline-danger btn-sm"
+                                onclick="clearAllActivity()"
+                                disabled
+                                th:text="#{followup.activity.clearAll}">Видалити всі</button>
+                    </div>
+                    <!-- Expanded state: textarea + actions (hidden by default) -->
+                    <div id="noteInputArea" style="display:none;">
+                        <textarea id="newNoteText"
+                                  class="form-control mb-1"
+                                  rows="2"
+                                  style="resize:none; font-size:0.85rem;"
+                                  th:placeholder="#{followup.note.placeholder}"></textarea>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm flex-fill"
+                                    onclick="hideNoteInput()"
+                                    th:text="#{btn.cancel}">Скасувати</button>
+                            <button type="button" class="btn btn-primary btn-sm flex-fill"
+                                    onclick="submitNote()"
+                                    th:text="#{followup.note.save}">Зберегти</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script th:inline="javascript">
-        document.addEventListener('DOMContentLoaded', function () {
-            const min = /*[[${activeMinDays}]]*/ 0;
-            if (min > 0) applyMinDays(min);
+        const csrfToken = /*[[${_csrf.token}]]*/ '';
+        const csrfParam = /*[[${_csrf.parameterName}]]*/ '_csrf';
+        let currentClientId = null;
+        let currentReturnTo = null;
+
+        function openSnoozeModal(btn) {
+            document.getElementById('snoozeForm').action =
+                '/clientcare/followups/' + btn.dataset.clientId + '/snooze';
+            document.getElementById('snoozeReturnTo').value = btn.dataset.returnTo;
+            document.getElementById('snoozeNote').value = '';
+            // Reset day selection to 7
+            document.querySelectorAll('.snooze-day-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.days === '7');
+                b.classList.toggle('btn-secondary', b.dataset.days === '7');
+                b.classList.toggle('btn-outline-secondary', b.dataset.days !== '7');
+            });
+            document.getElementById('snoozeDays').value = '7';
+            new bootstrap.Modal(document.getElementById('snoozeModal')).show();
+        }
+
+        document.querySelectorAll('.snooze-day-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.snooze-day-btn').forEach(b => {
+                    b.classList.remove('active', 'btn-secondary');
+                    b.classList.add('btn-outline-secondary');
+                });
+                this.classList.add('active', 'btn-secondary');
+                this.classList.remove('btn-outline-secondary');
+                document.getElementById('snoozeDays').value = this.dataset.days;
+            });
         });
 
-        function applyMinDays(min) {
-            const rows = document.querySelectorAll('.followup-table tbody tr');
-            let visible = 0;
-            rows.forEach(function (row) {
-                const days = parseInt(row.dataset.days);
-                const show = days >= min;
-                row.style.display = show ? '' : 'none';
-                if (show) visible++;
+        function openDoneModal(btn) {
+            const clientId = btn.dataset.clientId;
+            document.getElementById('doneForm').action = '/clientcare/followups/' + clientId + '/done';
+            document.getElementById('doneReturnTo').value = btn.dataset.returnTo;
+            document.getElementById('doneNote').value = '';
+            new bootstrap.Modal(document.getElementById('doneModal')).show();
+            setTimeout(() => document.getElementById('doneNote').focus(), 300);
+        }
+
+        function openActivityModal(btn) {
+            currentClientId = btn.dataset.clientId;
+            currentReturnTo = btn.dataset.returnTo;
+            document.getElementById('activityModalTitle').textContent = btn.dataset.clientName;
+            hideNoteInput();
+            loadActivity();
+            new bootstrap.Modal(document.getElementById('activityModal')).show();
+        }
+
+        function showNoteInput() {
+            document.getElementById('noteAddBtn').style.display = 'none';
+            document.getElementById('noteInputArea').style.display = '';
+            const ta = document.getElementById('newNoteText');
+            ta.value = '';
+            ta.focus();
+        }
+
+        function hideNoteInput() {
+            document.getElementById('noteInputArea').style.display = 'none';
+            document.getElementById('noteAddBtn').style.display = '';
+            document.getElementById('newNoteText').value = '';
+        }
+
+        function clearAllActivity() {
+            if (!confirm(/*[[#{followup.activity.clearAll.confirm}]]*/ 'Видалити всі записи активності?')) return;
+            const form = new FormData();
+            form.append(csrfParam, csrfToken);
+            fetch('/clientcare/followups/' + currentClientId + '/activity/clear', { method: 'POST', body: form })
+                .then(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('activityModal')).hide();
+                    window.location.reload();
+                });
+        }
+
+        function loadActivity() {
+            fetch('/clientcare/followups/' + currentClientId + '/activity')
+                .then(r => r.text())
+                .then(html => {
+                    document.getElementById('activityLog').innerHTML = html;
+                    syncDoneBadge();
+                    syncActivityCountBadge();
+                });
+        }
+
+        function syncActivityCountBadge() {
+            const count = document.querySelectorAll('#activityLog [data-action]').length;
+            document.getElementById('clearAllBtn').disabled = count === 0;
+            // Find all badges for this client (may appear in multiple sections)
+            document.querySelectorAll('[data-activity-badge="' + currentClientId + '"]').forEach(badge => {
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
             });
-            const counter = document.getElementById('visibleCount');
-            if (counter) counter.textContent = visible;
+            // If badge didn't exist yet (was 0 on page load), create it
+            if (count > 0) {
+                document.querySelectorAll('.activity-btn-wrap').forEach(wrap => {
+                    const btn = wrap.querySelector('[data-client-id="' + currentClientId + '"]');
+                    if (!btn) return;
+                    let badge = wrap.querySelector('.activity-count-badge');
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'activity-count-badge';
+                        badge.dataset.activityBadge = currentClientId;
+                        wrap.appendChild(badge);
+                    }
+                    badge.textContent = count;
+                    badge.style.display = '';
+                });
+            }
+        }
+
+        function syncDoneBadge() {
+            const firstRow = document.querySelector('#activityLog [data-action]');
+            const latestAction = firstRow ? firstRow.dataset.action : null;
+            const badge = document.querySelector('[data-client-badge="' + currentClientId + '"]');
+            if (badge) badge.style.display = latestAction === 'DONE' ? '' : 'none';
+        }
+
+        function submitNote() {
+            const text = document.getElementById('newNoteText').value.trim();
+            if (!text) return;
+            const form = new FormData();
+            form.append('text', text);
+            form.append('returnTo', currentReturnTo);
+            form.append(csrfParam, csrfToken);
+            fetch('/clientcare/followups/' + currentClientId + '/note', { method: 'POST', body: form })
+                .then(() => {
+                    hideNoteInput();
+                    loadActivity();
+                });
+        }
+
+        // ── Unsnooze modal ──
+        let unsnoozeClientId = null;
+        let unsnoozeReturnTo = null;
+        let unsnoozeOpt = 'return';
+        let unsnoozeDays = 7;
+
+        function openUnsnoozeModal(btn) {
+            unsnoozeClientId = btn.dataset.clientId;
+            unsnoozeReturnTo = btn.dataset.returnTo;
+            document.getElementById('unsnoozeClientName').textContent = '— ' + btn.dataset.clientName;
+            document.getElementById('unsnoozeNote').value = '';
+            selectUnsnoozeOpt('return');
+            new bootstrap.Modal(document.getElementById('unsnoozeModal')).show();
+        }
+
+        function selectUnsnoozeOpt(opt) {
+            unsnoozeOpt = opt;
+            document.querySelectorAll('.unsnooze-opt').forEach(b => {
+                const active = b.dataset.opt === opt;
+                b.classList.toggle('active', active);
+                b.classList.toggle('btn-secondary', active);
+                b.classList.toggle('btn-outline-secondary', !active);
+            });
+            document.getElementById('resnoozedays').style.setProperty('display', opt === 'resnooze' ? 'flex' : 'none', 'important');
+        }
+
+        document.querySelectorAll('.resnooze-day').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.resnooze-day').forEach(b => {
+                    b.classList.remove('active', 'btn-secondary');
+                    b.classList.add('btn-outline-secondary');
+                });
+                this.classList.add('active', 'btn-secondary');
+                this.classList.remove('btn-outline-secondary');
+                unsnoozeDays = parseInt(this.dataset.days);
+            });
+        });
+
+        function submitUnsnooze() {
+            const note = document.getElementById('unsnoozeNote').value.trim();
+            let url, params = new FormData();
+            params.append(csrfParam, csrfToken);
+            params.append('returnTo', unsnoozeReturnTo);
+
+            if (unsnoozeOpt === 'done') {
+                url = '/clientcare/followups/' + unsnoozeClientId + '/done';
+                if (note) params.append('note', note);
+            } else if (unsnoozeOpt === 'resnooze') {
+                url = '/clientcare/followups/' + unsnoozeClientId + '/snooze';
+                params.append('days', unsnoozeDays);
+                if (note) params.append('note', note);
+            } else {
+                // return to queue: clears all active SNOOZE + DONE records
+                url = '/clientcare/followups/' + unsnoozeClientId + '/returnToQueue';
+            }
+            const form = document.createElement('form');
+            form.method = 'POST'; form.action = url;
+            params.forEach((v, k) => {
+                const i = document.createElement('input');
+                i.type = 'hidden'; i.name = k; i.value = v;
+                form.appendChild(i);
+            });
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function undoDone(btn) {
+            if (!confirm(/*[[#{followup.done.undo.confirm}]]*/ 'Повернути клієнта в чергу?')) return;
+            const form = new FormData();
+            form.append(csrfParam, csrfToken);
+            form.append('returnTo', btn.dataset.returnTo);
+            fetch('/clientcare/followups/' + btn.dataset.clientId + '/returnToQueue', { method: 'POST', body: form })
+                .then(() => window.location.reload());
+        }
+
+        function deleteNote(noteId, action) {
+            if (!confirm(/*[[#{followup.note.delete.confirm}]]*/ 'Видалити нотатку?')) return;
+            const form = new FormData();
+            form.append(csrfParam, csrfToken);
+            fetch('/clientcare/followups/notes/' + noteId + '/delete', { method: 'POST', body: form })
+                .then(() => {
+                    if (action === 'DONE' || action === 'SNOOZE') {
+                        // Deletion may change client's queue position — reload page
+                        bootstrap.Modal.getInstance(document.getElementById('activityModal')).hide();
+                        window.location.reload();
+                    } else {
+                        loadActivity();
+                    }
+                });
         }
     </script>
 </div>

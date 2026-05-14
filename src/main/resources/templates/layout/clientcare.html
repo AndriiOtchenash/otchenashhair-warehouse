@@ -184,6 +184,15 @@
             .page-header > .d-flex { width: 100%; }
             .page-header .btn { white-space: nowrap; flex: 1; text-align: center; }
         }
+        /* ── Global badges (shared with main layout) ── */
+        .badge-writeoff { background-color: #f5a3b0 !important; color: #7d2535 !important; }
+        .badge-active   { background: #d4edda; color: #155724; font-weight: 500; }
+        .badge-inactive { background: #f8d7da; color: #721c24; font-weight: 500; }
+        @media (max-width: 767px) {
+            .filter-select-wrap { display: flex; align-items: center; gap: 0.4rem; }
+            .filter-select-wrap > select { flex: 1; min-width: 0; }
+            .filter-select-wrap > button { flex-shrink: 0; }
+        }
     </style>
 </head>
 <body>
