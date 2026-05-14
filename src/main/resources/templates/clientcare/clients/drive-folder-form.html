@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{drive.folder.form.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="#{drive.folder.form.title}">Папка Google Drive</h1>
+            <div class="text-muted" style="font-size:0.85rem;" th:text="${client.name}"></div>
+        </div>
+        <a th:href="@{/clientcare/clients/{id}(id=${client.id})}"
+           class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span th:text="#{btn.back}">Назад</span>
+        </a>
+    </div>
+
+    <div class="card" style="max-width: 600px;">
+        <div class="card-body">
+            <form th:action="@{/clientcare/clients/{id}/drive-folder(id=${client.id})}"
+                  th:object="${driveFolder}" method="post">
+                <input type="hidden" th:field="*{clientId}"/>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{drive.folder.form.url}">Посилання на папку</label>
+                    <input type="url" class="form-control"
+                           th:field="*{driveFolderUrl}"
+                           th:classappend="${#fields.hasErrors('driveFolderUrl')} ? 'is-invalid'"
+                           th:placeholder="#{drive.folder.form.url.hint}"/>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('driveFolderUrl')}"
+                         th:errors="*{driveFolderUrl}"></div>
+                    <div class="form-text text-muted" th:text="#{drive.folder.form.url.help}"></div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
+                    <a th:href="@{/clientcare/clients/{id}(id=${client.id})}"
+                       class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

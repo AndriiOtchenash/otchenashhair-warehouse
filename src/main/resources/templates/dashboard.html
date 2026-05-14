@@ -21,6 +21,15 @@
         .table td.fw-semibold {
             font-size: 0.90rem;
         }
+        @media (max-width: 767.98px) {
+            .stock-table { table-layout: fixed; width: 100%; min-width: 0 !important; }
+            .stock-table .col-stock { width: 5rem; }
+            .stock-table .col-actions { width: 6.5rem; }
+            .stock-table th { text-align: center; font-size: 0.72rem; }
+            .stock-table .col-actions { text-align: center; }
+            .stock-table .col-actions .d-flex { justify-content: center; }
+            .btn-square { width: 2rem; height: 2rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+        }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{dashboard.title}">Склад</h1>
@@ -166,13 +175,13 @@
                 <span th:text="#{dashboard.empty}">Товари не знайдено</span>
             </div>
             <div class="table-responsive-wrapper">
-            <table th:unless="${rows.empty}" class="table table-hover mb-0">
+            <table th:unless="${rows.empty}" class="table table-hover mb-0 stock-table">
                 <thead class="table-light">
                 <tr>
                     <th th:text="#{product.form.name}">Назва</th>
-                    <th th:text="#{dashboard.currentStock}">Залишок</th>
-                    <th th:text="#{dashboard.status}">Статус</th>
-                    <th th:text="#{table.actions}">Дії</th>
+                    <th class="col-stock" th:text="#{dashboard.currentStock}">Залишок</th>
+                    <th class="d-none d-md-table-cell" th:text="#{dashboard.status}">Статус</th>
+                    <th class="col-actions" th:text="#{table.actions}">Дії</th>
                     <th class="d-none d-md-table-cell" th:text="#{product.form.brand}">Бренд</th>
                     <th class="d-none d-md-table-cell" th:text="#{product.form.category}">Категорія</th>
                     <th class="d-none d-md-table-cell" th:text="#{dashboard.expiryDate}">Термін придатності</th>
@@ -190,11 +199,11 @@
                                class="d-block d-md-none text-muted fw-normal"
                                th:text="${row.description}"></small>
                     </td>
-                    <td>
+                    <td class="col-stock">
                         <span th:text="${@qf.format(row.currentQuantity, row.unit)}"></span>
                         <span class="text-muted small" th:text="#{unit.__${row.unit}__}"></span>
                     </td>
-                    <td>
+                    <td class="d-none d-md-table-cell">
                         <span th:if="${row.status.name() == 'OK'}"
                               class="badge badge-active px-2 py-1 rounded-pill"
                               th:text="#{dashboard.status.ok}">Норма</span>
@@ -205,16 +214,16 @@
                               class="badge bg-danger px-2 py-1 rounded-pill"
                               th:text="#{dashboard.status.out}">Немає</span>
                     </td>
-                    <td onclick="event.stopPropagation()">
+                    <td class="col-actions" onclick="event.stopPropagation()">
                         <div class="d-flex gap-1">
                             <a th:href="@{/movements/income(productId=${row.productId})}"
-                               class="btn btn-sm btn-outline-success"
+                               class="btn btn-sm btn-outline-success btn-square px-md-2"
                                th:title="#{stock.income.title}"
                                data-bs-toggle="tooltip">
                                 <i class="bi bi-arrow-down-circle"></i>
                             </a>
                             <a th:href="@{/movements/expense(productId=${row.productId})}"
-                               class="btn btn-sm btn-outline-danger"
+                               class="btn btn-sm btn-outline-danger btn-square px-md-2"
                                th:classappend="${row.status.name() == 'OUT'} ? ' disabled'"
                                th:attr="tabindex=${row.status.name() == 'OUT'} ? '-1' : null, aria-disabled=${row.status.name() == 'OUT'} ? 'true' : null"
                                th:title="#{stock.expense.title}"

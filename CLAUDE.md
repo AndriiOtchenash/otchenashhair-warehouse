@@ -26,7 +26,7 @@ web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-011)
+- ddl-auto=none, Liquibase manages schema (migrations 001-014)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -43,7 +43,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             010-add-movement-cancel (adds original_movement_id FK on stock_movements),
             011-add-writeoff-reason (adds write_off_reason VARCHAR(30) on stock_movements),
             012-create-scalp-photos (scalp_photos table + index on client_id),
-            013-create-visits (visits table + index on client_id)
+            013-create-visits (visits table + index on client_id),
+            014-add-client-drive-folder (drive_folder_url + drive_folder_id columns on clients)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -54,7 +55,12 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   filters wrapped in <form onsubmit="return false"> for correct iOS/Android Prev/Next
   navigation between fields (filtering stays client-side/instant);
   × clear buttons on Brand and Category selects (mobile, d-md-none, JS-controlled);
-  "Скинути (N)" reset button below search, visible when ≥1 of category/brand/search active
+  "Скинути (N)" reset button below search, visible when ≥1 of category/brand/search active;
+  mobile table: Status column hidden (d-none d-md-table-cell) — row colors (table-danger/table-warning) convey status;
+  table uses .stock-table class with table-layout:fixed + min-width:0 !important (overrides global .table{min-width:500px});
+  col-stock=5rem, col-actions=6.5rem fixed; name column takes remaining width;
+  action buttons: .btn-square (2rem×2rem, mobile-only via @media) — square, centered; desktop: normal px-md-2 padding;
+  th font-size 0.72rem on mobile, centered via @media; desktop layout unchanged
 - Products CRUD with soft delete, restore, detail page, brand autocomplete
 - Stock batch (StockItem) edit modal on product detail — expiry date, batch number, price
 - Categories CRUD with modal editing and Bootstrap delete modal (Ні/Так);
@@ -187,7 +193,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   when active — filter-active border, × shown inside button text, type select disabled;
   data-label attr holds i18n text (btn.quickFilter.gifts); blur() on toggle to avoid focus gray;
   counted in reset button; i18n: uk=Подарунки, pl=Prezenty, en=Gifts
-- badge-writeoff (.badge-writeoff) and filter-select-wrap CSS are global in layout/main.html
+- badge-writeoff (.badge-writeoff), filter-select-wrap, and .btn-square CSS are global in layout/main.html;
+  .btn-square — mobile-only square icon button (2rem×2rem), defined in page @media block, not global
 - Supplier detail: Тип операції column removed (redundant in purchase history context);
   filter bar added with від/до dates + product name search; .table { min-width: 0 }
 - Dashboard clickable rows pass from=dashboard; product detail Back button handles it → /
@@ -398,20 +405,8 @@ Both `clients/detail.html` and `clientcare/clients/detail.html` are thin wrapper
 `/clientcare/clients` master client list. One `ClientController` handles both modules via dual mapping.
 Shared `fragments/client-detail.html` — single source of client detail content for both layouts.
 
-**Wave 2b — Google Drive direct upload**
-User selects a photo → app uploads to Google Drive via Service Account → stores fileId + driveUrl automatically.
-No manual URL pasting. `ScalpPhoto` entity and `scalp_photos` table unchanged — `driveFileId`/`driveUrl` still the same columns, just filled by the API instead of regex.
-
-Chosen approach: **Service Account** (not user OAuth).
-- One Google Cloud Project, Drive API enabled
-- Service account JSON key → Fly.io secret `GOOGLE_SERVICE_ACCOUNT_JSON`
-- Shared Drive folder, rasshared to the service account email
-- Upload flow: multipart `POST /clientcare/photos/upload` → `GoogleDriveService.upload()` → returns fileId+webViewLink
-- Maven deps to add: `google-api-client`, `google-apis-drive-v3`
-- Form change: `<input type="file" accept="image/*">` replaces `<input type="url">`
-- Per-client subfolder: `OtchenashHair/{client.name}/` — create if not exists
-
-Not started. Prerequisite: Google Cloud project + service account setup (done outside the app).
+**Wave 2b — Google Drive direct upload — CANCELLED**
+Decided not to implement. Photos are stored and viewed directly in Google Drive; app does not display or upload photos.
 
 **Wave 2c — FollowUp entity (when queue becomes unmanageable)**
 `FollowUp` (id, client, type, status, dueDate, note, createdAt, completedAt)
@@ -426,6 +421,24 @@ Migration 013 — `visits` table + index on client_id.
 Visit form — all textarea fields auto-resize (JS `scrollHeight`), uniform min-height.
 Visits visible in both warehouse and clientcare client detail (shared fragment, no condition).
 Card shows: date, скарга, стан, Рекомендації: ..., Нотатки: ..., наступний візит. Sorted by visitDate desc.
+
+**Wave 3b — Google Drive client folder link — DONE (2026-05-14, migration 014)**
+Link a Drive folder URL per client. App does not display photos — clicking "Відкрити папку" opens the folder in the browser.
+
+Schema: fields on `Client` (migration 014):
+- `drive_folder_url VARCHAR(500)` — source of truth, pasted by user
+- `drive_folder_id VARCHAR(100)` — nullable, best-effort regex extract from URL
+
+UI in shared client detail fragment — "Папка Google Drive" card:
+- Not linked: "Додати папку" button
+- Linked: "Підключена" badge + "Відкрити папку" (opens Drive in new tab) + pencil edit + × remove
+
+Controllers: `DriveFolderController` — GET/POST `/clientcare/clients/{id}/drive-folder/edit`, POST `/clientcare/clients/{id}/drive-folder/remove`
+Form: `drive-folder-form.html`, DTO: `DriveFolderDto`
+No Drive API, no Service Account — purely URL storage.
+
+**Wave 3b-2 — Google Drive virtual gallery — CANCELLED**
+Decided not to implement. Photos are viewed directly in Google Drive via "Відкрити папку" link.
 
 **Wave 4 — Protocol entity**
 `Protocol` (id, name, products, durationDays)
@@ -454,6 +467,13 @@ Card shows: date, скарга, стан, Рекомендації: ..., Нот�
 - `@FutureOrPresent` intentionally omitted from `nextVisitDate` — would block editing old visits where next date already passed
 - Auto-resize textareas: `resize:none; overflow:hidden; min-height:2.6rem` + JS `scrollHeight` on `input` event + on page load
 
+### Google Drive folder (Wave 3b — DONE)
+- No Drive API, no Service Account — purely URL storage per client
+- `Client` has `driveFolderUrl` (source of truth) and `driveFolderId` (nullable regex extract)
+- `DriveFolderController`: GET/POST edit form, POST remove; validation via `@Pattern` on `DriveFolderDto`
+- "Відкрити папку" opens `client.driveFolderUrl` in browser (`target="_blank"`)
+- Card visible in shared `fragments/client-detail.html` for both warehouse and clientcare contexts
+
 ### Security
 - `/error` added to Security permitAll — always show real error page instead of redirect loop
 
@@ -472,9 +492,11 @@ Rules:
 ## TODO
 
 ### ClientCare
-- Wave 2b — Google Drive direct upload via Service Account (see roadmap for full spec)
+- Wave 2b — CANCELLED — photos not displayed in app, viewed directly in Google Drive
 - Wave 2c — FollowUp entity — DONE/SNOOZE/NOTE actions on follow-up queue
 - Wave 3 — DONE — Visit entity with JPA + migration 013
+- Wave 3b — DONE — Google Drive folder link per client: migration 014, fields on Client, DriveFolderController, "Відкрити папку" button in shared client detail fragment
+- Wave 3b-2 — CANCELLED — virtual gallery not needed
 - Wave 4 — Protocol entity — treatment type → recommended product list
 
 ### Warehouse features

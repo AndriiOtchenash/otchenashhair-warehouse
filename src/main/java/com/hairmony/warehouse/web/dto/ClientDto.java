@@ -16,4 +16,6 @@ public class ClientDto {
 
     private String phone;
     private String notes;
+    private String driveFolderUrl;
+    private String driveFolderId;
 }

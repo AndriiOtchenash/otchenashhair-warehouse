@@ -136,10 +136,8 @@
                 <i class="bi bi-calendar-x d-block fs-3 mb-1 opacity-50"></i>
                 <span th:text="#{visit.empty}">Візитів поки немає</span>
             </div>
-            <div th:unless="${visits.isEmpty()}">
-                <div th:each="visit, vStat : ${visits}"
-                     th:classappend="${!vStat.last} ? 'border-bottom'"
-                     class="px-3 py-2">
+            <th:block th:unless="${visits.isEmpty()}" th:with="visit=${visits[0]}">
+                <div class="px-3 py-2">
                     <div class="d-flex justify-content-between align-items-start gap-3">
                         <div style="min-width:0; flex:1">
                             <div class="fw-semibold"
@@ -188,7 +186,16 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                <div class="px-3 pb-2 mt-1 d-flex align-items-center gap-2">
+                    <a th:if="${visits.size() > 1}"
+                       th:href="@{/clientcare/clients/{id}/visits(id=${client.id}, returnTo=${currentPageUrl})}"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-clock-history me-1"></i>
+                        <span th:text="#{visit.viewAll}">Всі візити</span>
+                        <span class="badge bg-secondary ms-1" th:text="${visits.size()}"></span>
+                    </a>
+                </div>
+            </th:block>
         </div>
     </div>
 
@@ -213,7 +220,7 @@
             <div th:unless="${scalpPhotos.isEmpty()}">
                 <div class="scalp-photo-grid">
                     <div th:each="photo, pStat : ${scalpPhotos}"
-                         th:if="${pStat.index < 6}"
+                         th:if="${pStat.index < 3}"
                          class="scalp-photo-tile">
                         <a th:href="${photo.driveUrl}" target="_blank" rel="noopener"
                            class="scalp-photo-thumb">
@@ -250,14 +257,14 @@
                     </div>
                 </div>
                 <div class="mt-2 d-flex align-items-center gap-2">
-                    <a th:if="${scalpPhotos.size() > 6}"
+                    <a th:if="${scalpPhotos.size() > 3}"
                        th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${currentPageUrl})}"
                        class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-images me-1"></i>
                         <span th:text="#{scalp.photo.viewAll}">Всі фото</span>
                         <span class="badge bg-secondary ms-1" th:text="${scalpPhotos.size()}"></span>
                     </a>
-                    <a th:if="${scalpPhotos.size() <= 6 and !scalpPhotos.isEmpty()}"
+                    <a th:if="${scalpPhotos.size() <= 3 and !scalpPhotos.isEmpty()}"
                        th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${currentPageUrl})}"
                        class="text-muted small text-decoration-none">
                         <i class="bi bi-grid me-1"></i>
@@ -265,6 +272,49 @@
                     </a>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Google Drive folder -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-folder2-open text-warning"></i>
+                <span th:text="#{drive.folder.section.title}">Папка Google Drive</span>
+                <span th:unless="${client.driveFolderUrl == null}"
+                      class="badge bg-success" style="font-size:0.68rem;"
+                      th:text="#{drive.folder.status.connected}">Підключена</span>
+            </div>
+            <a th:if="${client.driveFolderUrl == null}"
+               th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>
+                <span th:text="#{drive.folder.btn.add}">Додати папку</span>
+            </a>
+            <div th:unless="${client.driveFolderUrl == null}" class="d-flex align-items-center gap-1">
+                <a th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <form th:action="@{/clientcare/clients/{id}/drive-folder/remove(id=${client.id})}"
+                      method="post" class="d-inline"
+                      th:data-confirm="#{drive.folder.remove.confirm}"
+                      onsubmit="return confirm(this.dataset.confirm)">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="card-body py-2 px-3">
+            <div th:if="${client.driveFolderUrl == null}" class="text-muted small"
+                 th:text="#{drive.folder.empty}">Папку не підключено</div>
+            <a th:unless="${client.driveFolderUrl == null}"
+               th:href="${client.driveFolderUrl}" target="_blank" rel="noopener"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-box-arrow-up-right me-1"></i>
+                <span th:text="#{drive.folder.btn.open}">Відкрити папку</span>
+            </a>
         </div>
     </div>
 
