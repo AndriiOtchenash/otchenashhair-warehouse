@@ -279,7 +279,16 @@
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-folder2-open text-warning"></i>
+                <!-- Mobile: icon is a link to Drive when folder linked -->
+                <a th:unless="${client.driveFolderUrl == null}"
+                   th:href="${client.driveFolderUrl}" target="_blank" rel="noopener"
+                   class="d-md-none btn btn-outline-warning btn-sm py-0 px-1">
+                    <i class="bi bi-folder2-open fs-5"></i>
+                </a>
+                <i th:if="${client.driveFolderUrl == null}"
+                   class="bi bi-folder2-open text-warning"></i>
+                <i class="d-none d-md-inline bi bi-folder2-open text-warning"
+                   th:unless="${client.driveFolderUrl == null}"></i>
                 <span th:text="#{drive.folder.section.title}">Папка Google Drive</span>
                 <span th:unless="${client.driveFolderUrl == null}"
                       class="badge bg-success" style="font-size:0.68rem;"
@@ -289,7 +298,7 @@
                th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
                class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>
-                <span th:text="#{drive.folder.btn.add}">Додати папку</span>
+                <span th:text="#{drive.folder.btn.connect}">Підключити</span>
             </a>
             <div th:unless="${client.driveFolderUrl == null}" class="d-flex align-items-center gap-1">
                 <a th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
@@ -311,7 +320,7 @@
                  th:text="#{drive.folder.empty}">Папку не підключено</div>
             <a th:unless="${client.driveFolderUrl == null}"
                th:href="${client.driveFolderUrl}" target="_blank" rel="noopener"
-               class="btn btn-outline-secondary btn-sm">
+               class="d-none d-md-inline-flex btn btn-outline-secondary btn-sm">
                 <i class="bi bi-box-arrow-up-right me-1"></i>
                 <span th:text="#{drive.folder.btn.open}">Відкрити папку</span>
             </a>
