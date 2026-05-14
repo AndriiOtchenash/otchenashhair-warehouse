@@ -26,7 +26,7 @@ web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-011)
+- ddl-auto=none, Liquibase manages schema (migrations 001-014)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -43,7 +43,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             010-add-movement-cancel (adds original_movement_id FK on stock_movements),
             011-add-writeoff-reason (adds write_off_reason VARCHAR(30) on stock_movements),
             012-create-scalp-photos (scalp_photos table + index on client_id),
-            013-create-visits (visits table + index on client_id)
+            013-create-visits (visits table + index on client_id),
+            014-add-client-drive-folder (drive_folder_url + drive_folder_id columns on clients)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -404,20 +405,8 @@ Both `clients/detail.html` and `clientcare/clients/detail.html` are thin wrapper
 `/clientcare/clients` master client list. One `ClientController` handles both modules via dual mapping.
 Shared `fragments/client-detail.html` — single source of client detail content for both layouts.
 
-**Wave 2b — Google Drive direct upload**
-User selects a photo → app uploads to Google Drive via Service Account → stores fileId + driveUrl automatically.
-No manual URL pasting. `ScalpPhoto` entity and `scalp_photos` table unchanged — `driveFileId`/`driveUrl` still the same columns, just filled by the API instead of regex.
-
-Chosen approach: **Service Account** (not user OAuth).
-- One Google Cloud Project, Drive API enabled
-- Service account JSON key → Fly.io secret `GOOGLE_SERVICE_ACCOUNT_JSON`
-- Shared Drive folder, rasshared to the service account email
-- Upload flow: multipart `POST /clientcare/photos/upload` → `GoogleDriveService.upload()` → returns fileId+webViewLink
-- Maven deps to add: `google-api-client`, `google-apis-drive-v3`
-- Form change: `<input type="file" accept="image/*">` replaces `<input type="url">`
-- Per-client subfolder: `OtchenashHair/{client.name}/` — create if not exists
-
-Not started. Prerequisite: Google Cloud project + service account setup (done outside the app).
+**Wave 2b — Google Drive direct upload — CANCELLED**
+Decided not to implement. Photos are stored and viewed directly in Google Drive; app does not display or upload photos.
 
 **Wave 2c — FollowUp entity (when queue becomes unmanageable)**
 `FollowUp` (id, client, type, status, dueDate, note, createdAt, completedAt)
@@ -433,34 +422,23 @@ Visit form — all textarea fields auto-resize (JS `scrollHeight`), uniform min-
 Visits visible in both warehouse and clientcare client detail (shared fragment, no condition).
 Card shows: date, скарга, стан, Рекомендації: ..., Нотатки: ..., наступний візит. Sorted by visitDate desc.
 
-**Wave 3b — Google Drive client folder integration**
-Goal: simplify scalp photo workflow — link a Drive folder to a client instead of adding each photo URL manually.
+**Wave 3b — Google Drive client folder link — DONE (2026-05-14, migration 014)**
+Link a Drive folder URL per client. App does not display photos — clicking "Відкрити папку" opens the folder in the browser.
 
-Schema (preferred: fields on `Client`, migration 014):
-- `drive_folder_url VARCHAR(500)` — source of truth
+Schema: fields on `Client` (migration 014):
+- `drive_folder_url VARCHAR(500)` — source of truth, pasted by user
 - `drive_folder_id VARCHAR(100)` — nullable, best-effort regex extract from URL
 
-Alternatively: separate `client_drive_folders` table (avoid if model doesn't need it).
-
-UI in ClientCare client detail — "Папка Google Drive" section:
+UI in shared client detail fragment — "Папка Google Drive" card:
 - Not linked: "Додати папку" button
-- Linked: "Папка підключена" status + "Відкрити папку" button + "Змінити" button
+- Linked: "Підключена" badge + "Відкрити папку" (opens Drive in new tab) + pencil edit + × remove
 
-Form:
-- `GET /clientcare/clients/{id}/drive-folder/edit`
-- `POST /clientcare/clients/{id}/drive-folder`
-- Field: Google Drive folder URL
-- Validation: URL matches `drive.google.com/drive/folders/{folderId}` or `id={folderId}`
-- `driveFolderId` extracted best-effort regex (nullable if pattern unrecognised)
+Controllers: `DriveFolderController` — GET/POST `/clientcare/clients/{id}/drive-folder/edit`, POST `/clientcare/clients/{id}/drive-folder/remove`
+Form: `drive-folder-form.html`, DTO: `DriveFolderDto`
+No Drive API, no Service Account — purely URL storage.
 
-Current `ScalpPhoto` gallery (manual photo links) remains unchanged and fully functional.
-
-**Wave 3b-2 — Google Drive folder sync via Drive API (future)**
-- Use `driveFolderId` stored in Wave 3b
-- Call Drive API `files.list` with `{folderId}` as parent
-- Show files as virtual gallery (no manual entry per photo)
-- Optionally persist found files as `ScalpPhoto` records
-- Requires Service Account or OAuth — same infra as Wave 2b
+**Wave 3b-2 — Google Drive virtual gallery — CANCELLED**
+Decided not to implement. Photos are viewed directly in Google Drive via "Відкрити папку" link.
 
 **Wave 4 — Protocol entity**
 `Protocol` (id, name, products, durationDays)
@@ -489,16 +467,12 @@ Current `ScalpPhoto` gallery (manual photo links) remains unchanged and fully fu
 - `@FutureOrPresent` intentionally omitted from `nextVisitDate` — would block editing old visits where next date already passed
 - Auto-resize textareas: `resize:none; overflow:hidden; min-height:2.6rem` + JS `scrollHeight` on `input` event + on page load
 
-### Google Drive Virtual Gallery (Wave 3b-2 — DONE)
-- `GoogleDriveService` in `clientcare/service/` — reads `google.service-account.json` property (maps from env `GOOGLE_SERVICE_ACCOUNT_JSON`); if blank → `DriveAccessException`
-- Drive client built per call (no caching in MVP); scopes: `DRIVE_READONLY`
-- Query: `'{folderId}' in parents and mimeType contains 'image/' and trashed = false`, ordered by `createdTime desc`
-- `GoogleDriveFileDto`: fileId, name, mimeType, thumbnailUrl (`thumbnail?id=...&sz=w400`), webViewLink, createdTime (LocalDate)
-- `DrivePhotoController` at `GET /clientcare/clients/{clientId}/drive-photos`; 3 model flags: `noFolder` / `driveError` / photos list
-- `drive-photos.html` — virtual gallery (no edit/delete); thumbnail fallback on `onerror`; click tile or button → `webViewLink` in Drive
-- "Переглянути фото з папки" button in Drive folder card-body (visible only when folder is linked)
-- Existing manual ScalpPhoto gallery unchanged and fully functional
-- Setup required: Google Cloud project, Drive API enabled, Service Account JSON → Fly.io secret `GOOGLE_SERVICE_ACCOUNT_JSON`; folder shared with service account email
+### Google Drive folder (Wave 3b — DONE)
+- No Drive API, no Service Account — purely URL storage per client
+- `Client` has `driveFolderUrl` (source of truth) and `driveFolderId` (nullable regex extract)
+- `DriveFolderController`: GET/POST edit form, POST remove; validation via `@Pattern` on `DriveFolderDto`
+- "Відкрити папку" opens `client.driveFolderUrl` in browser (`target="_blank"`)
+- Card visible in shared `fragments/client-detail.html` for both warehouse and clientcare contexts
 
 ### Security
 - `/error` added to Security permitAll — always show real error page instead of redirect loop
@@ -518,11 +492,11 @@ Rules:
 ## TODO
 
 ### ClientCare
-- Wave 2b — Google Drive direct upload via Service Account (see roadmap for full spec)
+- Wave 2b — CANCELLED — photos not displayed in app, viewed directly in Google Drive
 - Wave 2c — FollowUp entity — DONE/SNOOZE/NOTE actions on follow-up queue
 - Wave 3 — DONE — Visit entity with JPA + migration 013
-- Wave 3b — DONE — Google Drive client folder link: migration 014, fields on Client, DriveFolderController, UI in shared client detail fragment
-- Wave 3b-2 — DONE — Virtual gallery from Drive folder: GoogleDriveService (Service Account auth), DrivePhotoController at /clientcare/clients/{id}/drive-photos, drive-photos.html; "Переглянути фото з папки" button in Drive folder card; 3 states: no folder / API error / gallery; no DB writes, read-only
+- Wave 3b — DONE — Google Drive folder link per client: migration 014, fields on Client, DriveFolderController, "Відкрити папку" button in shared client detail fragment
+- Wave 3b-2 — CANCELLED — virtual gallery not needed
 - Wave 4 — Protocol entity — treatment type → recommended product list
 
 ### Warehouse features
