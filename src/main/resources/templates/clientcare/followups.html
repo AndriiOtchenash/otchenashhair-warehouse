@@ -200,8 +200,7 @@
                                         th:data-client-name="${c.clientName}"
                                         th:data-return-to="${returnTo}"
                                         onclick="openActivityModal(this)">
-                                    <i class="bi bi-list-ul d-md-none" style="font-size:1.15rem; line-height:1; vertical-align:middle;"></i>
-                                    <span class="d-none d-md-inline" th:text="#{followup.activity.title}">Активність</span>
+                                    <i class="bi bi-list-ul"></i>
                                 </button>
                                 <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
                                       class="activity-count-badge"
@@ -373,7 +372,7 @@
                                             th:data-return-to="${returnTo}"
                                             onclick="openActivityModal(this)"
                                             th:title="#{followup.activity.title}">
-                                        <i class="bi bi-list-ul" style="font-size:1.15rem; line-height:1; vertical-align:middle;"></i>
+                                        <i class="bi bi-list-ul"></i>
                                     </button>
                                     <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
                                           class="activity-count-badge"
@@ -429,7 +428,7 @@
                                             th:data-return-to="${returnTo}"
                                             onclick="openActivityModal(this)"
                                             th:title="#{followup.activity.title}">
-                                        <i class="bi bi-list-ul" style="font-size:1.15rem; line-height:1; vertical-align:middle;"></i>
+                                        <i class="bi bi-list-ul"></i>
                                     </button>
                                     <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
                                           class="activity-count-badge"
