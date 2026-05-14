@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="activity">
+    <div th:if="${activities.isEmpty()}"
+         class="text-muted text-center py-4" style="font-size:0.85rem;"
+         th:text="#{followup.activity.empty}">Активності ще немає</div>
+
+    <div th:each="a : ${activities}"
+         th:data-action="${a.action().name()}"
+         class="d-flex gap-2 px-3 py-2 border-bottom align-items-start">
+        <!-- Icon -->
+        <div class="pt-1" style="width:1.1rem; flex-shrink:0; text-align:center;">
+            <i th:if="${a.action().name() == 'NOTE'}"   class="bi bi-chat-left-text text-secondary" style="font-size:0.85rem;"></i>
+            <i th:if="${a.action().name() == 'DONE'}"   class="bi bi-check2-circle text-success"   style="font-size:0.85rem;"></i>
+            <i th:if="${a.action().name() == 'SNOOZE'}" class="bi bi-clock text-warning"           style="font-size:0.85rem;"></i>
+        </div>
+        <!-- Content -->
+        <div class="flex-grow-1" style="min-width:0;">
+            <div class="text-muted" style="font-size:0.7rem;"
+                 th:text="${#temporals.format(a.createdAt(), 'dd.MM.yyyy HH:mm')}"></div>
+            <div th:if="${a.action().name() == 'NOTE'}"
+                 th:text="${a.note()}"
+                 style="font-size:0.85rem; word-break:break-word;"></div>
+            <div th:if="${a.action().name() == 'DONE'}" style="font-size:0.85rem;">
+                <span class="text-success" th:text="#{followup.badge.done}">Виконано</span>
+                <div th:if="${a.note() != null}" class="text-muted mt-1"
+                     style="word-break:break-word;" th:text="${a.note()}"></div>
+            </div>
+            <div th:if="${a.action().name() == 'SNOOZE' and a.dueDate() != null}" style="font-size:0.85rem;">
+                <span class="text-warning-emphasis"
+                      th:text="#{followup.badge.snoozed(${#temporals.format(a.dueDate(), 'dd.MM.yyyy')})}">Відкладено до</span>
+                <div th:if="${a.note() != null}" class="text-muted mt-1"
+                     style="word-break:break-word;" th:text="${a.note()}"></div>
+            </div>
+        </div>
+        <!-- Delete any record -->
+        <button type="button"
+                class="btn btn-sm btn-link text-danger p-0 ms-1"
+                style="font-size:1rem; line-height:1;"
+                th:data-note-id="${a.id()}"
+                th:data-note-action="${a.action().name()}"
+                onclick="deleteNote(this.dataset.noteId, this.dataset.noteAction)">&#x2715;</button>
+    </div>
+</div>
+</body>
+</html>

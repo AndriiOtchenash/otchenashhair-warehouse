@@ -41,3 +41,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/014-add-client-drive-folder.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/015-create-follow-ups.sql
+      relativeToChangelogFile: false

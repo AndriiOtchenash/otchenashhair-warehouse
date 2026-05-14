@@ -337,7 +337,9 @@ com.hairmony.warehouse/
 Data source: `StockMovementRepository.findClientSaleStats()` — groups SALE movements by client,
 excludes cancelled SALEs (NOT EXISTS CANCELLATION with originalMovementId = sale.id).
 
-Dashboard `/clientcare` — 6 KPI cards with deep links:
+Dashboard `/clientcare` — 8 KPI cards split into two labelled sections:
+Section "ВІЗИТИ": "Пропущені візити" (`bi-calendar-x`, red, `?visitFilter=overdue`) + "Заплановані візити" (`bi-calendar-check`, green, `?visitFilter=scheduled`)
+Section "ПОКУПКИ":
 | Card | Link |
 |---|---|
 | Кому написати (>30 days + phone) | `/clientcare/followups` |
@@ -347,15 +349,50 @@ Dashboard `/clientcare` — 6 KPI cards with deep links:
 | Повторна покупка можлива (25–40 days) | `/clientcare/followups` |
 | Всі клієнти | `/clientcare/followups` |
 
-`/clientcare/followups?minDays=N` — URL-based filter (0/30/60/90); `minDays` read by controller,
-passed to model as `activeMinDays`; pills are `<a href>` links (server-highlighted via th:classappend);
-JS on load applies filter to rows via `data-days` attr (no extra request); visible counter updates.
-Queue sorted by days desc; color badges green/yellow/red; dd.MM on mobile / dd.MM.yyyy on desktop;
-icon-only button on mobile; link → `/clients/{id}?from=clientcare` (renders clientcare detail, back → followups).
-Mobile: full-width table (min-width: 0). Sidebar stays open on module switch (sessionStorage).
+Visit KPI counts come from `visitRepository.findAllLatestWithNextVisitDate()` in `getDashboardData()`;
+`ClientCareDashboardDto` has `overdueVisitCount` + `upcomingVisitCount` fields.
+"Кому написати" uses `bi-chat-dots` icon (messaging, not phone).
+
+`/clientcare/followups` — two independent filter rows:
+- Purchase: All / 30+ / 60+ / 90+ days pills (`minDays` param)
+- Visit: All / Прострочені / Заплановані / Без візиту pills (`visitFilter` param)
+Both filters are AND conditions; each pill preserves the other dimension in href.
+Filter logic: `if (minDays > 0 && (!c.hasPurchaseSignal() || daysSince < minDays)) return false;`
+then `switch (visitFilter) { "overdue" → c.visitOverdue(); "scheduled" → today||upcoming; "none" → !hasVisitSignal; }`
+
+Visit signals loaded via `findAllLatestWithNextVisitDate()` (no date threshold — all visits with nextVisitDate).
+`VisitRepository.findAllLatestWithNextVisitDate()` replaced the old 7-day-threshold query.
+
+Queue page layout: client count next to h1 (mobile: same row; desktop: subtitle below).
+"Back" button hidden on mobile (`d-none d-md-inline-flex`).
+
+Activity log button shows a small round badge in top-right corner with count of activity records.
+Badge is rendered server-side from `activityCounts` map (`Map<Long, Integer>`) and updates
+dynamically via `syncActivityCountBadge()` after every `loadActivity()` call.
+`FollowUpRepository.countPerClient()` — `@Query` returning `[clientId, count]` pairs in one query.
+`FollowUpService.getActivityCountsPerClient()` → `Map<Long, Integer>`, passed to model.
+
+Activity modal footer: "Додати нотатку" (btn-success) + "Видалити всі записи" (btn-outline-danger, disabled until ≥1 record).
+"Видалити всі записи" — confirm → `POST /clientcare/followups/{clientId}/activity/clear` → closes modal + reloads page
+(page reload required because DONE/SNOOZE records are also deleted, changing client's queue section).
+`FollowUpRepository.deleteAllByClientId()` — `@Modifying @Query`.
+`FollowUpService.deleteAllActivity()`, `FollowUpActionController.clearActivity()` (`@ResponseBody`).
+
+DONE action (Variant A): auto-hides client from queue for 7 days (`dueDate = today + 7`).
+`isRecentlyDone()` checks `action == DONE && dueDate > today`. Both `isActiveSnoozed() || isRecentlyDone()` exclude from active queue.
+"Виконані" collapsed section mirrors "Відкладені" — shows done clients with activity log + undo button.
+`undoDone()` → `POST /returnToQueue` → page reload.
+`returnToQueue()` bulk-deletes all active SNOOZE+DONE records with future dueDate via `deleteActiveHidingRecords()`.
+
+Deleting DONE/SNOOZE from activity modal → closes modal + page reload (queue position changes).
+Deleting NOTE → only reloads activity fragment (no position change).
+`deleteNote(noteId, action)` in JS: `if action === 'DONE' || 'SNOOZE' → reload page; else loadActivity()`.
+
+Thymeleaf 3.1 security: `th:onclick` with string concatenation blocked for event handlers.
+Fix: use `th:data-*` attributes + static `onclick="fn(this.dataset.field)"`.
 
 `ClientCareDashboardDto` fields: `totalClients` (all in DB), `totalClientsInQueue` (with non-cancelled SALEs),
-plus 5 KPI counts. Card "Всі клієнти-покупці" shows `totalClientsInQueue`.
+plus 5 purchase KPI counts + `overdueVisitCount` + `upcomingVisitCount`.
 "Всього клієнтів: N" — clickable link to `/clientcare/clients`; desktop: subtitle under h1; mobile: right-aligned on same row as h1 (inner `d-flex w-100`, outer `w-100` to fill page-header width).
 
 **Wave 2a — DONE (2026-05-13, migration 012)**
@@ -408,9 +445,12 @@ Shared `fragments/client-detail.html` — single source of client detail content
 **Wave 2b — Google Drive direct upload — CANCELLED**
 Decided not to implement. Photos are stored and viewed directly in Google Drive; app does not display or upload photos.
 
-**Wave 2c — FollowUp entity (when queue becomes unmanageable)**
-`FollowUp` (id, client, type, status, dueDate, note, createdAt, completedAt)
-Actions: DONE / SNOOZE / NOTE. Trigger: manual or via SaleCompletedEvent AFTER_COMMIT.
+**Wave 2c — FollowUp entity — DONE (2026-05-14)**
+`FollowUp` (id, client_id, action, dueDate, note, createdAt).
+Actions: DONE / SNOOZE / NOTE. DONE auto-hides 7 days (dueDate = today+7). SNOOZE hides until dueDate.
+`FollowUpRepository`, `FollowUpService`, `FollowUpActionController`, `ClientCareFollowupController`.
+Activity log modal per client: AJAX fragment, add note, delete single record, "Видалити всі записи" button.
+Activity count badge on log button (server-side + JS dynamic sync).
 
 **Wave 3 — Visit entity — DONE (2026-05-13, migration 013)**
 `Visit` entity: id, client_id, visit_date, complaint, scalp_condition, recommendations, next_visit_date, notes, created_at.
@@ -467,6 +507,17 @@ Decided not to implement. Photos are viewed directly in Google Drive via "Від
 - `@FutureOrPresent` intentionally omitted from `nextVisitDate` — would block editing old visits where next date already passed
 - Auto-resize textareas: `resize:none; overflow:hidden; min-height:2.6rem` + JS `scrollHeight` on `input` event + on page load
 
+### FollowUp queue (Wave 2c — DONE)
+- `FollowUp` entity: id, client_id, action (DONE/SNOOZE/NOTE), dueDate (nullable), note, createdAt
+- No status field — state derived from latest record per client: `isActiveSnoozed()` = SNOOZE + dueDate > today; `isRecentlyDone()` = DONE + dueDate > today
+- `returnToQueue()` bulk-deletes all SNOOZE+DONE with future dueDate (not just latest) via `@Modifying @Query`
+- Activity count badge: `FollowUpRepository.countPerClient()` one query for all clients; `FollowUpService.getActivityCountsPerClient()` → `Map<Long, Integer>`; badge has `data-activity-badge="{clientId}"` for JS sync
+- `syncActivityCountBadge()` in JS: counts `#activityLog [data-action]` rows after each `loadActivity()`; creates badge DOM node if wasn't rendered server-side (was 0 on load); disables "Видалити всі" btn when count=0
+- "Видалити всі записи" always does page reload after success (DONE/SNOOZE records deleted → client position changes)
+- Thymeleaf 3.1 blocks string expressions in `th:onclick` — use `th:data-*` + `onclick="fn(this.dataset.field)"`
+- Two-filter system: `minDays` (purchase) AND `visitFilter` (visit) are independent; each pill href preserves the other param; controller applies AND logic
+- Visit signals: `VisitRepository.findAllLatestWithNextVisitDate()` loads all clients with any nextVisitDate (no threshold)
+
 ### Google Drive folder (Wave 3b — DONE)
 - No Drive API, no Service Account — purely URL storage per client
 - `Client` has `driveFolderUrl` (source of truth) and `driveFolderId` (nullable regex extract)
@@ -493,7 +544,7 @@ Rules:
 
 ### ClientCare
 - Wave 2b — CANCELLED — photos not displayed in app, viewed directly in Google Drive
-- Wave 2c — FollowUp entity — DONE/SNOOZE/NOTE actions on follow-up queue
+- Wave 2c — DONE — FollowUp entity with DONE/SNOOZE/NOTE; activity log modal; count badge; "Видалити всі" button
 - Wave 3 — DONE — Visit entity with JPA + migration 013
 - Wave 3b — DONE — Google Drive folder link per client: migration 014, fields on Client, DriveFolderController, "Відкрити папку" button in shared client detail fragment
 - Wave 3b-2 — CANCELLED — virtual gallery not needed
