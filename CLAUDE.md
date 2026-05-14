@@ -54,7 +54,12 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   filters wrapped in <form onsubmit="return false"> for correct iOS/Android Prev/Next
   navigation between fields (filtering stays client-side/instant);
   × clear buttons on Brand and Category selects (mobile, d-md-none, JS-controlled);
-  "Скинути (N)" reset button below search, visible when ≥1 of category/brand/search active
+  "Скинути (N)" reset button below search, visible when ≥1 of category/brand/search active;
+  mobile table: Status column hidden (d-none d-md-table-cell) — row colors (table-danger/table-warning) convey status;
+  table uses .stock-table class with table-layout:fixed + min-width:0 !important (overrides global .table{min-width:500px});
+  col-stock=5rem, col-actions=6.5rem fixed; name column takes remaining width;
+  action buttons: .btn-square (2rem×2rem, mobile-only via @media) — square, centered; desktop: normal px-md-2 padding;
+  th font-size 0.72rem on mobile, centered via @media; desktop layout unchanged
 - Products CRUD with soft delete, restore, detail page, brand autocomplete
 - Stock batch (StockItem) edit modal on product detail — expiry date, batch number, price
 - Categories CRUD with modal editing and Bootstrap delete modal (Ні/Так);
@@ -187,7 +192,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   when active — filter-active border, × shown inside button text, type select disabled;
   data-label attr holds i18n text (btn.quickFilter.gifts); blur() on toggle to avoid focus gray;
   counted in reset button; i18n: uk=Подарунки, pl=Prezenty, en=Gifts
-- badge-writeoff (.badge-writeoff) and filter-select-wrap CSS are global in layout/main.html
+- badge-writeoff (.badge-writeoff), filter-select-wrap, and .btn-square CSS are global in layout/main.html;
+  .btn-square — mobile-only square icon button (2rem×2rem), defined in page @media block, not global
 - Supplier detail: Тип операції column removed (redundant in purchase history context);
   filter bar added with від/до dates + product name search; .table { min-width: 0 }
 - Dashboard clickable rows pass from=dashboard; product detail Back button handles it → /
@@ -427,6 +433,35 @@ Visit form — all textarea fields auto-resize (JS `scrollHeight`), uniform min-
 Visits visible in both warehouse and clientcare client detail (shared fragment, no condition).
 Card shows: date, скарга, стан, Рекомендації: ..., Нотатки: ..., наступний візит. Sorted by visitDate desc.
 
+**Wave 3b — Google Drive client folder integration**
+Goal: simplify scalp photo workflow — link a Drive folder to a client instead of adding each photo URL manually.
+
+Schema (preferred: fields on `Client`, migration 014):
+- `drive_folder_url VARCHAR(500)` — source of truth
+- `drive_folder_id VARCHAR(100)` — nullable, best-effort regex extract from URL
+
+Alternatively: separate `client_drive_folders` table (avoid if model doesn't need it).
+
+UI in ClientCare client detail — "Папка Google Drive" section:
+- Not linked: "Додати папку" button
+- Linked: "Папка підключена" status + "Відкрити папку" button + "Змінити" button
+
+Form:
+- `GET /clientcare/clients/{id}/drive-folder/edit`
+- `POST /clientcare/clients/{id}/drive-folder`
+- Field: Google Drive folder URL
+- Validation: URL matches `drive.google.com/drive/folders/{folderId}` or `id={folderId}`
+- `driveFolderId` extracted best-effort regex (nullable if pattern unrecognised)
+
+Current `ScalpPhoto` gallery (manual photo links) remains unchanged and fully functional.
+
+**Wave 3b-2 — Google Drive folder sync via Drive API (future)**
+- Use `driveFolderId` stored in Wave 3b
+- Call Drive API `files.list` with `{folderId}` as parent
+- Show files as virtual gallery (no manual entry per photo)
+- Optionally persist found files as `ScalpPhoto` records
+- Requires Service Account or OAuth — same infra as Wave 2b
+
 **Wave 4 — Protocol entity**
 `Protocol` (id, name, products, durationDays)
 
@@ -454,6 +489,17 @@ Card shows: date, скарга, стан, Рекомендації: ..., Нот�
 - `@FutureOrPresent` intentionally omitted from `nextVisitDate` — would block editing old visits where next date already passed
 - Auto-resize textareas: `resize:none; overflow:hidden; min-height:2.6rem` + JS `scrollHeight` on `input` event + on page load
 
+### Google Drive Virtual Gallery (Wave 3b-2 — DONE)
+- `GoogleDriveService` in `clientcare/service/` — reads `google.service-account.json` property (maps from env `GOOGLE_SERVICE_ACCOUNT_JSON`); if blank → `DriveAccessException`
+- Drive client built per call (no caching in MVP); scopes: `DRIVE_READONLY`
+- Query: `'{folderId}' in parents and mimeType contains 'image/' and trashed = false`, ordered by `createdTime desc`
+- `GoogleDriveFileDto`: fileId, name, mimeType, thumbnailUrl (`thumbnail?id=...&sz=w400`), webViewLink, createdTime (LocalDate)
+- `DrivePhotoController` at `GET /clientcare/clients/{clientId}/drive-photos`; 3 model flags: `noFolder` / `driveError` / photos list
+- `drive-photos.html` — virtual gallery (no edit/delete); thumbnail fallback on `onerror`; click tile or button → `webViewLink` in Drive
+- "Переглянути фото з папки" button in Drive folder card-body (visible only when folder is linked)
+- Existing manual ScalpPhoto gallery unchanged and fully functional
+- Setup required: Google Cloud project, Drive API enabled, Service Account JSON → Fly.io secret `GOOGLE_SERVICE_ACCOUNT_JSON`; folder shared with service account email
+
 ### Security
 - `/error` added to Security permitAll — always show real error page instead of redirect loop
 
@@ -475,6 +521,8 @@ Rules:
 - Wave 2b — Google Drive direct upload via Service Account (see roadmap for full spec)
 - Wave 2c — FollowUp entity — DONE/SNOOZE/NOTE actions on follow-up queue
 - Wave 3 — DONE — Visit entity with JPA + migration 013
+- Wave 3b — DONE — Google Drive client folder link: migration 014, fields on Client, DriveFolderController, UI in shared client detail fragment
+- Wave 3b-2 — DONE — Virtual gallery from Drive folder: GoogleDriveService (Service Account auth), DrivePhotoController at /clientcare/clients/{id}/drive-photos, drive-photos.html; "Переглянути фото з папки" button in Drive folder card; 3 states: no folder / API error / gallery; no DB writes, read-only
 - Wave 4 — Protocol entity — treatment type → recommended product list
 
 ### Warehouse features

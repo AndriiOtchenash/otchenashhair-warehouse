@@ -38,3 +38,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/013-create-visits.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/014-add-client-drive-folder.sql
+      relativeToChangelogFile: false

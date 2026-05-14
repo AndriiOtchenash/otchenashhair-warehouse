@@ -28,6 +28,12 @@ public class Client {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "drive_folder_url", length = 500)
+    private String driveFolderUrl;
+
+    @Column(name = "drive_folder_id", length = 100)
+    private String driveFolderId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

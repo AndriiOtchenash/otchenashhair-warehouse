@@ -8,13 +8,19 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class ClientService {
+
+    private static final Pattern DRIVE_FOLDER_ID_PATTERN =
+            Pattern.compile("folders/([a-zA-Z0-9_-]{10,})");
 
     private final ClientRepository clientRepository;
     private final StockMovementRepository stockMovementRepository;
@@ -46,6 +52,22 @@ public class ClientService {
         return toDto(client);
     }
 
+    public void removeDriveFolder(Long id) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + id));
+        client.setDriveFolderUrl(null);
+        client.setDriveFolderId(null);
+    }
+
+    public void updateDriveFolder(Long id, String url) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Client not found: " + id));
+        String trimmed = url != null ? url.trim() : null;
+        client.setDriveFolderUrl(trimmed);
+        Matcher m = trimmed != null ? DRIVE_FOLDER_ID_PATTERN.matcher(trimmed) : null;
+        client.setDriveFolderId(m != null && m.find() ? m.group(1) : null);
+    }
+
     public void delete(Long id) {
         if (stockMovementRepository.existsByClientId(id)) {
             throw new IllegalStateException("client.delete.error.hasMovements");
@@ -68,6 +90,8 @@ public class ClientService {
                 .name(c.getName())
                 .phone(c.getPhone())
                 .notes(c.getNotes())
+                .driveFolderUrl(c.getDriveFolderUrl())
+                .driveFolderId(c.getDriveFolderId())
                 .build();
     }
 
