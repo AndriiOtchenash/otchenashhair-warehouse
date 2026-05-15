@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -40,6 +41,10 @@ public class ProductDto {
     private String imageUrl;
 
     private boolean active;
+
+    private LocalDateTime deactivatedAt;
+
+    private String deactivationReason;
 
     private java.math.BigDecimal currentQuantity;
 }

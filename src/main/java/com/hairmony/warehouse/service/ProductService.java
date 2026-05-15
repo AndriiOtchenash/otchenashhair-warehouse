@@ -70,10 +70,13 @@ public class ProductService {
         return toDto(product); // no save() needed — dirty checking handles it
     }
 
-    public void deactivate(Long id) {
+    public void deactivate(Long id, String reason) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         product.setActive(false);
+        product.setDeactivatedAt(java.time.LocalDateTime.now());
+        String trimmed = (reason != null) ? reason.trim() : "";
+        product.setDeactivationReason(trimmed.isEmpty() ? null : trimmed);
         // no save() needed — dirty checking handles it
     }
 
@@ -81,6 +84,8 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         product.setActive(true);
+        product.setDeactivatedAt(null);
+        product.setDeactivationReason(null);
     }
 
     @Transactional(readOnly = true)
@@ -143,6 +148,8 @@ public class ProductService {
                 .description(product.getDescription())
                 .imageUrl(product.getImageUrl())
                 .active(product.getActive())
+                .deactivatedAt(product.getDeactivatedAt())
+                .deactivationReason(product.getDeactivationReason())
                 .currentQuantity(stockItemRepository.getTotalQuantityByProductId(product.getId()))
                 .build();
     }
