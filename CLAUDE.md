@@ -140,7 +140,13 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   below-cost warning: JS inline alert-warning when unitPrice < FIFO purchase price,
   confirm() on submit (data-fifo-price on product options via StockItemRepository.findFifoPricePerProduct());
   write-off reason selector (WriteOffReason enum): GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER,
-  shown only when WRITE_OFF selected; client field shown for SALE and WRITE_OFF+GIFT
+  shown only when WRITE_OFF selected; client field shown for SALE and WRITE_OFF+GIFT;
+  "Створити нового клієнта →" full round-trip preserves product/type/quantity:
+    link href built dynamically via updateNewClientLink() JS (reads current dropdown values),
+    ClientController threads movementType+quantity through newForm/createNew,
+    StockController.expenseForm() accepts movementType+quantity URL params and pre-fills DTO,
+    form-autosave localStorage cleared synchronously when returning with pre-selected clientId
+    (prevents autosave restore banner conflicting with URL-provided values)
 - Barcode scanner page (/scan) — camera scan or manual entry, income/expense mode;
   income/expense mode buttons: colored icons (green/red), white when active
 - MovementType enum: PURCHASE, SALE, WRITE_OFF, ADJUSTMENT, CANCELLATION
@@ -227,7 +233,11 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Create-from-related-page pattern: GET/POST /entity/new?returnTo=page,
   on success redirect to /related/page?entityId=savedId,
   related page GET accepts entityId param and pre-fills DTO;
-  form page shows "Створити новий X →" link under the select with color:var(--accent)
+  form page shows "Створити новий X →" link under the select with color:var(--accent);
+  link href built dynamically via JS so it captures current client-side field values
+  (not server-rendered DTO which may be stale);
+  form-autosave localStorage cleared synchronously in `<script>` (not in DOMContentLoaded)
+  when returning with a pre-selected entity to prevent restore banner overwriting URL-provided values
 - Flash messages: successMessage (alert-success) and errorMessage (alert-danger),
   rendered inline in each template (not in layout); dismissible;
   always resolved through messageSource.getMessage() — no hardcoded strings in controllers
@@ -417,7 +427,8 @@ Data source: `StockMovementRepository.findClientSaleStats()` — groups SALE mov
 excludes cancelled SALEs (NOT EXISTS CANCELLATION with originalMovementId = sale.id).
 
 Dashboard `/clientcare` — 8 KPI cards split into two labelled sections:
-Section "ВІЗИТИ": "Пропущені візити" (`bi-calendar-x`, red, `?visitFilter=overdue`) + "Заплановані візити" (`bi-calendar-check`, green, `?visitFilter=scheduled`)
+Section "ЗАПИСИ": "Пропущені записи" (`bi-calendar-x`, red, `?visitFilter=overdue`) + "Заплановані записи" (`bi-calendar-check`, green, `?visitFilter=scheduled`)
+(section label and card names renamed from "ВІЗИТИ"/"Пропущені візити"/"Заплановані візити" → "ЗАПИСИ"/"Пропущені записи"/"Заплановані записи" in Wave 6, 2026-05-18)
 Section "ПОКУПКИ":
 | Card | Link |
 |---|---|
@@ -643,6 +654,8 @@ See full spec in TODO → Wave 6 section.
 
 `VisitService.linkAppointment(visitId, appointmentId)` — sets `visit.nextAppointment` via dirty checking; called by `AppointmentController` after saving new appointment when `linkVisitId` param is present.
 
+`VisitService.unlinkCompletedAppointment(appointmentId)` — clears `nextAppointment` on whichever visit points to this appointment; called by `AppointmentController.complete()` after status → COMPLETED so the old visit card no longer shows a stale green "Наступний запис" badge. `VisitRepository.findByNextAppointmentId(Long)` Spring Data derived query added.
+
 **Visit form appointment status section:**
 - Replaces old `nextVisitDate` date picker
 - No appointment: amber alert "Наступний візит не запланований" + "Запланувати →" button (action=schedule)
@@ -754,10 +767,13 @@ When a client arrives and the appointment is completed, the user has no guided p
 - "Завершити прийом і записати протокол →" button on appointment edit page (shown when status = PLANNED or CONFIRMED and client is linked, not a guest)
 - `canComplete` boolean set in `AppointmentController.editForm()`, passed to model
 - Button is a separate `<form>` with `POST /{id}/complete` action (outside the main appointment form)
-- `AppointmentController.complete()`: changes status → COMPLETED, redirects to `/clientcare/visits/new?clientId=X&returnTo=/clientcare/appointments?date=YYYY-MM-DD`
+- `AppointmentController.complete()`: changes status → COMPLETED, calls `visitService.unlinkCompletedAppointment(id)` to clear stale nextAppointment on old visit, redirects to `/clientcare/visits/new?clientId=X&returnTo=/clientcare/appointments?date=YYYY-MM-DD`
 - Visit form pre-fills clientId and visitDate=today (existing behavior)
 - After saving the visit → return to calendar day (via returnTo)
 - Variant B (appointment_id FK on visits) — NOT needed given current requirements
+
+**CRITICAL: nested form bug (fixed 2026-05-19):**
+HTML does not allow nested `<form>` elements — browsers silently ignore inner form tags. The overdue/complete/noshow action blocks (`<form th:action="…/complete">` etc.) were originally placed INSIDE the main appointment `<form>`, causing "Завершити прийом" to submit the outer save form instead of `POST /{id}/complete`. Fix: all three blocks moved to AFTER the main `</form>`, still inside the card-body but as sibling elements.
 
 **Overdue appointment UX (2026-05-18):**
 - `isOverdue` boolean = `canComplete && startAt < now`; passed to model in `editForm()`
