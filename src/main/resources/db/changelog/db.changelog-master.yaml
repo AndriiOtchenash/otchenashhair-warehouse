@@ -47,3 +47,9 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/016-add-product-deactivation.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/017-create-appointments.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/018-add-next-appointment-to-visits.sql
+      relativeToChangelogFile: false

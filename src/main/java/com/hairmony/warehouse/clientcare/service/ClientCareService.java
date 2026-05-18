@@ -2,10 +2,12 @@ package com.hairmony.warehouse.clientcare.service;
 
 import com.hairmony.warehouse.clientcare.web.dto.ClientCareDashboardDto;
 import com.hairmony.warehouse.clientcare.web.dto.ClientFollowupDto;
-import com.hairmony.warehouse.domain.visit.Visit;
+import com.hairmony.warehouse.domain.appointment.Appointment;
+import com.hairmony.warehouse.domain.appointment.AppointmentStatus;
+import com.hairmony.warehouse.domain.client.Client;
+import com.hairmony.warehouse.repository.AppointmentRepository;
 import com.hairmony.warehouse.repository.ClientRepository;
 import com.hairmony.warehouse.repository.StockMovementRepository;
-import com.hairmony.warehouse.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,12 +32,21 @@ public class ClientCareService {
 
     private final StockMovementRepository movementRepository;
     private final ClientRepository clientRepository;
-    private final VisitRepository visitRepository;
+    private final AppointmentRepository appointmentRepository;
+
+    private static final List<AppointmentStatus> UPCOMING_STATUSES =
+            List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
+    /** For follow-up queue: NO_SHOW counts as overdue signal (client needs contact). */
+    private static final List<AppointmentStatus> FOLLOWUP_OVERDUE_STATUSES =
+            List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED, AppointmentStatus.NO_SHOW);
+    /** For KPI dashboard cards: only unresolved appointments (NO_SHOW already handled by user). */
+    private static final List<AppointmentStatus> KPI_OVERDUE_STATUSES =
+            List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
 
     @Transactional(readOnly = true)
     public List<ClientFollowupDto> getFollowupQueue() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate today   = now.toLocalDate();
+        LocalDateTime now   = LocalDateTime.now();
+        LocalDate today     = now.toLocalDate();
 
         // 1. Purchase-based signals
         Map<Long, ClientFollowupDto> byClientId = new LinkedHashMap<>();
@@ -43,43 +54,62 @@ public class ClientCareService {
                 .map(row -> toPurchaseDto(row, now))
                 .forEach(dto -> byClientId.put(dto.clientId(), dto));
 
-        // 2. Visit-based signals — all clients with any nextVisitDate set
-        List<Visit> visitSignals = visitRepository.findAllLatestWithNextVisitDate();
+        // 2. Appointment-based signals
+        //    Upcoming: earliest PLANNED/CONFIRMED appointment from now onward per client
+        //    Overdue:  most recent past PLANNED/CONFIRMED/NO_SHOW appointment per client (if no upcoming)
+        Map<Long, LocalDate> apptSignalDate  = new LinkedHashMap<>();
+        Map<Long, Long>      apptSignalDays  = new LinkedHashMap<>(); // negative = overdue
+        Map<Long, Client>    apptClient      = new LinkedHashMap<>();
 
-        for (Visit v : visitSignals) {
-            Long clientId = v.getClient().getId();
-            LocalDate nextVisit = v.getNextVisitDate();
-            long daysUntil = ChronoUnit.DAYS.between(today, nextVisit);
+        // Upcoming — ordered ASC, putIfAbsent gives earliest per client
+        List<Appointment> upcoming = appointmentRepository.findUpcomingForClients(now, UPCOMING_STATUSES);
+        for (Appointment a : upcoming) {
+            Long clientId = a.getClient().getId();
+            if (!apptSignalDate.containsKey(clientId)) {
+                LocalDate d = a.getStartAt().toLocalDate();
+                apptSignalDate.put(clientId, d);
+                apptSignalDays.put(clientId, ChronoUnit.DAYS.between(today, d));
+                apptClient.put(clientId, a.getClient());
+            }
+        }
+
+        // Overdue — only for clients without upcoming signal; ordered DESC (most recent first)
+        List<Appointment> overdue = appointmentRepository.findOverdueForClients(now, FOLLOWUP_OVERDUE_STATUSES);
+        for (Appointment a : overdue) {
+            Long clientId = a.getClient().getId();
+            if (!apptSignalDate.containsKey(clientId)) {
+                LocalDate d = a.getStartAt().toLocalDate();
+                apptSignalDate.put(clientId, d);
+                apptSignalDays.put(clientId, ChronoUnit.DAYS.between(today, d)); // negative
+                apptClient.put(clientId, a.getClient());
+            }
+        }
+
+        // Merge appointment signals into the map
+        for (Map.Entry<Long, LocalDate> entry : apptSignalDate.entrySet()) {
+            Long clientId   = entry.getKey();
+            LocalDate apptDate = entry.getValue();
+            long daysUntil  = apptSignalDays.get(clientId);
+            Client c        = apptClient.get(clientId);
 
             ClientFollowupDto existing = byClientId.get(clientId);
             if (existing != null) {
-                // Merge visit signal into existing purchase entry
                 byClientId.put(clientId, new ClientFollowupDto(
-                        existing.clientId(),
-                        existing.clientName(),
-                        existing.clientPhone(),
-                        existing.lastPurchaseAt(),
-                        existing.daysSinceLastPurchase(),
-                        existing.totalSpent(),
-                        nextVisit,
-                        daysUntil
+                        existing.clientId(), existing.clientName(), existing.clientPhone(),
+                        existing.lastPurchaseAt(), existing.daysSinceLastPurchase(), existing.totalSpent(),
+                        apptDate, daysUntil
                 ));
             } else {
-                // Visit-only client (no purchases yet)
+                // Appointment-only client (no purchases yet)
                 byClientId.put(clientId, new ClientFollowupDto(
-                        clientId,
-                        v.getClient().getName(),
-                        v.getClient().getPhone(),
-                        null,
-                        0,
-                        BigDecimal.ZERO,
-                        nextVisit,
-                        daysUntil
+                        clientId, c.getName(), c.getPhone(),
+                        null, 0, BigDecimal.ZERO,
+                        apptDate, daysUntil
                 ));
             }
         }
 
-        // 3. Sort: overdue visit → today → upcoming visit → purchase-only (by days desc)
+        // 3. Sort: overdue → today → upcoming → purchase-only (by days desc)
         return byClientId.values().stream()
                 .sorted(Comparator
                         .comparingInt(ClientFollowupDto::signalPriority)
@@ -92,8 +122,7 @@ public class ClientCareService {
 
     @Transactional(readOnly = true)
     public ClientCareDashboardDto getDashboardData() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate today   = now.toLocalDate();
+        LocalDateTime now        = LocalDateTime.now();
 
         List<ClientFollowupDto> all = movementRepository.findClientSaleStats().stream()
                 .map(row -> toPurchaseDto(row, now))
@@ -101,10 +130,22 @@ public class ClientCareService {
 
         long totalClients = clientRepository.count();
 
-        // Visit signal counts (independent of purchase signals)
-        List<Visit> visits = visitRepository.findAllLatestWithNextVisitDate();
-        long overdueVisit  = visits.stream().filter(v -> v.getNextVisitDate().isBefore(today)).count();
-        long upcomingVisit = visits.stream().filter(v -> !v.getNextVisitDate().isBefore(today)).count();
+        // Appointment-based KPI counts (distinct clients with a signal)
+        Set<Long> upcomingClientIds = appointmentRepository
+                .findUpcomingForClients(now, UPCOMING_STATUSES)
+                .stream()
+                .filter(a -> a.getClient() != null)
+                .map(a -> a.getClient().getId())
+                .collect(Collectors.toSet());
+        Set<Long> overdueClientIds = appointmentRepository
+                .findOverdueForClients(now, KPI_OVERDUE_STATUSES)
+                .stream()
+                .filter(a -> a.getClient() != null)
+                .map(a -> a.getClient().getId())
+                .filter(id -> !upcomingClientIds.contains(id)) // upcoming supersedes overdue
+                .collect(Collectors.toSet());
+        long upcomingVisit = upcomingClientIds.size();
+        long overdueVisit  = overdueClientIds.size();
 
         if (all.isEmpty()) {
             return new ClientCareDashboardDto(totalClients, 0, 0, 0, 0, 0, 0, overdueVisit, upcomingVisit);

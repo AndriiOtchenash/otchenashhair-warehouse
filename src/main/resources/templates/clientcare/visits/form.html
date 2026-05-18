@@ -20,7 +20,7 @@
             </h1>
             <div class="text-muted" style="font-size:0.85rem;" th:text="${client.name}"></div>
         </div>
-        <a th:href="@{/clientcare/clients/{id}(id=${visit.clientId})}"
+        <a th:href="${returnTo != null ? returnTo : '/clientcare/clients/' + visit.clientId}"
            class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>
             <span th:text="#{btn.back}">Назад</span>
@@ -35,6 +35,7 @@
                   th:object="${visit}" method="post">
                 <input type="hidden" th:field="*{clientId}"/>
                 <input type="hidden" th:field="*{id}"/>
+                <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold" th:text="#{visit.form.visitDate}">Дата візиту</label>
@@ -64,24 +65,48 @@
                               th:placeholder="#{visit.form.recommendations.hint}"></textarea>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold" th:text="#{visit.form.nextVisitDate}">Наступний візит</label>
-                    <input type="date" class="form-control" th:field="*{nextVisitDate}"
-                           th:classappend="${#fields.hasErrors('nextVisitDate')} ? 'is-invalid'"
-                           th:min="${visit.visitDate != null ? #temporals.format(visit.visitDate, 'yyyy-MM-dd') : ''}"
-                           onclick="this.showPicker&&this.showPicker()"/>
-                    <div class="invalid-feedback" th:if="${#fields.hasErrors('nextVisitDate')}"
-                         th:errors="*{nextVisitDate}"></div>
-                </div>
-
                 <div class="mb-4">
                     <label class="form-label fw-semibold" th:text="#{visit.form.notes}">Нотатки</label>
                     <textarea class="form-control auto-resize" th:field="*{notes}"></textarea>
                 </div>
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
-                    <a th:href="@{/clientcare/clients/{id}(id=${visit.clientId})}"
+                <!-- Next appointment section -->
+                <div class="mb-4">
+                    <!-- No appointment scheduled — only for latest visit and no active appointment -->
+                    <div th:if="${visit.nextAppointmentId == null and isLatestVisit and !hasUpcomingAppointment}"
+                         class="alert alert-warning d-flex align-items-center justify-content-between gap-2 flex-wrap mb-0 py-2">
+                        <span class="small">
+                            <i class="bi bi-calendar-x me-1"></i>
+                            <span th:text="#{visit.nextAppointment.notScheduled}">Наступний візит не запланований</span>
+                        </span>
+                        <button type="submit" name="action" value="schedule"
+                                class="btn btn-warning btn-sm py-0 px-2"
+                                style="white-space:nowrap">
+                            <i class="bi bi-calendar-plus me-1"></i>
+                            <span th:text="#{visit.nextAppointment.schedule}">Запланувати →</span>
+                        </button>
+                    </div>
+                    <!-- Appointment scheduled -->
+                    <div th:if="${visit.nextAppointmentId != null}"
+                         class="alert alert-success d-flex align-items-center justify-content-between gap-2 flex-wrap mb-0 py-2">
+                        <span class="small">
+                            <i class="bi bi-calendar-check-fill me-1"></i>
+                            <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
+                            <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
+                        </span>
+                        <a th:href="@{/clientcare/appointments(date=${#temporals.format(visit.nextAppointmentStartAt, 'yyyy-MM-dd')})}"
+                           class="btn btn-outline-success btn-sm py-0 px-2"
+                           style="white-space:nowrap">
+                            <i class="bi bi-calendar3 me-1"></i>
+                            <span th:text="#{visit.nextAppointment.open}">Відкрити →</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="submit" name="action" value="save"
+                            class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
+                    <a th:href="${returnTo != null ? returnTo : '/clientcare/clients/' + visit.clientId}"
                        class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
                 </div>
             </form>
@@ -97,6 +122,7 @@
             ta.addEventListener('input', () => autoResize(ta));
             autoResize(ta);
         });
+
     </script>
 
 </div>

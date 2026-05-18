@@ -1,5 +1,6 @@
 package com.hairmony.warehouse.domain.visit;
 
+import com.hairmony.warehouse.domain.appointment.Appointment;
 import com.hairmony.warehouse.domain.client.Client;
 import jakarta.persistence.*;
 import lombok.*;
@@ -42,6 +43,10 @@ public class Visit {
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "next_appointment_id")
+    private Appointment nextAppointment;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

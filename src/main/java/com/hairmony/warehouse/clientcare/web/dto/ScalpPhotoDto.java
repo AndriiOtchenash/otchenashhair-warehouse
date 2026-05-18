@@ -1,10 +1,7 @@
 package com.hairmony.warehouse.clientcare.web.dto;
 
 import com.hairmony.warehouse.domain.scalp.ScalpZone;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -18,6 +15,7 @@ public class ScalpPhotoDto {
     private Long clientId;
 
     @NotBlank
+    @Size(max = 500, message = "{validation.size.max500}")
     @Pattern(
         regexp = "https?://(drive|docs|photos)\\.google\\.com/.*",
         message = "{scalp.photo.error.invalidUrl}"
@@ -32,5 +30,6 @@ public class ScalpPhotoDto {
     @NotNull
     private ScalpZone zone;
 
+    @Size(max = 1000, message = "{validation.size.max1000}")
     private String notes;
 }

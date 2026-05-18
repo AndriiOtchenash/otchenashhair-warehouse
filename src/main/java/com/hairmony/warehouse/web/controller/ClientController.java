@@ -1,5 +1,6 @@
 package com.hairmony.warehouse.web.controller;
 
+import com.hairmony.warehouse.clientcare.service.AppointmentService;
 import com.hairmony.warehouse.clientcare.service.ScalpPhotoService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.domain.stock.StockMovement;
@@ -30,10 +31,20 @@ public class ClientController {
     private final StockService stockService;
     private final ScalpPhotoService scalpPhotoService;
     private final VisitService visitService;
+    private final AppointmentService appointmentService;
     private final MessageSource messageSource;
 
     private boolean isClientCare(HttpServletRequest request) {
         return request.getRequestURI().startsWith("/clientcare");
+    }
+
+    private void addAppointmentBadgeAttrs(Long clientId, Model model) {
+        appointmentService.getNextUpcomingForClient(clientId)
+                .ifPresent(a -> model.addAttribute("nextAppointment", a));
+        if (!model.containsAttribute("nextAppointment")) {
+            appointmentService.getLatestOverdueForClient(clientId)
+                    .ifPresent(a -> model.addAttribute("overdueAppointment", a));
+        }
     }
 
     @GetMapping
@@ -41,6 +52,10 @@ public class ClientController {
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("newClient", new ClientDto());
         model.addAttribute("clientsWithMovements", clientService.getClientIdsWithMovements());
+        model.addAttribute("clientsWithUpcoming",
+                appointmentService.getClientIdsWithUpcomingAppointments(7));
+        model.addAttribute("clientsWithOverdue",
+                appointmentService.getClientIdsWithOverdueAppointments());
         return isClientCare(request) ? "clientcare/clients/list" : "clients/list";
     }
 
@@ -48,6 +63,7 @@ public class ClientController {
     public String detail(@PathVariable Long id, Model model,
                          @RequestParam(required = false) String from,
                          @RequestParam(required = false) Long productId,
+                         @RequestParam(required = false) String date,
                          HttpServletRequest request) {
         List<StockMovement> movements = stockService.getMovementsByClient(id);
         Set<Long> cancelledIds = stockService.getCancelledMovementIds(
@@ -61,16 +77,28 @@ public class ClientController {
         if (from != null) model.addAttribute("from", from);
         if (productId != null) model.addAttribute("productId", productId);
 
+        addAppointmentBadgeAttrs(id, model);
+
+        if ("appointments".equals(from)) {
+            String backUrl = "/clientcare/appointments" + (date != null ? "?date=" + date : "");
+            model.addAttribute("backUrl", backUrl);
+            model.addAttribute("editUrl", "/clientcare/clients/" + id + "/edit?returnTo=detail");
+            model.addAttribute("currentPageUrl", "/clientcare/clients/" + id + "?from=appointments" + (date != null ? "&date=" + date : ""));
+            model.addAttribute("appointmentsByDate", appointmentService.getAppointmentsByDateForClient(id));
+            return "clientcare/clients/detail";
+        }
         if ("clientcare".equals(from)) {
             model.addAttribute("backUrl", "/clientcare/followups");
             model.addAttribute("editUrl", "/clients/" + id + "/edit?returnTo=detail");
             model.addAttribute("currentPageUrl", "/clients/" + id + "?from=clientcare");
+            model.addAttribute("appointmentsByDate", appointmentService.getAppointmentsByDateForClient(id));
             return "clientcare/clients/detail";
         }
         if (isClientCare(request)) {
             model.addAttribute("backUrl", "/clientcare/clients");
             model.addAttribute("editUrl", "/clientcare/clients/" + id + "/edit?returnTo=detail");
             model.addAttribute("currentPageUrl", "/clientcare/clients/" + id);
+            model.addAttribute("appointmentsByDate", appointmentService.getAppointmentsByDateForClient(id));
             return "clientcare/clients/detail";
         }
         model.addAttribute("backUrl", "/clients");
@@ -141,6 +169,10 @@ public class ClientController {
         if (result.hasErrors()) {
             model.addAttribute("clients", clientService.findAll());
             model.addAttribute("clientsWithMovements", clientService.getClientIdsWithMovements());
+            model.addAttribute("clientsWithUpcoming",
+                    appointmentService.getClientIdsWithUpcomingAppointments(7));
+            model.addAttribute("clientsWithOverdue",
+                    appointmentService.getClientIdsWithOverdueAppointments());
             return isClientCare(request) ? "clientcare/clients/list" : "clients/list";
         }
         clientService.save(dto);

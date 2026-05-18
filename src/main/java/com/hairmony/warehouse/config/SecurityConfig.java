@@ -29,6 +29,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/logout", "/error").permitAll()
                         .requestMatchers("/favicon.svg", "/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
+                        .requestMatchers("/manifest.webmanifest", "/icons/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

@@ -169,7 +169,13 @@ public class ProductController {
 
     @PostMapping("/{id}/deactivate")
     public String deactivate(@PathVariable Long id,
-                             @RequestParam(required = false) String deactivationReason) {
+                             @RequestParam(required = false) String deactivationReason,
+                             org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        if (deactivationReason != null && deactivationReason.length() > 200) {
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Причина деактивації не може перевищувати 200 символів.");
+            return "redirect:/products";
+        }
         productService.deactivate(id, deactivationReason);
         return "redirect:/products";
     }

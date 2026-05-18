@@ -10,7 +10,7 @@
             <span class="text-muted small" th:text="#{visit.section.title}">Візити</span>
         </div>
         <div class="d-flex gap-2">
-            <a th:href="@{/clientcare/visits/new(clientId=${client.id})}"
+            <a th:href="@{/clientcare/visits/new(clientId=${client.id}, returnTo='/clientcare/clients/' + ${client.id} + '/visits')}"
                class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>
                 <span th:text="#{visit.add}">Додати візит</span>
@@ -29,7 +29,7 @@
     </div>
 
     <div th:unless="${visits.isEmpty()}" class="d-flex flex-column gap-3">
-        <div th:each="visit : ${visits}" class="card">
+        <div th:each="visit, visitStat : ${visits}" class="card">
             <div class="card-body py-2 px-3">
                 <div class="d-flex justify-content-between align-items-start gap-3">
                     <div style="min-width:0; flex:1">
@@ -55,15 +55,18 @@
                             <span class="fw-semibold fst-normal" th:text="#{visit.form.notes}">Нотатки</span>:
                             <span th:text="${visit.notes}"></span>
                         </div>
-                        <div th:if="${visit.nextVisitDate != null}"
-                             class="text-muted small mt-1">
-                            <i class="bi bi-calendar-check me-1"></i>
-                            <span th:text="#{visit.form.nextVisitDate}">Наступний</span>:
-                            <strong th:text="${#temporals.format(visit.nextVisitDate, 'dd.MM.yyyy')}"></strong>
+                        <div th:if="${visit.nextAppointmentId != null}" class="small mt-1 text-success">
+                            <i class="bi bi-calendar-check-fill me-1"></i>
+                            <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
+                            <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
+                        </div>
+                        <div th:if="${visit.nextAppointmentId == null and visitStat.first and !hasUpcomingAppointment}" class="small mt-1 text-warning">
+                            <i class="bi bi-calendar-x me-1"></i>
+                            <span th:text="#{visit.nextAppointment.notScheduled}">Не запланований</span>
                         </div>
                     </div>
                     <div class="d-flex gap-1 flex-shrink-0">
-                        <a th:href="@{/clientcare/visits/{id}/edit(id=${visit.id})}"
+                        <a th:href="@{/clientcare/visits/{id}/edit(id=${visit.id}, returnTo='/clientcare/clients/' + ${client.id} + '/visits')}"
                            class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-pencil"></i>
                         </a>
