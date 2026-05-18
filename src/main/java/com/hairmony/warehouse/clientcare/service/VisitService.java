@@ -77,6 +77,13 @@ public class VisitService {
         visit.setNextAppointment(appointment);
     }
 
+    /** Clears nextAppointment link from whichever visit points to this appointment (called on completion). */
+    @Transactional
+    public void unlinkCompletedAppointment(Long appointmentId) {
+        visitRepository.findByNextAppointmentId(appointmentId)
+                .ifPresent(v -> v.setNextAppointment(null));
+    }
+
     @Transactional
     public void delete(Long id) {
         visitRepository.deleteById(id);

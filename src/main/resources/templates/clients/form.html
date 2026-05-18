@@ -25,6 +25,8 @@
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <input th:if="${productId != null}" type="hidden" name="productId" th:value="${productId}"/>
                 <input th:if="${movementId != null}" type="hidden" name="movementId" th:value="${movementId}"/>
+                <input th:if="${movementType != null}" type="hidden" name="movementType" th:value="${movementType}"/>
+                <input th:if="${quantity != null}" type="hidden" name="quantity" th:value="${quantity}"/>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{client.form.name}">Ім'я</label>
