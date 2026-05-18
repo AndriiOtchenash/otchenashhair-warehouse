@@ -10,7 +10,7 @@ Spring Security, Lombok, DevTools, Spring Data JPA, JPA Specifications.
 ## Package: com.hairmony.warehouse
 
 ## Architecture
-domain/ — JPA entities (category, client, product, stock, supplier, user)
+domain/ — JPA entities (category, client, product, stock, supplier, user, visit, scalp, followup, appointment)
 repository/ — Spring Data JPA + JpaSpecificationExecutor for movements
 service/ — business logic (ProductService, StockService, ClientService,
            SupplierService, CategoryService, MovementHistoryService,
@@ -19,20 +19,71 @@ web/controller/ — MVC controllers (thin):
   DashboardController, ProductController, ClientController,
   SupplierController, CategoryController, StockController (income/expense/cancel),
   StockItemController (/stock/items/{id}/edit), MovementController (/movements/history),
-  ProfileController, LoginController, ReportController, AiController
+  ProfileController, LoginController, ReportController, AiController,
+  GlobalExceptionHandler (@ControllerAdvice)
 web/dto/ — form objects and filter DTOs
+web/validator/ — custom Bean Validation annotations (ValidDateRange + DateRangeValidator)
 web/interceptor/ — CurrentUriInterceptor
 web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-014)
+- ddl-auto=none, Liquibase manages schema (migrations 001-018)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
 - Credentials in application-dev.properties (gitignored)
 - spring.profiles.active=dev (via VM options in IDE: -Dspring.profiles.active=dev)
 - Production profile: application-prod.properties
+
+## Validation architecture (2026-05-17)
+All DTOs use Jakarta Bean Validation. Rules:
+
+**DTO-level constraints (fail fast):**
+- `@NotBlank` / `@NotNull` on required fields
+- `@Size(max=N)` on every String field — must match DB column length
+- `@DecimalMin` on all numeric fields (quantity > 0.001, price > 0, unitSize > 0.001, minStockLevel ≥ 0)
+- `@Pattern` on phone (digits/spaces/+/-/()) and URLs (Google Drive)
+- `@AssertTrue` for cross-field rules (e.g. isUnitPriceValidForSale, isEndAfterStart, isPasswordsMatch)
+- `@ValidDateRange(startField, endField)` — custom class-level annotation in `web/validator/`;
+  binds the error directly to the endField node for correct Thymeleaf `th:errors` display
+
+**Service-level guards (defense-in-depth):**
+- Stock availability (insufficientStock)
+- SALE price > 0 (redundant after DTO @AssertTrue, kept as defense-in-depth)
+- purchasePrice > 0 in updateStockItem (IllegalArgumentException)
+- movementType guard in registerExpense — blocks PURCHASE/CANCELLATION types
+- Movement cancellation guards (double-cancel, partially used batch)
+
+**Controller-level:**
+- `@Valid` on all @ModelAttribute DTO parameters
+- BindingResult always checked before service call
+- Open redirect protection: `returnTo` params validated via `safeRedirect()` —
+  only accepts `/[^/].*` pattern (blocks `//evil.com`, absolute URLs)
+- `deactivationReason` length check before service call (max 200 chars)
+- `@Validated` + `@Min(1) @Max(365)` on snooze `days` param in FollowUpActionController
+- `safeRedirect(returnTo, fallback)` applied in:
+  - FollowUpActionController — all POST methods (addNote, snooze, markDone, undoDone, returnToQueue)
+  - StockController.editMovement — after editing stock batch
+  - ClientController — after create/edit from context (returnTo=detail or returnTo=followups)
+  - Pattern: `^/[^/].*` — blocks `//evil.com`, `https://...`, relative `../`
+
+**StockItemController validation (added 2026-05-17):**
+- `updateStockItem()` validates purchasePrice > 0 before saving
+- Throws `IllegalArgumentException` if price <= 0 (defense-in-depth, DB will reject anyway)
+
+**Product deactivation validation:**
+- `deactivationReason` max length 200 characters (matches DB column VARCHAR(200))
+- Controller validates length before service call; service does NOT re-validate
+- If reason exceeds limit, user sees friendly error via flash message (not DB truncation exception)
+
+**GlobalExceptionHandler (@ControllerAdvice):**
+- `EntityNotFoundException` → redirect "/" with errorMessage flash
+- `DataIntegrityViolationException` → redirect "/" with user-friendly message (covers DB truncation, unique violation)
+- `ConstraintViolationException` → redirect "/" with violation message (from @Validated @RequestParam)
+- `MethodArgumentTypeMismatchException` → redirect "/" with param name
+
+**Flash messages:** always resolved via `messageSource.getMessage(...)` — no hardcoded strings in controllers.
 
 ## DB
 Local: hairmony_dev, user: warehouse_user
@@ -44,7 +95,12 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             011-add-writeoff-reason (adds write_off_reason VARCHAR(30) on stock_movements),
             012-create-scalp-photos (scalp_photos table + index on client_id),
             013-create-visits (visits table + index on client_id),
-            014-add-client-drive-folder (drive_folder_url + drive_folder_id columns on clients)
+            014-add-client-drive-folder (drive_folder_url + drive_folder_id columns on clients),
+            015-create-follow-ups (follow_ups table),
+            016-add-product-deactivation (deactivated_at + deactivation_reason on products),
+            017-create-appointments (appointments table + indexes on start_at and client_id;
+              CHECK constraint: client_id IS NOT NULL OR NULLIF(TRIM(guest_name), '') IS NOT NULL),
+            018-add-next-appointment-to-visits (next_appointment_id BIGINT FK on visits → appointments ON DELETE SET NULL)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -79,7 +135,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   available qty shown + enforced as max, barcode scanner input,
   quantity step auto-set by unit; insufficient stock error via i18n MessageSource;
   "Створити нового клієнта →" link pre-selects new client on return;
-  sale price validation: unitPrice required and > 0 for SALE (server-side guard);
+  sale price validation: unitPrice required and > 0 for SALE — both DTO @AssertTrue and service guard;
+  writeOffReason required for WRITE_OFF — DTO @AssertTrue;
   below-cost warning: JS inline alert-warning when unitPrice < FIFO purchase price,
   confirm() on submit (data-fifo-price on product options via StockItemRepository.findFifoPricePerProduct());
   write-off reason selector (WriteOffReason enum): GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER,
@@ -123,13 +180,16 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   configurable expiry alert window;
   desktop layout: 2-col pairs use align-items-start (no height stretching);
   table styles: .table th font-size 0.72rem, mobile 0.68rem/0.8rem, table-striped on all tables
-- i18n: uk (primary), pl, en; all UI strings via #{} — no hardcoded text in templates
+- i18n: uk (primary), pl, en; all UI strings via #{} — no hardcoded text in templates;
+  all validation messages in messages.properties / messages_uk.properties / messages_pl.properties
+  under keys: validation.quantity.positive, validation.price.positive, validation.size.maxN, etc.
 - QuantityFormatter (@qf bean) — integers for PCS, decimals for ML/G
 - CurrentUriInterceptor — active nav highlighting
 - Language switcher preserves URL params via JS switchLang()
 - Spring Security with DB authentication (users table)
 - Login page with show/hide password
-- Change password page (/profile/change-password)
+- Change password page (/profile/change-password) — DTO validates @Size(min=6,max=72)
+  and @AssertTrue isPasswordsMatch(); service validates current password; flash messages via MessageSource
 - Logout in sidebar
 - Mobile responsive layout with burger menu and topbar;
   secondary table columns hidden on mobile via d-none d-md-table-cell
@@ -141,6 +201,14 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   form pages (/movements/income/expense) on desktop (Bootstrap d-none/d-flex split);
   dashboard mobile buttons: both btn-outline-secondary, green icon (income) / red icon (expense)
 - DevTools enabled (dev profile only)
+- Minimal PWA support: manifest.webmanifest, theme-color, apple-touch-icon meta tags in both layouts;
+  SecurityConfig permits /manifest.webmanifest and /icons/**;
+  generate-icons.html utility at project root — open in browser to generate icon-192.png + icon-512.png
+  from favicon SVG; no service worker (offline/push not needed in MVP)
+- Product deactivation audit: deactivated_at + deactivation_reason fields (migration 016);
+  Bootstrap modal with optional reason textarea replaces native confirm(); deactivated products shown
+  with table-secondary row + strikethrough name; detail page shows alert-warning banner with date+reason;
+  income/expense buttons hidden for inactive products; showInactive=true preserved in Back button URL
 - AI Assistant page (/ai) — chat widget backed by Google Gemini 2.5 Flash
   (v1beta endpoint); builds warehouse context (stock levels + last 30-day
   movements) and calls Gemini via RestClient (no extra deps); response
@@ -161,7 +229,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   related page GET accepts entityId param and pre-fills DTO;
   form page shows "Створити новий X →" link under the select with color:var(--accent)
 - Flash messages: successMessage (alert-success) and errorMessage (alert-danger),
-  rendered inline in each template (not in layout); dismissible
+  rendered inline in each template (not in layout); dismissible;
+  always resolved through messageSource.getMessage() — no hardcoded strings in controllers
 - Informative success messages include entity name in quotes using {0} MessageFormat param
 - Bootstrap Tooltip cannot coexist with data-bs-toggle="modal" on same element —
   use native title attribute instead (browser tooltip still shows)
@@ -173,6 +242,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   editForm GET reads it and passes to model (hidden input in form);
   update POST reads returnTo and redirects to /entity/{id} if "detail", else list;
   Back/Cancel in form template handle returnTo=detail → /entity/{id}
+- returnTo redirect safety: all `return "redirect:" + returnTo` must use safeRedirect() pattern —
+  accepts only `/[^/].*` (blocks protocol-relative `//host` and absolute URLs)
 - Detail pages layout: info strip (d-flex flex-wrap gap-4) above history table,
   phone/contact in page header subtitle, no duplicate data
 - Product detail page exception: desktop uses info strip (d-none d-md-block) + full-width tables;
@@ -211,7 +282,11 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   across all three detail pages — no hardcoded text
 
 ## Stock expense validation
-- unitPrice required and > 0 for SALE — service throws IllegalStateException (stock.expense.salePriceRequired)
+- unitPrice required and > 0 for SALE — validated in StockExpenseDto via @AssertTrue isUnitPriceValidForSale()
+  AND service guard (defense-in-depth); message key: stock.expense.salePriceRequired
+- writeOffReason required for WRITE_OFF — validated in StockExpenseDto via @AssertTrue isWriteOffReasonRequired()
+  message key: stock.expense.writeOffReasonRequired
+- movementType PURCHASE and CANCELLATION blocked in StockService.registerExpense() — cannot be submitted via expense form
 - Below-cost warning (not a hard block): JS compares unitPrice with data-fifo-price on product option;
   shows inline alert-warning; confirm() on submit if below cost
 - data-fifo-price populated from StockItemRepository.findFifoPricePerProduct() —
@@ -274,7 +349,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - DB-based authentication via UserDetailsServiceImpl
 - BCrypt password encoding
 - All routes protected except /login, /logout, static resources (/favicon.svg, /css/**, /js/**, /images/**, /webjars/**)
+- `/error` in permitAll — correct error page instead of redirect loop
 - Default user: admin (change password after first login)
+- Open redirect protection on all `returnTo` params: `safeRedirect()` accepts only `/[^/].*`
 
 ## Deploy
 - Production: https://otchenashhair-warehouse.fly.dev/
@@ -312,6 +389,7 @@ com.hairmony.warehouse/
   domain/           ← SHARED (entities, repos — unchanged)
   repository/       ← SHARED (unchanged)
   config/           ← SHARED (unchanged)
+  web/validator/    ← custom Bean Validation (ValidDateRange, DateRangeValidator)
   warehouse/        ← existing controllers/services stay here
     web/controller/
     service/
@@ -324,11 +402,12 @@ com.hairmony.warehouse/
 
 ### Layout and navigation
 - `layout/main.html` — warehouse layout + module switcher pills in topbar
-- `layout/clientcare.html` — ClientCare layout with sidebar: Огляд / Клієнти / Follow-up черга
+- `layout/clientcare.html` — ClientCare layout with sidebar: Огляд / Клієнти / Follow-up черга / Календар
 - `CurrentUriInterceptor` — adds `activeModule` (warehouse/clientcare) and `currentUri` to model
 - Mobile topbar: `[≡] OtchenashHair  [Склад] [ClientCare]` (pill switcher, active = accent color)
 - Desktop: module switcher at top of sidebar
-- ClientCare sidebar nav items: `bi-grid` Огляд→`/clientcare`, `bi-people` Клієнти→`/clientcare/clients`, `bi-list-check` Follow-up→`/clientcare/followups`
+- ClientCare sidebar nav items: `bi-grid` Огляд→`/clientcare`, `bi-people` Клієнти→`/clientcare/clients`,
+  `bi-list-check` Follow-up→`/clientcare/followups`, `bi-calendar3` Календар→`/clientcare/appointments`
 
 ### ClientCare — what's done
 
@@ -403,13 +482,12 @@ Entity stack: `domain/scalp/ScalpZone.java` (enum), `domain/scalp/ScalpPhoto.jav
 `repository/ScalpPhotoRepository.java` (findAllByClientIdOrderByTakenAtDescCreatedAtDesc),
 `clientcare/service/ScalpPhotoService.java` (save with driveFileId regex extraction; delete with ownership guard; findById + update for edit),
 `clientcare/web/controller/ScalpPhotoController.java` (GET/POST /clientcare/photos/new, GET/POST /clientcare/photos/{id}/edit, POST /clientcare/photos/{id}/delete, GET /clientcare/clients/{clientId}/photos),
-`clientcare/web/dto/ScalpPhotoDto.java` (`@Pattern` + `@PastOrPresent` + `@DateTimeFormat(ISO.DATE)` on takenAt).
+`clientcare/web/dto/ScalpPhotoDto.java` (`@Pattern` + `@PastOrPresent` + `@Size(max=500)` on driveUrl + `@DateTimeFormat(ISO.DATE)` on takenAt).
 
 Gallery page `/clientcare/clients/{clientId}/photos` — zone filter pills, CSS grid (`minmax(200px,1fr)`), Drive thumbnail (`sz=w400`), pencil edit + delete per tile.
 `returnTo=${currentPageUrl}` passed from "Всі фото" link → gallery Back button returns to correct context (warehouse or clientcare).
 
 Liquibase migration 012 — `scalp_photos` table + index on client_id.
-DB: `001–013` migrations total.
 
 **`/clientcare/clients` — ClientCare master client list (2026-05-13)**
 
@@ -432,15 +510,13 @@ Both `clients/detail.html` and `clientcare/clients/detail.html` are thin wrapper
 | warehouse | `/clients` | `/clients/{id}/edit?returnTo=detail` | `/clients/{id}` |
 | `from=clientcare` (followups) | `/clientcare/followups` | `/clients/{id}/edit?returnTo=detail` | `/clients/{id}?from=clientcare` |
 | `/clientcare/clients/{id}` | `/clientcare/clients` | `/clientcare/clients/{id}/edit?returnTo=detail` | `/clientcare/clients/{id}` |
+| `from=appointments` | `/clientcare/appointments?date=...` | `/clientcare/clients/{id}/edit?returnTo=detail` | `/clientcare/clients/{id}?from=appointments&date=...` |
 
 "Додати фото" button lives in the "Фото шкіри голови" card header (not page header).
 
 ### ClientCare — roadmap
 
 **Wave 2a — DONE — Scalp Photos + Client list + Shared detail fragment**
-`ScalpPhoto` entity, Google Drive links, gallery in shared client detail fragment.
-`/clientcare/clients` master client list. One `ClientController` handles both modules via dual mapping.
-Shared `fragments/client-detail.html` — single source of client detail content for both layouts.
 
 **Wave 2b — Google Drive direct upload — CANCELLED**
 Decided not to implement. Photos are stored and viewed directly in Google Drive; app does not display or upload photos.
@@ -456,8 +532,9 @@ Activity count badge on log button (server-side + JS dynamic sync).
 `Visit` entity: id, client_id, visit_date, complaint, scalp_condition, recommendations, next_visit_date, notes, created_at.
 Migration 013 — `visits` table + index on client_id.
 `domain/visit/Visit.java`, `repository/VisitRepository.java`, `clientcare/service/VisitService.java` (JPA, dirty-checking for updates).
-`VisitController` at `/clientcare/visits` — CRUD with cross-field validation (nextVisitDate ≥ visitDate, server-side + `th:min` client-side).
-`VisitDto` — `@DateTimeFormat(ISO.DATE)` on visitDate + nextVisitDate (required for `<input type="date">` binding in edit mode).
+`VisitController` at `/clientcare/visits` — CRUD; `nextVisitDate` field removed from form (stays in DB for legacy data).
+`VisitDto` — `@DateTimeFormat(ISO.DATE)` on visitDate; `@Size(max=2000)` on all textarea fields.
+`@ValidDateRange` and `VisitController.validateNextVisitDate()` removed — no longer needed since `nextVisitDate` not submitted from form.
 Visit form — all textarea fields auto-resize (JS `scrollHeight`), uniform min-height.
 Visits visible in both warehouse and clientcare client detail (shared fragment, no condition).
 Card shows: date, скарга, стан, Рекомендації: ..., Нотатки: ..., наступний візит. Sorted by visitDate desc.
@@ -474,7 +551,7 @@ UI in shared client detail fragment — "Папка Google Drive" card:
 - Linked: "Підключена" badge + "Відкрити папку" (opens Drive in new tab) + pencil edit + × remove
 
 Controllers: `DriveFolderController` — GET/POST `/clientcare/clients/{id}/drive-folder/edit`, POST `/clientcare/clients/{id}/drive-folder/remove`
-Form: `drive-folder-form.html`, DTO: `DriveFolderDto`
+Form: `drive-folder-form.html`, DTO: `DriveFolderDto` (`@NotNull clientId`, `@NotBlank @Size(max=500) @Pattern` on driveFolderUrl)
 No Drive API, no Service Account — purely URL storage.
 
 **Wave 3b-2 — Google Drive virtual gallery — CANCELLED**
@@ -483,6 +560,56 @@ Decided not to implement. Photos are viewed directly in Google Drive via "Від
 **Wave 4 — Protocol entity**
 `Protocol` (id, name, products, durationDays)
 
+**Wave 5 — Appointment Calendar — DONE (2026-05-17, migration 017)**
+(see full spec in ClientCare — technical notes below)
+
+`Appointment` entity: id, client_id (nullable), guest_name, guest_phone, start_at, end_at,
+status (PLANNED/CONFIRMED/COMPLETED/CANCELLED/NO_SHOW), appointment_type, notes, created_at, updated_at.
+DB CHECK constraint: `client_id IS NOT NULL OR NULLIF(TRIM(guest_name), '') IS NOT NULL`.
+Business logic in service layer ensures either client or guest info is provided.
+
+`AppointmentDto`:
+- `@AssertTrue isClientOrGuestPresent()` — existing client or guest name required
+- `@AssertTrue isEndAfterStart()` — endAt must be after startAt (replaces controller-level check)
+- `@Size(max=150)` guestName, `@Size(max=50)` guestPhone, `@Size(max=2000)` notes
+- `@DateTimeFormat(ISO.DATE_TIME)` on startAt/endAt for correct binding with datetime-local input
+
+`AppointmentController` at `/clientcare/appointments`:
+- `GET /` — day view with date param (defaults to today)
+- `GET /` accepts `@RequestParam @DateTimeFormat(iso=ISO.DATE) LocalDate date` (auto-validated)
+- Past appointment validation: cannot create/edit appointment with startAt < now() - 5 minutes
+- `GET/POST /new` — create form; accepts `linkVisitId` param; after save calls `visitService.linkAppointment()` if set; respects `returnTo`
+- `GET/POST /{id}/edit` — edit form; `editForm()` passes `formDate` to model; accepts/respects `returnTo`
+- `POST /{id}/delete`
+- `POST /{id}/status` — status transitions
+- `@DateTimeFormat(iso=DATE)` on date params; `parseStartTime()` with silent fallback
+
+`AppointmentService` — CRUD + `getDayAppointments(date)` + `changeStatus(id, status)` + `getAppointmentsByDateForClient(clientId)`.
+`AppointmentService.save()` returns `Long` (saved appointment ID) — needed for `linkAppointment()` call.
+
+Calendar form shows ALL validation errors in unified `<ul>` via `#fields.allErrors()` — works with both field and @AssertTrue errors.
+
+Calendar `/clientcare/appointments` — FullCalendar v6 (CDN), day/week/month views with view switcher in toolbar.
+Drag-and-drop and resize: `POST /{id}/reschedule?start=...&end=...` — only PLANNED/CONFIRMED events are draggable (editable:false for others).
+Click event → edit form. Click empty slot → new appointment form (preserves link-visit context params).
+`GET /clientcare/appointments/api?start=...&end=...` — JSON event feed; strips timezone suffix from params for robust LocalDateTime parsing.
+`toCalendarEvent()` in controller: builds FC event JSON with id/title/start/end/backgroundColor/borderColor/editable/extendedProps(status,clientId,phone,editUrl).
+Status colors: PLANNED=#0d6efd, CONFIRMED=#4a7c59(accent), COMPLETED=#adb5bd, CANCELLED=#dc3545, NO_SHOW=#fd7e14.
+View preference persisted in `localStorage('fcView')`; defaults to `timeGridDay` on mobile, `timeGridWeek` on desktop.
+Locale: Spring `#locale.language` mapped to FullCalendar locale (uk/pl/en); `@fullcalendar/core locales-all.global.min.js` loaded from CDN.
+CSRF: reschedule POST sends token as request param (same as form submissions).
+ClientController.detail() loads `appointmentsByDate` for clientcare/appointments context (`from=appointments`).
+
+**Wave 5b — Calendar-based time selection from visit card — DONE (2026-05-18)**
+"Запланувати →" → calendar → click slot → appointment form pre-filled with time, clientId, linkVisitId, returnTo.
+"Переглянути календар →" button shown when `linkVisitId != null or clientLocked eq true`.
+
+**Wave 6 — Appointment completion flow — DONE (2026-05-18)**
+"Завершити прийом →" on edit page → COMPLETED + redirect to visit form.
+Overdue: amber banner + "Прийшов" / "Не прийшов" buttons.
+NO_SHOW: redirect to edit page with action panel ("Черга follow-up" / "Записати повторно").
+See full spec in TODO → Wave 6 section.
+
 ---
 
 ## ClientCare — technical notes
@@ -490,7 +617,6 @@ Decided not to implement. Photos are viewed directly in Google Drive via "Від
 ### Scalp Photos (Wave 2a — DONE)
 - `driveUrl` is the source of truth; `driveFileId` nullable (best-effort regex extract)
 - No Google API, no OAuth — Wave 2a is manual link mode only
-- Wave 2b: Service Account upload — see roadmap above
 - `ScalpPhotoService` in `clientcare/service/`; controller at `ScalpPhotoController` (no class-level @RequestMapping, full paths per method)
 - Gallery page at `/clientcare/clients/{clientId}/photos` — zone filter pills, CSS grid, thumbnail preview via `drive.google.com/thumbnail?id={fileId}&sz=w400`; "Відкрити фото" button removed (tapping tile opens Drive directly)
 - Gallery Back button uses `returnTo` param (passed from "Всі фото" link as `currentPageUrl`) — returns to correct context (warehouse `/clients/{id}` or clientcare `/clientcare/clients/{id}`)
@@ -500,15 +626,45 @@ Decided not to implement. Photos are viewed directly in Google Drive via "Від
 - "Додати фото" button lives in the "Фото шкіри голови" card-header
 - `ScalpPhotoDto` — `@DateTimeFormat(ISO.DATE)` on `takenAt` (required for edit form date binding)
 
-### Visits (Wave 3 — DONE)
+### Visits (Wave 3 — DONE, updated 2026-05-17)
 - `VisitService` fully JPA-based; update uses dirty checking (no explicit save)
 - `@DateTimeFormat(ISO.DATE)` mandatory on all `LocalDate` DTO fields for `<input type="date">` edit binding
-- Cross-field validation: `nextVisitDate >= visitDate` — validated in controller (`validateNextVisitDate()` private method), `th:min` on input for client-side guard
-- `@FutureOrPresent` intentionally omitted from `nextVisitDate` — would block editing old visits where next date already passed
+- `VisitController.validateNextVisitDate()` removed — cross-field validation was in DTO; `nextVisitDate` field removed from form entirely (field stays in DB for legacy data)
+- `@ValidDateRange` annotation removed from `VisitDto` — no longer needed since `nextVisitDate` not submitted from form
 - Auto-resize textareas: `resize:none; overflow:hidden; min-height:2.6rem` + JS `scrollHeight` on `input` event + on page load
+- `VisitService.save()` returns `Long` (saved visit ID) — needed for action=schedule redirect
+- `returnTo` support: GET/POST /new and /{id}/edit accept `returnTo` param; form passes it as hidden input; `safeRedirect()` used in controller
+- Visit edit links in `clients/visits.html` pass `returnTo=/clientcare/clients/{id}/visits` so Back navigates to visits list
+
+**Visit → Appointment link (migration 018, 2026-05-17):**
+`visits.next_appointment_id BIGINT FK → appointments(id) ON DELETE SET NULL` — links a visit to its planned next appointment.
+
+`VisitDto` fields added: `nextAppointmentId` (Long), `nextAppointmentStartAt` (LocalDateTime) — read-only, populated from `Visit.nextAppointment`.
+
+`VisitService.linkAppointment(visitId, appointmentId)` — sets `visit.nextAppointment` via dirty checking; called by `AppointmentController` after saving new appointment when `linkVisitId` param is present.
+
+**Visit form appointment status section:**
+- Replaces old `nextVisitDate` date picker
+- No appointment: amber alert "Наступний візит не запланований" + "Запланувати →" button (action=schedule)
+- Appointment exists: green alert "Наступний запис: DD.MM.YYYY о HH:mm" + "Відкрити →" link to calendar day
+
+**action=schedule flow:**
+1. User clicks "Запланувати →" in visit form → POST with `action=schedule`
+2. `VisitController` saves visit (or updates), gets `visitId`
+3. Redirects to `/clientcare/appointments/new?clientId=X&linkVisitId={visitId}&returnTo=/clientcare/visits/{visitId}/edit`
+4. User creates appointment; `AppointmentController.save()` detects `linkVisitId` → calls `visitService.linkAppointment()`
+5. Redirects to `returnTo` (visit edit form), which now shows green appointment status
+
+**visit card in client-detail / visits list:**
+- Shows green "Наступний запис: дата о час" when `nextAppointmentId != null`
+- Shows amber "Не запланований" + "Запланувати →" link when null; link: `/clientcare/appointments/new?clientId=X&linkVisitId=Y&returnTo={currentPageUrl}`
+
+**AppointmentController /{id}/edit (fixed 2026-05-17):**
+- `editForm()` now accepts `returnTo`, passes `formDate` to model (was missing — Cancel button navigated to root `/`)
+- POST `/{id}/edit` accepts `returnTo`, redirects there after successful update
 
 ### FollowUp queue (Wave 2c — DONE)
-- `FollowUp` entity: id, client_id, action (DONE/SNOOZE/NOTE), dueDate (nullable), note, createdAt
+- `FollowUp` entity: id, client_id, action (DONE/SNOOZE/NOTE), dueDate (nullable), note VARCHAR(500), createdAt
 - No status field — state derived from latest record per client: `isActiveSnoozed()` = SNOOZE + dueDate > today; `isRecentlyDone()` = DONE + dueDate > today
 - `returnToQueue()` bulk-deletes all SNOOZE+DONE with future dueDate (not just latest) via `@Modifying @Query`
 - Activity count badge: `FollowUpRepository.countPerClient()` one query for all clients; `FollowUpService.getActivityCountsPerClient()` → `Map<Long, Integer>`; badge has `data-activity-badge="{clientId}"` for JS sync
@@ -516,19 +672,31 @@ Decided not to implement. Photos are viewed directly in Google Drive via "Від
 - "Видалити всі записи" always does page reload after success (DONE/SNOOZE records deleted → client position changes)
 - Thymeleaf 3.1 blocks string expressions in `th:onclick` — use `th:data-*` + `onclick="fn(this.dataset.field)"`
 - Two-filter system: `minDays` (purchase) AND `visitFilter` (visit) are independent; each pill href preserves the other param; controller applies AND logic
-- Visit signals: `VisitRepository.findAllLatestWithNextVisitDate()` loads all clients with any nextVisitDate (no threshold)
+- Visit signals replaced by appointment signals: `ClientCareService` now uses `AppointmentRepository` instead of `VisitRepository` for followup queue — `visits.next_visit_date` field no longer drives the queue
+- FollowUpActionController: `@Validated` on class; `@Min(1) @Max(365)` on snooze `days`; `@Size(max=500)` on note/text;
+  all `returnTo` params validated via `safeRedirect()` helper
+
+**Note:** All FollowUpActionController POST endpoints use `safeRedirect(returnTo, "/clientcare/followups")` —
+returnTo must start with `/` and NOT be protocol-relative (`//evil.com` blocked).
 
 ### Google Drive folder (Wave 3b — DONE)
 - No Drive API, no Service Account — purely URL storage per client
 - `Client` has `driveFolderUrl` (source of truth) and `driveFolderId` (nullable regex extract)
-- `DriveFolderController`: GET/POST edit form, POST remove; validation via `@Pattern` on `DriveFolderDto`
+- `DriveFolderController`: GET/POST edit form, POST remove; validation via `@Pattern` + `@Size(max=500)` + `@NotNull clientId` on `DriveFolderDto`
 - "Відкрити папку" opens `client.driveFolderUrl` in browser (`target="_blank"`)
 - Card visible in shared `fragments/client-detail.html` for both warehouse and clientcare contexts
 
 ### Security
 - `/error` added to Security permitAll — always show real error page instead of redirect loop
+- `GlobalExceptionHandler` catches `EntityNotFoundException`, `DataIntegrityViolationException`,
+  `ConstraintViolationException`, `MethodArgumentTypeMismatchException` — redirects with flash errorMessage
+  - Handles DB truncation errors (DataIntegrityViolationException) gracefully with user-friendly message
+  - Prevents white-label error pages for common validation failures
+- `@ControllerAdvice` also logs all exceptions at WARN level with context (no sensitive data)
+- `ConstraintViolationException` covers `@Validated @RequestParam` failures (e.g., snooze days out of range)
+- Open redirect: `safeRedirect(returnTo, fallback)` — accepts only `/[^/].*` regex
 
-### Event architecture (future, Wave 2+)
+### Event architecture (future, after Wave 6)
 Domain events (published AFTER_COMMIT):
 - `SaleCompletedEvent` → `FollowupService.analyzeAfterSale()`
 - `PurchaseCompletedEvent`
@@ -549,6 +717,98 @@ Rules:
 - Wave 3b — DONE — Google Drive folder link per client: migration 014, fields on Client, DriveFolderController, "Відкрити папку" button in shared client detail fragment
 - Wave 3b-2 — CANCELLED — virtual gallery not needed
 - Wave 4 — Protocol entity — treatment type → recommended product list
+- Wave 5 — DONE — Appointment Calendar: migration 017, AppointmentController, AppointmentService, AppointmentDto, day view
+  (see details in "Appointment Calendar" section above — NOT in TODO)
+- Wave 5b — Calendar-based time selection from client detail visit card — DONE (2026-05-18)
+- Wave 6 — Appointment completion flow — DONE (2026-05-18)
+
+**Note:** Wave 5 spec was moved to main "What's done" section. TODO reflects only remaining work.
+
+---
+
+### Wave 6 — Appointment completion flow — DONE (2026-05-18)
+
+**Problem:** There is no Appointment → Visit link. Current link is one-directional: Visit → Appointment (via `next_appointment_id`).
+When a client arrives and the appointment is completed, the user has no guided path to record what happened (visit protocol).
+
+**Gap in current flow:**
+- Appointment status can be changed to COMPLETED via status buttons in the calendar
+- But there is no prompt to create a Visit record for that session
+- User must manually navigate to `/clientcare/visits/new?clientId=X` — not intuitive
+
+**Options discussed:**
+- **Variant A (MVP, preferred):** Add "Завершити прийом" button on the appointment edit/view page.
+  Click → sets status=COMPLETED + redirects to visit form with `clientId` and `visitDate=today` pre-filled.
+  After saving the visit → return to calendar. No schema change needed.
+- **Variant B:** Bidirectional link — add `appointment_id FK` on visits table (migration required).
+  Enables: from completed appointment → see its protocol; from visit → see the source appointment.
+  Required if scalp photos must be linked to a specific appointment, not just a client.
+- **Variant C:** Inline quick-notes form on status change to COMPLETED — more invasive, skipped for now.
+
+**Decisions (2026-05-18):**
+1. Single user — form must be as fast as possible, minimal clicks
+2. Stock write-offs are NOT linked to visits — managed separately via /movements/expense
+3. Scalp photos linked to client only, not to visit/appointment — no bidirectional FK needed
+
+**Implementation: Variant A. No schema change.**
+- "Завершити прийом і записати протокол →" button on appointment edit page (shown when status = PLANNED or CONFIRMED and client is linked, not a guest)
+- `canComplete` boolean set in `AppointmentController.editForm()`, passed to model
+- Button is a separate `<form>` with `POST /{id}/complete` action (outside the main appointment form)
+- `AppointmentController.complete()`: changes status → COMPLETED, redirects to `/clientcare/visits/new?clientId=X&returnTo=/clientcare/appointments?date=YYYY-MM-DD`
+- Visit form pre-fills clientId and visitDate=today (existing behavior)
+- After saving the visit → return to calendar day (via returnTo)
+- Variant B (appointment_id FK on visits) — NOT needed given current requirements
+
+**Overdue appointment UX (2026-05-18):**
+- `isOverdue` boolean = `canComplete && startAt < now`; passed to model in `editForm()`
+- When overdue: amber banner "Час прийому минув" + two buttons replace the single complete button:
+  - "Прийшов — записати протокол" → `POST /{id}/complete` (same flow)
+  - "Не прийшов" → `POST /{id}/status?status=NO_SHOW`
+- When `canComplete and !isOverdue`: regular single "Завершити прийом →" button shown
+
+**NO_SHOW post-action flow (2026-05-18):**
+- `POST /{id}/status?status=NO_SHOW` redirects to `GET /{id}/edit` (not to calendar)
+- Edit page detects `isNoShow` = `status == NO_SHOW && clientId != null`; shows action panel:
+  - Gray alert "Клієнт не прийшов / Зв'яжіться та запропонуйте новий час"
+  - "Черга follow-up" → `/clientcare/followups?visitFilter=overdue`
+  - "Записати повторно" → `/clientcare/appointments/new?clientId=X`
+- Client stays in follow-up queue (FOLLOWUP_OVERDUE_STATUSES includes NO_SHOW)
+
+**KPI status sets split (2026-05-18):**
+- `ClientCareService` now has two overdue constants:
+  - `FOLLOWUP_OVERDUE_STATUSES = [PLANNED, CONFIRMED, NO_SHOW]` — follow-up queue signal (NO_SHOW = needs contact)
+  - `KPI_OVERDUE_STATUSES = [PLANNED, CONFIRMED]` — dashboard "Пропущені записи" card (NO_SHOW already handled)
+- Dashboard "Пропущені записи" count drops to 0 after NO_SHOW (user already acted)
+- Follow-up queue still shows NO_SHOW clients as overdue signal
+
+**Drag-and-drop past prevention (2026-05-18):**
+- `day.html`: `eventAllow: (dropInfo) => dropInfo.start >= new Date()` — blocks drag to past client-side
+- `AppointmentService.reschedule()`: server-side guard — throws if `newStart < now - 5min`
+
+**Follow-up overdue/upcoming fix (2026-05-18):**
+- `ClientCareService` now uses `now` (not `todayStart`) as the boundary for upcoming vs. overdue
+- Appointments earlier today that have already passed are correctly counted as overdue
+- Applied in both `getFollowupQueue()` and `getDashboardData()`
+
+**"Переглянути календар" button fix (2026-05-18):**
+- Condition changed from `th:if="${linkVisitId != null}"` to `th:if="${linkVisitId != null or clientLocked eq true}"`
+- Button now persists even when `linkVisitId` is lost from URL after calendar round-trip (client still pre-selected)
+- `eq true` handles null `clientLocked` gracefully (SpEL `or` with null throws)
+
+**Dashboard KPI labels (2026-05-18):**
+- Section label "Візити" → "Записи" (uk), "Wizyty / Zapisy" (pl), "Appointments" (en)
+- Cards: "Пропущені візити" → "Пропущені записи", "Заплановані візити" → "Заплановані записи"
+
+---
+
+### Wave 5b — Calendar-based time selection from client detail visit card — DONE (2026-05-18)
+
+**Flow:** "Запланувати →" on visit card → appointment form → "Переглянути календар →" → day calendar → click slot → form pre-filled with time, clientId, linkVisitId, returnTo preserved throughout.
+
+**Implementation:**
+- `AppointmentController.dayView()` — accepts optional `clientId`, `linkVisitId`, `returnTo`; adds to model as `calClientId`, `calLinkVisitId`, `calReturnTo`
+- `appointments/day.html` — prev/next nav links and FAB use `@{...}` with null-safe params (Thymeleaf omits null); JS inline vars `CAL_CLIENT_ID/CAL_LINK_VISIT/CAL_RETURN_TO`; click-to-create handler appends params to URL via `encodeURIComponent`
+- `appointments/form.html` — "Переглянути календар →" button shown when `linkVisitId != null or clientLocked eq true`; `updateCalendarBrowseLink()` builds URL from `startDate` input + clientId select/hidden + BROWSE_LINK_VISIT/BROWSE_RETURN_TO inline vars; called on page load, on date change, on client change
 
 ### Warehouse features
 - Low stock email notifications — daily digest when items drop below minStockLevel;
@@ -557,7 +817,11 @@ Rules:
 - Inventory count / stock-take — formal workflow: enter physical counts per product,
   system auto-generates ADJUSTMENT movements for the differences
 - User roles (ADMIN/OPERATOR) — Role entity already exists; @PreAuthorize on
-  delete/cancel/deactivate endpoints to restrict to ADMIN only
+  delete/cancel/deactivate endpoints to restrict to ADMIN only;
+  IDOR protection needed when roles are introduced:
+  - DriveFolderController — verify operator can only edit clients they own
+  - ScalpPhotoController — verify photo belongs to client accessible by operator
+  - Implementation pattern TBD when roles are designed (service-layer ownership check recommended)
 - Print barcode labels — printable label with product name + barcode from product detail page
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
@@ -567,9 +831,10 @@ Rules:
 - Swagger/OpenAPI — intentionally skipped: app is server-rendered Thymeleaf MVC,
   not a REST API; only 3 internal @ResponseBody endpoints (barcode/search);
   revisit if a mobile app or external integrations are added
+- PWA service worker / offline cache — intentionally skipped in MVP; add if offline resilience needed
 
 ### Quality
-- Unit tests written (29 tests, no DB required, run with ./mvnw test):
+- Unit tests written (38 tests, no DB required, run with ./mvnw test):
   - StockServiceTest — FIFO deduction (single/multi-batch, exact/partial, insufficient stock),
     cancel guards (double-cancel, cancel-of-cancellation, partially used purchase, null batch),
     cancel success paths (expense restores stock item, purchase zeroes batch,
@@ -577,4 +842,5 @@ Rules:
   - StockDashboardRowDtoTest — status OK / LOW (= min, < min) / OUT (0, 0.000)
   - ReportServiceTest — revenue, gross profit, margin%, salesCount, top sales grouping +
     share%, top clients sorting + null-client exclusion, margin analysis sorting
+  - ProductServiceTest — 7 tests
   - WarehouseApplicationTests — @Disabled (requires live PostgreSQL, run manually with dev profile)

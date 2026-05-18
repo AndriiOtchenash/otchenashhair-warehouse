@@ -114,7 +114,7 @@ public class StockController {
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
-        if (returnTo != null && returnTo.startsWith("/")) {
+        if (returnTo != null && returnTo.matches("^/[^/].*")) {
             return "redirect:" + returnTo;
         }
         return "redirect:/movements/history";

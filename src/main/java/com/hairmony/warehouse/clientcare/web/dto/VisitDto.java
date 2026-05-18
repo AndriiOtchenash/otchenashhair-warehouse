@@ -2,6 +2,7 @@ package com.hairmony.warehouse.clientcare.web.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -21,14 +22,21 @@ public class VisitDto {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate visitDate;
 
-    private String complaint;       // Скарга клієнта
-    private String scalpCondition;  // Стан шкіри голови при огляді
-    private String recommendations; // Рекомендації (засоби, процедури)
+    @Size(max = 2000, message = "{validation.size.max2000}")
+    private String complaint;
 
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-    private LocalDate nextVisitDate;
+    @Size(max = 2000, message = "{validation.size.max2000}")
+    private String scalpCondition;
 
-    private String notes;           // Внутрішні примітки
+    @Size(max = 2000, message = "{validation.size.max2000}")
+    private String recommendations;
+
+    @Size(max = 2000, message = "{validation.size.max2000}")
+    private String notes;
 
     private LocalDateTime createdAt;
+
+    // Populated from Visit.nextAppointment (read-only in form)
+    private Long nextAppointmentId;
+    private LocalDateTime nextAppointmentStartAt;
 }

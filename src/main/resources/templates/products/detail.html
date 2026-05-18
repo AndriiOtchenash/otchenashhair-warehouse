@@ -21,22 +21,24 @@
                   th:text="${product.brand}"></span>
         </div>
         <div class="d-flex gap-2 flex-wrap justify-content-end">
-            <a th:href="@{/movements/income(productId=${product.id})}"
-               class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-down-circle me-1 text-success"></i>
-                <span th:text="#{stock.income.title}">Прихід</span>
-            </a>
-            <a th:href="@{/movements/expense(productId=${product.id})}"
-               class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-up-circle me-1 text-danger"></i>
-                <span th:text="#{stock.expense.title}">Витрата</span>
-            </a>
+            <th:block th:if="${product.active}">
+                <a th:href="@{/movements/income(productId=${product.id})}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-down-circle me-1 text-success"></i>
+                    <span th:text="#{stock.income.title}">Прихід</span>
+                </a>
+                <a th:href="@{/movements/expense(productId=${product.id})}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-up-circle me-1 text-danger"></i>
+                    <span th:text="#{stock.expense.title}">Витрата</span>
+                </a>
+            </th:block>
             <a th:href="@{/products/{id}/edit(id=${product.id},returnTo='detail')}"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-pencil me-1"></i>
                 <span th:text="#{btn.edit}">Редагувати</span>
             </a>
-            <a th:href="${from == 'history'} ? '/movements/history' : (${from == 'reports'} ? '/reports' : (${from == 'dashboard'} ? '/' : (${from == 'client' and clientId != null} ? '/clients/' + ${clientId} : (${from == 'supplier' and supplierId != null} ? '/suppliers/' + ${supplierId} : '/products'))))"
+            <a th:href="${from == 'history'} ? '/movements/history' : (${from == 'reports'} ? '/reports' : (${from == 'dashboard'} ? '/' : (${from == 'client' and clientId != null} ? '/clients/' + ${clientId} : (${from == 'supplier' and supplierId != null} ? '/suppliers/' + ${supplierId} : (${showInactive} ? '/products?showInactive=true' : '/products')))))"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>
                 <span th:text="#{btn.back}">Назад</span>
@@ -82,6 +84,12 @@
                         </table>
                         <div th:if="${product.description}" class="mt-3 text-muted small"
                              th:text="${product.description}"></div>
+                        <div th:if="${!product.active}" class="alert alert-warning py-2 px-3 mt-3 mb-0 small">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong th:text="#{product.deactivatedAt}">Деактивовано</strong>:
+                            <span th:text="${product.deactivatedAt != null} ? ${#temporals.format(product.deactivatedAt, 'dd.MM.yyyy')} : '—'"></span>
+                            <span th:if="${product.deactivationReason != null}"> — <em th:text="${product.deactivationReason}"></em></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -123,6 +131,12 @@
                 </div>
                 <div th:if="${product.description != null and !product.description.isEmpty()}"
                      class="mt-2 text-muted small border-top pt-2" th:text="${product.description}"></div>
+                <div th:if="${!product.active}" class="alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <strong th:text="#{product.deactivatedAt}">Деактивовано</strong>:
+                    <span th:text="${product.deactivatedAt != null} ? ${#temporals.format(product.deactivatedAt, 'dd.MM.yyyy')} : '—'"></span>
+                    <span th:if="${product.deactivationReason != null}"> — <em th:text="${product.deactivationReason}"></em></span>
+                </div>
             </div>
         </div>
     </div>

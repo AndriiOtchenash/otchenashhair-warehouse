@@ -42,7 +42,8 @@ public class ProductController {
     public String detail(@PathVariable Long id, Model model,
                          @RequestParam(required = false) String from,
                          @RequestParam(required = false) Long clientId,
-                         @RequestParam(required = false) Long supplierId) {
+                         @RequestParam(required = false) Long supplierId,
+                         @RequestParam(defaultValue = "false") boolean showInactive) {
         ProductDto product = productService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         List<StockMovement> movements = stockService.getMovementsByProduct(id);
@@ -57,6 +58,7 @@ public class ProductController {
         if (from != null) model.addAttribute("from", from);
         if (clientId != null) model.addAttribute("clientId", clientId);
         if (supplierId != null) model.addAttribute("supplierId", supplierId);
+        if (showInactive) model.addAttribute("showInactive", true);
         return "products/detail";
     }
 
@@ -166,8 +168,15 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/deactivate")
-    public String deactivate(@PathVariable Long id) {
-        productService.deactivate(id);
+    public String deactivate(@PathVariable Long id,
+                             @RequestParam(required = false) String deactivationReason,
+                             org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        if (deactivationReason != null && deactivationReason.length() > 200) {
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Причина деактивації не може перевищувати 200 символів.");
+            return "redirect:/products";
+        }
+        productService.deactivate(id, deactivationReason);
         return "redirect:/products";
     }
 

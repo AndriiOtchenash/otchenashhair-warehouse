@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Generate PWA Icons — OtchenashHair</title>
+    <style>
+        body { font-family: sans-serif; padding: 2rem; background: #f4f6f4; }
+        h1 { color: #1e2d24; }
+        .preview { display: flex; gap: 2rem; flex-wrap: wrap; margin: 1.5rem 0; align-items: flex-end; }
+        canvas { border: 1px solid #ccc; border-radius: 8px; display: block; }
+        .item { text-align: center; }
+        .item p { margin: 0.4rem 0 0.8rem; color: #555; font-size: 0.9rem; }
+        button {
+            background: #4a7c59; color: #fff; border: none;
+            padding: 0.6rem 1.4rem; border-radius: 6px;
+            font-size: 1rem; cursor: pointer; margin-right: 0.5rem;
+        }
+        button:hover { background: #3d6b4a; }
+        .hint { color: #888; font-size: 0.85rem; margin-top: 1.5rem; }
+        code { background: #e8f5e9; padding: 0.1rem 0.4rem; border-radius: 3px; }
+    </style>
+</head>
+<body>
+<h1>PWA Icon Generator — OtchenashHair</h1>
+<p>Натисни кнопки нижче, щоб завантажити іконки. Потім поклади їх у <code>src/main/resources/static/icons/</code></p>
+
+<div class="preview">
+    <div class="item">
+        <canvas id="c192" width="192" height="192"></canvas>
+        <p>icon-192.png</p>
+        <button onclick="download('c192','icon-192.png')">Завантажити 192×192</button>
+    </div>
+    <div class="item">
+        <canvas id="c512" width="512" height="512" style="width:192px;height:192px"></canvas>
+        <p>icon-512.png</p>
+        <button onclick="download('c512','icon-512.png')">Завантажити 512×512</button>
+    </div>
+</div>
+
+<p class="hint">Файл можна відкрити прямо у браузері (File → Open). Не потрібен сервер.</p>
+
+<script>
+    const svgSrc = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="40" fill="#1e2d24"/>
+  <g transform="translate(100,100) rotate(45)">
+    <path d="M0,68 L0,-75" fill="none" stroke="#5a9a6a" stroke-width="15" stroke-linecap="round"/>
+    <g transform="translate(0,30) rotate(15) translate(0,-30)">
+      <path d="M3,48 Q38,30 44,6 Q46,-10 28,-12 Q12,-12 5,12 Q1,30 3,48Z" fill="#5a9a6a"/>
+    </g>
+    <g transform="translate(0,30) rotate(-15) translate(0,-30)">
+      <path d="M-3,48 Q-38,30 -44,6 Q-46,-10 -28,-12 Q-12,-12 -5,12 Q-1,30 -3,48Z" fill="#5a9a6a"/>
+    </g>
+    <g transform="translate(0,-8) rotate(10) translate(0,8)">
+      <path d="M3,-1 Q38,-15 44,-39 Q46,-55 28,-57 Q12,-57 5,-33 Q1,-15 3,-1Z" fill="#5a9a6a"/>
+    </g>
+    <g transform="translate(0,-8) rotate(-10) translate(0,8)">
+      <path d="M-3,-1 Q-38,-15 -44,-39 Q-46,-55 -28,-57 Q-12,-57 -5,-33 Q-1,-15 -3,-1Z" fill="#5a9a6a"/>
+    </g>
+    <path d="M0,-52 Q20,-62 20,-78 Q20,-94 0,-94 Q-20,-94 -20,-78 Q-20,-62 0,-52Z" fill="#5a9a6a"/>
+  </g>
+</svg>`;
+
+    function renderToCanvas(canvasId, size) {
+        const canvas = document.getElementById(canvasId);
+        const ctx = canvas.getContext('2d');
+        const blob = new Blob([svgSrc], {type: 'image/svg+xml'});
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            ctx.clearRect(0, 0, size, size);
+            ctx.drawImage(img, 0, 0, size, size);
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    }
+
+    function download(canvasId, filename) {
+        const canvas = document.getElementById(canvasId);
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    renderToCanvas('c192', 192);
+    renderToCanvas('c512', 512);
+</script>
+</body>
+</html>

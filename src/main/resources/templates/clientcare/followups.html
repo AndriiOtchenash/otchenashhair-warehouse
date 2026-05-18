@@ -129,7 +129,7 @@
                 <tr th:each="c : ${clients}">
                     <td>
                         <div class="d-flex align-items-center gap-1 flex-wrap">
-                            <a th:href="@{/clients/{id}(id=${c.clientId}, from='clientcare')}"
+                            <a th:href="@{/clientcare/clients/{id}(id=${c.clientId})}"
                                class="d-md-none text-decoration-none text-body fw-medium"
                                style="font-size:0.9rem;"
                                th:text="${c.clientName}">Ім'я</a>
@@ -208,7 +208,7 @@
                                       th:text="${activityCounts.get(c.clientId)}"></span>
                             </span>
                             <!-- Open client — desktop only -->
-                            <a th:href="@{/clients/{id}(id=${c.clientId}, from='clientcare')}"
+                            <a th:href="@{/clientcare/clients/{id}(id=${c.clientId})}"
                                class="btn btn-outline-primary btn-sm d-none d-md-inline-flex"
                                th:title="#{clientcare.followups.open}">
                                 <i class="bi bi-arrow-right"></i>

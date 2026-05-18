@@ -4,6 +4,8 @@ import com.hairmony.warehouse.service.UserService;
 import com.hairmony.warehouse.web.dto.ChangePasswordDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -18,6 +20,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ProfileController {
 
     private final UserService userService;
+    private final MessageSource messageSource;
 
     @GetMapping("/change-password")
     public String changePasswordForm(Model model) {
@@ -40,11 +43,13 @@ public class ProfileController {
         boolean success = userService.changePassword(userDetails.getUsername(), dto);
 
         if (!success) {
-            model.addAttribute("error", "Невірний поточний пароль або паролі не співпадають");
+            model.addAttribute("error",
+                    messageSource.getMessage("profile.changePassword.error", null, LocaleContextHolder.getLocale()));
             return "profile/change-password";
         }
 
-        redirectAttributes.addFlashAttribute("successMessage", "Пароль успішно змінено");
+        redirectAttributes.addFlashAttribute("successMessage",
+                messageSource.getMessage("profile.changePassword.success", null, LocaleContextHolder.getLocale()));
         return "redirect:/";
     }
 }

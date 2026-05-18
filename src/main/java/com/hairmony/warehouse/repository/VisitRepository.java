@@ -7,10 +7,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface VisitRepository extends JpaRepository<Visit, Long> {
 
     List<Visit> findAllByClientIdOrderByVisitDateDescCreatedAtDesc(Long clientId);
+
+    Optional<Visit> findFirstByClientIdOrderByVisitDateDescCreatedAtDesc(Long clientId);
 
     /**
      * Returns the latest visit per client where nextVisitDate is set (any date).

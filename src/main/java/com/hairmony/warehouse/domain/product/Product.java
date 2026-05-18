@@ -52,6 +52,12 @@ public class Product {
     @Column(name = "active", nullable = false)
     private Boolean active;
 
+    @Column(name = "deactivated_at")
+    private LocalDateTime deactivatedAt;
+
+    @Column(name = "deactivation_reason", length = 200)
+    private String deactivationReason;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

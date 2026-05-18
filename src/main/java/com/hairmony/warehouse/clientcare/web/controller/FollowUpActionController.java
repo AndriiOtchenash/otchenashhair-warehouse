@@ -1,57 +1,64 @@
 package com.hairmony.warehouse.clientcare.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.FollowUpService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequiredArgsConstructor
+@Validated
 public class FollowUpActionController {
 
     private final FollowUpService followUpService;
 
+    private static final String DEFAULT_QUEUE = "/clientcare/followups";
+
     @PostMapping("/clientcare/followups/{clientId}/done")
     public String done(@PathVariable Long clientId,
-                       @RequestParam(required = false) String note,
-                       @RequestParam(defaultValue = "/clientcare/followups") String returnTo) {
+                       @RequestParam(required = false) @Size(max = 500) String note,
+                       @RequestParam(defaultValue = DEFAULT_QUEUE) String returnTo) {
         followUpService.done(clientId, note);
-        return "redirect:" + returnTo;
+        return "redirect:" + safeRedirect(returnTo, DEFAULT_QUEUE);
     }
 
     @PostMapping("/clientcare/followups/{clientId}/snooze")
     public String snooze(@PathVariable Long clientId,
-                         @RequestParam int days,
-                         @RequestParam(required = false) String note,
-                         @RequestParam(defaultValue = "/clientcare/followups") String returnTo) {
+                         @RequestParam @Min(1) @Max(365) int days,
+                         @RequestParam(required = false) @Size(max = 500) String note,
+                         @RequestParam(defaultValue = DEFAULT_QUEUE) String returnTo) {
         followUpService.snooze(clientId, days, note);
-        return "redirect:" + returnTo;
+        return "redirect:" + safeRedirect(returnTo, DEFAULT_QUEUE);
     }
 
     @PostMapping("/clientcare/followups/{clientId}/note")
     public String note(@PathVariable Long clientId,
-                       @RequestParam String text,
-                       @RequestParam(defaultValue = "/clientcare/followups") String returnTo) {
+                       @RequestParam @Size(max = 500) String text,
+                       @RequestParam(defaultValue = DEFAULT_QUEUE) String returnTo) {
         if (text != null && !text.isBlank()) {
             followUpService.note(clientId, text.trim());
         }
-        return "redirect:" + returnTo;
+        return "redirect:" + safeRedirect(returnTo, DEFAULT_QUEUE);
     }
 
     @PostMapping("/clientcare/followups/{clientId}/reset")
     public String reset(@PathVariable Long clientId,
-                        @RequestParam(defaultValue = "/clientcare/followups") String returnTo) {
+                        @RequestParam(defaultValue = DEFAULT_QUEUE) String returnTo) {
         followUpService.reset(clientId);
-        return "redirect:" + returnTo;
+        return "redirect:" + safeRedirect(returnTo, DEFAULT_QUEUE);
     }
 
     @PostMapping("/clientcare/followups/{clientId}/returnToQueue")
     public String returnToQueue(@PathVariable Long clientId,
-                                @RequestParam(defaultValue = "/clientcare/followups") String returnTo) {
+                                @RequestParam(defaultValue = DEFAULT_QUEUE) String returnTo) {
         followUpService.returnToQueue(clientId);
-        return "redirect:" + returnTo;
+        return "redirect:" + safeRedirect(returnTo, DEFAULT_QUEUE);
     }
 
     /** AJAX: returns activity log fragment for a client */
@@ -76,5 +83,17 @@ public class FollowUpActionController {
     public ResponseEntity<Void> clearActivity(@PathVariable Long clientId) {
         followUpService.deleteAllActivity(clientId);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Validates a returnTo redirect target.
+     * Must start with "/" and NOT be a protocol-relative URL (//host).
+     * Prevents open redirect attacks.
+     */
+    private String safeRedirect(String returnTo, String fallback) {
+        if (returnTo == null || !returnTo.matches("^/[^/].*")) {
+            return fallback;
+        }
+        return returnTo;
     }
 }

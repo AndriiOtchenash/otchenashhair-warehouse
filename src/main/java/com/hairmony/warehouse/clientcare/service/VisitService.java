@@ -1,8 +1,10 @@
 package com.hairmony.warehouse.clientcare.service;
 
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
+import com.hairmony.warehouse.domain.appointment.Appointment;
 import com.hairmony.warehouse.domain.client.Client;
 import com.hairmony.warehouse.domain.visit.Visit;
+import com.hairmony.warehouse.repository.AppointmentRepository;
 import com.hairmony.warehouse.repository.ClientRepository;
 import com.hairmony.warehouse.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ public class VisitService {
 
     private final VisitRepository visitRepository;
     private final ClientRepository clientRepository;
+    private final AppointmentRepository appointmentRepository;
 
     @Transactional(readOnly = true)
     public List<VisitDto> findByClientId(Long clientId) {
@@ -30,8 +33,16 @@ public class VisitService {
                 .orElseThrow(() -> new IllegalStateException("visit.notFound")));
     }
 
+    @Transactional(readOnly = true)
+    public boolean isLatestVisit(Long visitId, Long clientId) {
+        return visitRepository.findFirstByClientIdOrderByVisitDateDescCreatedAtDesc(clientId)
+                .map(v -> v.getId().equals(visitId))
+                .orElse(false);
+    }
+
+    /** Saves a new visit and returns its generated ID. */
     @Transactional
-    public void save(VisitDto dto) {
+    public Long save(VisitDto dto) {
         Client client = clientRepository.findById(dto.getClientId())
                 .orElseThrow(() -> new IllegalStateException("client.notFound"));
         Visit visit = Visit.builder()
@@ -40,10 +51,9 @@ public class VisitService {
                 .complaint(dto.getComplaint())
                 .scalpCondition(dto.getScalpCondition())
                 .recommendations(dto.getRecommendations())
-                .nextVisitDate(dto.getNextVisitDate())
                 .notes(dto.getNotes())
                 .build();
-        visitRepository.save(visit);
+        return visitRepository.save(visit).getId();
     }
 
     @Transactional
@@ -54,8 +64,17 @@ public class VisitService {
         visit.setComplaint(dto.getComplaint());
         visit.setScalpCondition(dto.getScalpCondition());
         visit.setRecommendations(dto.getRecommendations());
-        visit.setNextVisitDate(dto.getNextVisitDate());
         visit.setNotes(dto.getNotes());
+        // nextAppointment is managed separately via linkAppointment() — do not clear here
+    }
+
+    /** Links an appointment to a visit as the planned next appointment. */
+    @Transactional
+    public void linkAppointment(Long visitId, Long appointmentId) {
+        Visit visit = visitRepository.findById(visitId)
+                .orElseThrow(() -> new IllegalStateException("visit.notFound"));
+        Appointment appointment = appointmentRepository.getReferenceById(appointmentId);
+        visit.setNextAppointment(appointment);
     }
 
     @Transactional
@@ -71,9 +90,12 @@ public class VisitService {
         dto.setComplaint(v.getComplaint());
         dto.setScalpCondition(v.getScalpCondition());
         dto.setRecommendations(v.getRecommendations());
-        dto.setNextVisitDate(v.getNextVisitDate());
         dto.setNotes(v.getNotes());
         dto.setCreatedAt(v.getCreatedAt());
+        if (v.getNextAppointment() != null) {
+            dto.setNextAppointmentId(v.getNextAppointment().getId());
+            dto.setNextAppointmentStartAt(v.getNextAppointment().getStartAt());
+        }
         return dto;
     }
 }

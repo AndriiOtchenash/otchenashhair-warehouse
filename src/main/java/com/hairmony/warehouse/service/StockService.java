@@ -62,6 +62,12 @@ public class StockService {
     }
 
     public void registerExpense(StockExpenseDto dto) {
+        // Guard against forged movementType values that should never come from the expense form
+        if (dto.getMovementType() == MovementType.PURCHASE
+                || dto.getMovementType() == MovementType.CANCELLATION) {
+            throw new IllegalStateException("Недопустимий тип руху для операції витрати.");
+        }
+
         Product product = productRepository.findById(dto.getProductId())
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + dto.getProductId()));
 
@@ -157,11 +163,16 @@ public class StockService {
     }
 
     public void updateStockItem(Long id, LocalDate expiryDate, String batchNumber, BigDecimal purchasePrice) {
+        if (purchasePrice != null && purchasePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Ціна закупівлі повинна бути більше нуля.");
+        }
         StockItem item = stockItemRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Stock item not found: " + id));
         item.setExpiryDate(expiryDate);
         item.setBatchNumber(batchNumber != null && !batchNumber.isBlank() ? batchNumber : null);
-        item.setPurchasePrice(purchasePrice);
+        if (purchasePrice != null) {
+            item.setPurchasePrice(purchasePrice);
+        }
     }
 
     public record CancelResult(String productName, String qtyFormatted, String unitLabel,

@@ -2,6 +2,8 @@ package com.hairmony.warehouse.web.dto;
 
 import com.hairmony.warehouse.domain.stock.MovementType;
 import com.hairmony.warehouse.domain.stock.WriteOffReason;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -19,7 +21,13 @@ public class MovementFilterDto {
     private MovementType movementType;
     private WriteOffReason writeOffReason;
     private Long productId;
+
+    @Size(max = 200)
     private String productName;
+
+    @Size(max = 200)
     private String counterparty;
+
+    @Min(0)
     private int page = 0;
 }

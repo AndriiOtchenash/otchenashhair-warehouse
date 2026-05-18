@@ -8,6 +8,34 @@
         .table td.td-category {
             font-size: 0.90rem;
         }
+        .product-table {
+            table-layout: fixed;
+            min-width: 0 !important;
+            width: 100%;
+        }
+        .product-table .col-name  { width: auto; }
+        .product-table .col-cat   { width: 30%; }
+        .product-table .col-status { width: 7rem; }
+        .product-table .col-actions { width: 5.5rem; }
+        @media (max-width: 767.98px) {
+            .product-table th { font-size: 0.72rem; text-align: center; }
+            .product-table .col-cat { width: 5.7rem; }
+            .product-table .col-actions { width: 5.3rem; }
+            /* Category: fixed narrow, truncate with ellipsis */
+            .product-table td.td-category,
+            .product-table th.th-category {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            /* Actions: no wrap */
+            .product-table td:last-child {
+                white-space: nowrap;
+            }
+            /* Disable scroll — fixed-layout table fits without it */
+            .table-responsive-wrapper,
+            .card-body { overflow-x: visible; }
+        }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{product.list.title}">Товари</h1>
@@ -46,12 +74,21 @@
             </div>
 
             <div class="table-responsive-wrapper">
-            <table th:unless="${products.empty}" class="table table-hover mb-0">
+            <table th:unless="${products.empty}" class="table table-hover mb-0 product-table">
+                <colgroup>
+                    <col class="col-name"/>
+                    <col class="col-status d-none d-md-table-cell"/>
+                    <col class="col-cat"/>
+                    <col class="d-none d-md-table-cell"/>
+                    <col class="d-none d-md-table-cell"/>
+                    <col class="d-none d-md-table-cell"/>
+                    <col class="col-actions"/>
+                </colgroup>
                 <thead class="table-light">
                 <tr>
                     <th th:text="#{product.form.name}">Назва</th>
-                    <th th:text="#{product.active}">Статус</th>
-                    <th th:text="#{product.form.category}">Категорія</th>
+                    <th class="d-none d-md-table-cell" th:text="#{product.active}">Статус</th>
+                    <th class="th-category" th:text="#{product.form.category}">Категорія</th>
                     <th class="d-none d-md-table-cell" th:text="#{product.form.brand}">Бренд</th>
                     <th class="d-none d-md-table-cell" th:text="#{product.form.unit}">Од. виміру</th>
                     <th class="d-none d-md-table-cell" th:text="#{product.form.minStockLevel}">Мін. залишок</th>
@@ -60,16 +97,17 @@
                 </thead>
                 <tbody>
                 <tr th:each="product : ${products}"
+                    th:classappend="${!product.active} ? 'table-secondary' : ''"
                     th:attr="data-name=${product.name},data-brand=${product.brand ?: ''},data-category=${product.category != null ? product.category.name : ''}"
-                    th:onclick="|window.location='@{/products/{id}(id=${product.id})}'|"
+                    th:onclick="|window.location='@{/products/{id}(id=${product.id},showInactive=${showInactive})}'|"
                     style="cursor:pointer">
                     <td>
-                        <a th:href="@{/products/{id}(id=${product.id})}"
+                        <a th:href="@{/products/{id}(id=${product.id},showInactive=${showInactive})}"
                            th:text="${product.name}"
-                           class="fw-semibold text-decoration-none text-dark">
+                           th:class="${!product.active} ? 'fw-semibold text-decoration-none text-muted text-decoration-line-through' : 'fw-semibold text-decoration-none text-dark'">
                         </a>
                     </td>
-                    <td>
+                    <td class="d-none d-md-table-cell">
                         <span th:if="${product.active}"
                               class="badge badge-active px-2 py-1 rounded-pill"
                               th:text="#{product.active}">Активний</span>
@@ -90,20 +128,20 @@
                                    data-bs-toggle="tooltip">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <form th:action="@{/products/{id}/deactivate(id=${product.id})}"
-                                      method="post" class="d-inline"
-                                      th:attr="data-confirm=#{confirm.deactivate.product}"
-                                      onsubmit="return confirm(this.dataset.confirm)">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                                            th:title="#{btn.deactivate}"
-                                            data-bs-toggle="tooltip">
-                                        <i class="bi bi-archive"></i>
-                                    </button>
-                                </form>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        th:title="#{btn.deactivate}"
+                                        th:data-id="${product.id}"
+                                        th:data-name="${product.name}"
+                                        onclick="openDeactivateModal(this)">
+                                    <i class="bi bi-archive"></i>
+                                </button>
                             </th:block>
                             <th:block th:unless="${product.active}">
                                 <form th:action="@{/products/{id}/restore(id=${product.id})}"
-                                      method="post" class="d-inline">
+                                      method="post" class="d-inline"
+                                      th:attr="data-confirm=#{confirm.restore.product}"
+                                      onsubmit="return confirm(this.dataset.confirm)">
                                     <button type="submit" class="btn btn-sm btn-outline-success"
                                             th:title="#{btn.restore}"
                                             data-bs-toggle="tooltip">
@@ -140,12 +178,56 @@
             if (input) { input.value = ''; filterSearch(''); toggleClearBtn(input); }
         }
 
+        function openDeactivateModal(btn) {
+            document.getElementById('deactivateProductForm').action =
+                '/products/' + btn.dataset.id + '/deactivate';
+            document.getElementById('deactivateProductName').textContent = btn.dataset.name;
+            document.getElementById('deactivateReasonInput').value = '';
+            new bootstrap.Modal(document.getElementById('deactivateProductModal')).show();
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);
             });
         });
     </script>
+
+    <!-- Deactivate product modal -->
+    <div class="modal fade" id="deactivateProductModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{product.deactivate.modal.title}">Деактивація товару</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="deactivateProductForm" method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                    <div class="modal-body">
+                        <p class="mb-3">
+                            <span th:text="#{product.deactivate.modal.confirm}">Деактивувати</span>
+                            «<span id="deactivateProductName"></span>»?
+                        </p>
+                        <div>
+                            <label for="deactivateReasonInput" class="form-label fw-semibold small"
+                                   th:text="#{product.deactivate.reason.label}">Причина</label>
+                            <textarea class="form-control form-control-sm"
+                                      name="deactivationReason"
+                                      id="deactivateReasonInput"
+                                      rows="2"
+                                      th:placeholder="#{product.deactivate.reason.placeholder}"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                        <button type="submit" class="btn btn-danger btn-sm"
+                                th:text="#{btn.yes}">Так</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 </body>
 </html>

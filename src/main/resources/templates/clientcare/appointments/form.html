@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{appointments.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <style>
+        .mode-toggle .btn-check:checked + .btn { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .client-section { display: none; }
+        .client-section.active { display: block; }
+    </style>
+
+    <div class="page-header">
+        <h1 class="page-title"
+            th:text="${isEdit} ? #{appointments.title} : #{appointments.add}">Запис</h1>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form th:action="${isEdit} ? @{/clientcare/appointments/{id}/edit(id=${appointment.id})} : @{/clientcare/appointments/new}"
+                  th:object="${appointment}" method="post" novalidate>
+
+                <!-- Validation errors -->
+                <div th:if="${#fields.hasErrors('*')}" class="alert alert-danger mb-3">
+                    <ul class="mb-0 ps-3">
+                        <li th:each="err : ${#fields.allErrors()}" th:text="${err}"></li>
+                    </ul>
+                </div>
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                <input type="hidden" th:name="formDate" th:value="${formDate}"/>
+                <input type="hidden" th:if="${returnTo != null}" name="returnTo" th:value="${returnTo}"/>
+                <input type="hidden" th:if="${linkVisitId != null}" name="linkVisitId" th:value="${linkVisitId}"/>
+
+                <!-- ── Client section ── -->
+                <th:block th:if="${clientLocked}">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold"
+                               th:text="#{appointment.form.client.mode.existing}">Клієнт</label>
+                        <div class="form-control-plaintext fw-semibold py-0"
+                             th:text="${lockedClientName}"></div>
+                        <input type="hidden" th:field="*{clientId}"/>
+                    </div>
+                </th:block>
+
+                <th:block th:unless="${clientLocked}">
+                    <!-- ── Client mode toggle ── -->
+                    <div class="mb-3">
+                        <div class="btn-group w-100 mode-toggle" role="group">
+                            <input type="radio" class="btn-check" name="clientMode" id="modeExisting"
+                                   value="existing" autocomplete="off"
+                                   th:checked="${appointment.clientId != null or appointment.guestName == null}"/>
+                            <label class="btn btn-outline-secondary" for="modeExisting"
+                                   th:text="#{appointment.form.client.mode.existing}">Існуючий клієнт</label>
+
+                            <input type="radio" class="btn-check" name="clientMode" id="modeGuest"
+                                   value="guest" autocomplete="off"
+                                   th:checked="${appointment.clientId == null and appointment.guestName != null}"/>
+                            <label class="btn btn-outline-secondary" for="modeGuest"
+                                   th:text="#{appointment.form.client.mode.guest}">Новий / Гість</label>
+                        </div>
+                    </div>
+
+                    <!-- ── Existing client select ── -->
+                    <div id="sectionExisting" class="client-section mb-3">
+                        <label class="form-label fw-semibold"
+                               th:text="#{appointment.form.client.mode.existing}">Клієнт</label>
+                        <select class="form-select" th:field="*{clientId}">
+                            <option value="" th:text="#{appointment.form.selectClient}">-- Оберіть --</option>
+                            <option th:each="c : ${clients}"
+                                    th:value="${c.id}"
+                                    th:text="${c.name}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- ── Guest fields ── -->
+                    <div id="sectionGuest" class="client-section">
+                        <div class="mb-3">
+                            <label for="guestName" class="form-label fw-semibold"
+                                   th:text="#{appointment.form.guestName}">Ім'я</label>
+                            <input type="text" id="guestName" class="form-control"
+                                   th:field="*{guestName}"
+                                   th:classappend="${#fields.hasErrors('guestName')} ? 'is-invalid'"/>
+                        </div>
+                        <div class="mb-3">
+                            <label for="guestPhone" class="form-label fw-semibold"
+                                   th:text="#{appointment.form.guestPhone}">Телефон</label>
+                            <input type="tel" id="guestPhone" class="form-control"
+                                   th:field="*{guestPhone}"/>
+                        </div>
+                    </div>
+                </th:block>
+
+                <!-- ── Date / time ── -->
+                <!-- hidden fields bound to DTO — submitted to server -->
+                <input type="hidden" id="startAt" th:field="*{startAt}"/>
+                <input type="hidden" id="endAt"   th:field="*{endAt}"/>
+
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small mb-1"
+                               th:text="#{appointment.form.date}">Дата</label>
+                        <input type="date" id="startDate" class="form-control form-control-sm"
+                               th:classappend="${#fields.hasErrors('startAt')} ? 'is-invalid'"
+                               th:attr="min=${(isEdit != null && isEdit) ? null : #temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
+                               oninput="syncStart(); updateStartTimeMin(); updateCalendarBrowseLink()"/>
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label fw-semibold small mb-1"
+                               th:text="#{appointment.form.startAt}">Початок</label>
+                        <input type="time" id="startTime" class="form-control form-control-sm" lang="en-GB"
+                               th:classappend="${#fields.hasErrors('startAt')} ? 'is-invalid'"
+                               oninput="syncStart(); autoAdjustEnd(); updateEndTimeMin(); this.classList.remove('is-invalid')"/>
+                        <div class="invalid-feedback" id="startTimeError"></div>
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label fw-semibold small mb-1"
+                               th:text="#{appointment.form.endAt}">Кінець</label>
+                        <input type="time" id="endTime" class="form-control form-control-sm" lang="en-GB"
+                               th:classappend="${#fields.hasErrors('endAt')} ? 'is-invalid'"
+                               oninput="syncEndTime(); this.classList.remove('is-invalid')"/>
+                        <div class="invalid-feedback" id="endTimeError"></div>
+                    </div>
+                </div>
+                <!-- Browse calendar link — shown when client is pre-selected (linkVisitId or clientLocked) -->
+                <div th:if="${linkVisitId != null or clientLocked eq true}" class="mb-3">
+                    <a id="calendarBrowseBtn" href="#"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        <span th:text="#{appointment.form.browseCalendar}">Переглянути календар →</span>
+                    </a>
+                </div>
+
+                <!-- ── Type ── -->
+                <div class="mb-3">
+                    <label for="appointmentType" class="form-label fw-semibold"
+                           th:text="#{appointment.form.type}">Тип прийому</label>
+                    <select id="appointmentType" class="form-select" th:field="*{appointmentType}">
+                        <option value="" th:text="#{appointment.form.selectType}">-- Тип --</option>
+                        <option th:each="t : ${types}"
+                                th:value="${t.name()}"
+                                th:text="#{appointmentType.__${t}__}">
+                        </option>
+                    </select>
+                </div>
+
+                <!-- ── Status (edit only) ── -->
+                <div class="mb-3" th:if="${isEdit}">
+                    <label for="status" class="form-label fw-semibold"
+                           th:text="#{appointment.form.status}">Статус</label>
+                    <select id="status" class="form-select" th:field="*{status}">
+                        <option th:each="s : ${statuses}"
+                                th:value="${s.name()}"
+                                th:text="#{appointments.status.__${s}__}">
+                        </option>
+                    </select>
+                </div>
+
+                <!-- ── Notes ── -->
+                <div class="mb-4">
+                    <label for="notes" class="form-label fw-semibold"
+                           th:text="#{appointment.form.notes}">Нотатки</label>
+                    <textarea id="notes" class="form-control" rows="2"
+                              style="resize:none;overflow:hidden;min-height:2.6rem"
+                              th:field="*{notes}"
+                              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+                </div>
+
+                <!-- ── Overdue: client came or no-show? ── -->
+                <div th:if="${isOverdue}" class="mb-4 pt-3 border-top">
+                    <div class="alert alert-warning py-2 mb-2">
+                        <i class="bi bi-clock-history me-1"></i>
+                        <span th:text="#{appointment.overdue.banner}">Час прийому минув</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form th:action="@{/clientcare/appointments/{id}/complete(id=${appointment.id})}"
+                              method="post" class="flex-grow-1">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check2-circle me-1"></i>
+                                <span th:text="#{appointment.overdue.came}">Прийшов — записати протокол</span>
+                            </button>
+                        </form>
+                        <form th:action="@{/clientcare/appointments/{id}/status(id=${appointment.id})}"
+                              method="post" class="flex-grow-1">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                            <input type="hidden" name="status" value="NO_SHOW"/>
+                            <input type="hidden" name="date" th:value="${#temporals.format(appointment.startAt, 'yyyy-MM-dd')}"/>
+                            <button type="submit" class="btn btn-outline-warning w-100">
+                                <i class="bi bi-person-x me-1"></i>
+                                <span th:text="#{appointment.overdue.noShow}">Не прийшов</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ── Complete appointment (future/today, not overdue) ── -->
+                <div th:if="${canComplete eq true and isOverdue ne true}" class="mb-4 pt-3 border-top">
+                    <form th:action="@{/clientcare/appointments/{id}/complete(id=${appointment.id})}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-check2-circle me-2"></i>
+                            <span th:text="#{appointment.complete.btn}">Завершити прийом і записати протокол →</span>
+                        </button>
+                        <div class="text-muted small mt-1 text-center" th:text="#{appointment.complete.hint}">
+                            Статус зміниться на «Завершено», відкриється форма протоколу візиту
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ── No-show follow-up panel ── -->
+                <div th:if="${isNoShow}" class="mb-4 pt-3 border-top">
+                    <div class="alert alert-secondary py-2 mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-person-x-fill fs-5 text-warning flex-shrink-0"></i>
+                        <div>
+                            <div class="fw-semibold small" th:text="#{appointment.noshow.panel.title}">Клієнт не прийшов</div>
+                            <div class="text-muted small" th:text="#{appointment.noshow.panel.hint}">Зв'яжіться та запропонуйте новий час</div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a th:href="@{/clientcare/followups(visitFilter='overdue')}"
+                           class="btn btn-outline-primary btn-sm flex-grow-1">
+                            <i class="bi bi-list-check me-1"></i>
+                            <span th:text="#{appointment.noshow.panel.followup}">Черга follow-up</span>
+                        </a>
+                        <a th:href="@{/clientcare/appointments/new(clientId=${appointment.clientId})}"
+                           class="btn btn-outline-success btn-sm flex-grow-1">
+                            <i class="bi bi-calendar-plus me-1"></i>
+                            <span th:text="#{appointment.noshow.panel.rebook}">Записати повторно</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ── Actions ── -->
+                <div class="d-flex gap-2 justify-content-between">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"
+                                th:text="#{btn.save}">Зберегти</button>
+                        <a id="cancelBtn"
+                           th:href="${returnTo != null ? returnTo : '#'}"
+                           th:data-history-back="${returnTo == null}"
+                           class="btn btn-outline-secondary"
+                           th:text="#{btn.cancel}">Скасувати</a>
+                    </div>
+                    <button th:if="${isEdit}" type="button"
+                            class="btn btn-outline-danger"
+                            data-bs-toggle="modal" data-bs-target="#deleteApptModal">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Delete confirmation modal -->
+            <div th:if="${isEdit}" class="modal fade" id="deleteApptModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body py-4 text-center">
+                            <i class="bi bi-exclamation-triangle text-danger fs-1 d-block mb-3"></i>
+                            <p class="mb-0" th:text="#{appointment.delete.confirm}">Видалити цей запис?</p>
+                        </div>
+                        <div class="modal-footer justify-content-center border-0 pt-0">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                            <form th:action="@{/clientcare/appointments/{id}/delete(id=${appointment.id})}"
+                                  method="post" class="d-inline">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                                <button type="submit" class="btn btn-danger" th:text="#{btn.yes}">Так</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── Client mode toggle ────────────────────────────────────────────────
+        function initMode() {
+            const existing = document.getElementById('modeExisting');
+            const guest    = document.getElementById('modeGuest');
+            applyMode(existing.checked ? 'existing' : 'guest');
+            existing.addEventListener('change', () => applyMode('existing'));
+            guest.addEventListener('change',    () => applyMode('guest'));
+        }
+
+        const GUEST_TYPES = ['', 'INITIAL_CONSULTATION', 'OTHER'];
+
+        function applyMode(mode) {
+            const sExisting = document.getElementById('sectionExisting');
+            const sGuest    = document.getElementById('sectionGuest');
+            sExisting.classList.toggle('active', mode === 'existing');
+            sGuest.classList.toggle('active',    mode === 'guest');
+
+            // Clear hidden section's inputs to avoid accidental submission
+            if (mode === 'existing') {
+                document.getElementById('guestName').value  = '';
+                document.getElementById('guestPhone').value = '';
+            } else {
+                const sel = document.querySelector('select[name="clientId"]');
+                if (sel) sel.value = '';
+            }
+
+            // Filter appointment type options for guests
+            const typeSelect = document.getElementById('appointmentType');
+            if (typeSelect) {
+                Array.from(typeSelect.options).forEach(opt => {
+                    opt.hidden = mode === 'guest' && !GUEST_TYPES.includes(opt.value);
+                });
+                // If current selection is not allowed for guest, reset it
+                if (mode === 'guest' && !GUEST_TYPES.includes(typeSelect.value)) {
+                    typeSelect.value = '';
+                }
+            }
+        }
+
+        // ── Sync start date+time → hidden startAt; also keep endAt date in sync ──
+        function syncStart() {
+            const date = document.getElementById('startDate').value;
+            const time = document.getElementById('startTime').value;
+            document.getElementById('startAt').value = (date && time) ? date + 'T' + time : '';
+            syncEndTime(); // end date always follows start date
+        }
+
+        // ── Sync end time → hidden endAt (date always = startDate) ─────────
+        function syncEndTime() {
+            const date = document.getElementById('startDate').value;
+            const time = document.getElementById('endTime').value;
+            document.getElementById('endAt').value = (date && time) ? date + 'T' + time : '';
+        }
+
+        // ── Populate visible inputs from hidden field on page load ────────────
+        function initDateTimeInputs() {
+            const startHidden = document.getElementById('startAt').value;
+            if (startHidden) {
+                const [d, t] = startHidden.split('T');
+                document.getElementById('startDate').value = d || '';
+                document.getElementById('startTime').value = t ? t.slice(0, 5) : '';
+            }
+            const endHidden = document.getElementById('endAt').value;
+            if (endHidden) {
+                const [, t] = endHidden.split('T');
+                document.getElementById('endTime').value = t ? t.slice(0, 5) : '';
+            }
+            updateEndTimeMin();
+        }
+
+        // ── Auto-adjust end time (+60 min) when start changes ────────────────
+        function autoAdjustEnd() {
+            const startVal = document.getElementById('startAt').value;
+            const endVal   = document.getElementById('endAt').value;
+            if (!startVal) return;
+            const startMs = new Date(startVal).getTime();
+            const endMs   = endVal ? new Date(endVal).getTime() : 0;
+            if (!endVal || endMs <= startMs) {
+                const newEnd = new Date(startMs + 60 * 60 * 1000);
+                const pad = n => String(n).padStart(2, '0');
+                const t = pad(newEnd.getHours()) + ':' + pad(newEnd.getMinutes());
+                document.getElementById('endAt').value   = document.getElementById('startDate').value + 'T' + t;
+                document.getElementById('endTime').value = t;
+            }
+            updateEndTimeMin();
+        }
+
+        // ── Set endTime.min = startTime + 1 min to prevent end ≤ start ───────
+        function updateEndTimeMin() {
+            const startTime = document.getElementById('startTime').value;
+            const endTimeInput = document.getElementById('endTime');
+            if (startTime) {
+                const [h, m] = startTime.split(':').map(Number);
+                const total = h * 60 + m + 1;
+                endTimeInput.min = String(Math.floor(total / 60) % 24).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+            } else {
+                endTimeInput.min = '';
+            }
+        }
+
+        // ── Enforce startTime.min = now when start date = today (new form only) ──
+        const IS_EDIT = /*[[${isEdit != null && isEdit}]]*/ false;
+        function updateStartTimeMin() {
+            if (IS_EDIT) return;
+            const startDate = document.getElementById('startDate').value;
+            const today = new Date().toISOString().slice(0, 10);
+            const startTime = document.getElementById('startTime');
+            if (startDate === today) {
+                const now = new Date();
+                startTime.min = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            } else {
+                startTime.min = '';
+            }
+        }
+
+        // ── i18n messages ─────────────────────────────────────────────────────
+        const MSG_PAST_TIME        = /*[[#{appointment.error.pastTime}]]*/ '';
+        const MSG_END_BEFORE_START = /*[[#{appointment.error.endBeforeStart}]]*/ '';
+
+        // ── Calendar browse params (only present in link-visit context) ───────
+        const BROWSE_LINK_VISIT = /*[[${linkVisitId}]]*/ null;
+        const BROWSE_RETURN_TO  = /*[[${returnTo}]]*/ null;
+
+        function updateCalendarBrowseLink() {
+            const btn = document.getElementById('calendarBrowseBtn');
+            if (!btn) return;
+            const date = document.getElementById('startDate').value || new Date().toISOString().slice(0, 10);
+            let url = `/clientcare/appointments?date=${date}`;
+            const clientEl = document.getElementById('clientId');
+            if (clientEl && clientEl.value) url += `&clientId=${clientEl.value}`;
+            if (BROWSE_LINK_VISIT) url += `&linkVisitId=${BROWSE_LINK_VISIT}`;
+            if (BROWSE_RETURN_TO)  url += `&returnTo=${encodeURIComponent(BROWSE_RETURN_TO)}`;
+            btn.href = url;
+        }
+
+        // ── Client-side submit validation (novalidate form — no browser balloon) ──
+        function validateTimes() {
+            const startTimeEl = document.getElementById('startTime');
+            const endTimeEl   = document.getElementById('endTime');
+            let valid = true;
+
+            startTimeEl.classList.remove('is-invalid');
+            endTimeEl.classList.remove('is-invalid');
+
+            if (!IS_EDIT && startTimeEl.value && startTimeEl.min && startTimeEl.value < startTimeEl.min) {
+                startTimeEl.classList.add('is-invalid');
+                document.getElementById('startTimeError').textContent = MSG_PAST_TIME;
+                valid = false;
+            }
+            if (endTimeEl.value && endTimeEl.min && endTimeEl.value < endTimeEl.min) {
+                endTimeEl.classList.add('is-invalid');
+                document.getElementById('endTimeError').textContent = MSG_END_BEFORE_START;
+                valid = false;
+            }
+            return valid;
+        }
+
+        // ── Auto-resize notes textarea ────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', function () {
+            initDateTimeInputs();
+            updateStartTimeMin();
+            updateCalendarBrowseLink();
+            if (document.getElementById('modeExisting')) initMode();
+            const cancelBtn = document.getElementById('cancelBtn');
+            if (cancelBtn && cancelBtn.dataset.historyBack === 'true') {
+                cancelBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    history.back();
+                });
+            }
+            const notes = document.getElementById('notes');
+            if (notes && notes.value) {
+                notes.style.height = 'auto';
+                notes.style.height = notes.scrollHeight + 'px';
+            }
+            const clientEl = document.getElementById('clientId');
+            if (clientEl) clientEl.addEventListener('change', updateCalendarBrowseLink);
+            document.querySelector('form').addEventListener('submit', function (e) {
+                if (!validateTimes()) e.preventDefault();
+            });
+        });
+    </script>
+</div>
+</body>
+</html>

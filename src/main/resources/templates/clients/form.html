@@ -8,8 +8,9 @@
             th:text="${client.id == null} ? #{client.form.title.new} : #{client.form.title.edit}">Клієнт</h1>
         <a th:href="${returnTo == 'expense'} ? @{/movements/expense} :
                    (${returnTo == 'history'} ? @{/movements/history} :
-                   (${returnTo == 'detail' and client.id != null} ? @{/clients/{id}(id=${client.id})} :
-                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients})))"
+                   (${returnTo == 'detail' and client.id != null} ? (${clientCareContext} ? '/clientcare/clients/' + ${client.id} : '/clients/' + ${client.id}) :
+                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} :
+                   (${clientCareContext} ? @{/clientcare/clients} : @{/clients}))))"
            class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>
             <span th:text="#{btn.back}">Назад</span>
@@ -17,7 +18,9 @@
     </div>
     <div class="card">
         <div class="card-body">
-            <form th:action="${client.id == null} ? @{/clients/new} : @{/clients/{id}/edit(id=${client.id})}"
+            <form th:action="${client.id == null}
+                              ? (${clientCareContext} ? @{/clientcare/clients/new} : @{/clients/new})
+                              : (${clientCareContext} ? '/clientcare/clients/' + ${client.id} + '/edit' : '/clients/' + ${client.id} + '/edit')"
                   th:object="${client}" method="post">
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <input th:if="${productId != null}" type="hidden" name="productId" th:value="${productId}"/>
@@ -31,7 +34,8 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{client.form.phone}">Телефон</label>
-                        <input type="text" class="form-control" th:field="*{phone}"/>
+                        <input type="text" class="form-control" th:field="*{phone}"
+                               oninput="this.value=this.value.replace(/[^+0-9 ()\-]/g,'')"/>
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold" th:text="#{client.form.notes}">Примітки</label>
@@ -44,8 +48,9 @@
                         </button>
                         <a th:href="${returnTo == 'expense'} ? @{/movements/expense} :
                                    (${returnTo == 'history'} ? @{/movements/history} :
-                                   (${returnTo == 'detail' and client.id != null} ? @{/clients/{id}(id=${client.id})} :
-                                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} : @{/clients})))"
+                                   (${returnTo == 'detail' and client.id != null} ? (${clientCareContext} ? '/clientcare/clients/' + ${client.id} : '/clients/' + ${client.id}) :
+                                   (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} :
+                                   (${clientCareContext} ? @{/clientcare/clients} : @{/clients}))))"
                            class="btn btn-outline-secondary"
                            th:text="#{btn.cancel}">Скасувати</a>
                     </div>

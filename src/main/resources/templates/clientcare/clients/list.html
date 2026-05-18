@@ -37,7 +37,8 @@
                         </div>
                         <div class="col-md-4">
                             <input type="text" class="form-control" th:field="*{phone}"
-                                   th:placeholder="#{client.form.phone}"/>
+                                   th:placeholder="#{client.form.phone}"
+                                   oninput="this.value=this.value.replace(/[^+0-9 ()\-]/g,'')"/>
                         </div>
                         <div class="col-md-4">
                             <textarea class="form-control" th:field="*{notes}" rows="1"
@@ -88,18 +89,33 @@
                     th:onclick="|window.location='@{/clientcare/clients/{id}(id=${c.id})}'|"
                     style="cursor:pointer">
                     <td>
-                        <a th:href="@{/clientcare/clients/{id}(id=${c.id})}"
-                           class="fw-semibold text-decoration-none text-dark"
-                           th:text="${c.name}"
-                           th:if="${c.notes == null or c.notes.isEmpty()}"></a>
-                        <a th:href="@{/clientcare/clients/{id}(id=${c.id})}"
-                           class="fw-semibold text-decoration-none text-dark"
-                           th:text="${c.name}"
-                           th:unless="${c.notes == null or c.notes.isEmpty()}"
-                           th:title="${c.notes}"
-                           data-bs-toggle="tooltip"
-                           data-bs-placement="right"
-                           style="border-bottom: 1px dashed #6c757d;"></a>
+                        <div class="d-flex align-items-center gap-2">
+                            <a th:href="@{/clientcare/clients/{id}(id=${c.id})}"
+                               class="fw-semibold text-decoration-none text-dark"
+                               th:text="${c.name}"
+                               th:if="${c.notes == null or c.notes.isEmpty()}"></a>
+                            <a th:href="@{/clientcare/clients/{id}(id=${c.id})}"
+                               class="fw-semibold text-decoration-none text-dark"
+                               th:text="${c.name}"
+                               th:unless="${c.notes == null or c.notes.isEmpty()}"
+                               th:title="${c.notes}"
+                               data-bs-toggle="tooltip"
+                               data-bs-placement="right"
+                               style="border-bottom: 1px dashed #6c757d;"></a>
+                            <!-- Upcoming appointment icon (next 7 days) -->
+                            <i th:if="${clientsWithUpcoming != null and clientsWithUpcoming.contains(c.id)}"
+                               class="bi bi-calendar-check text-success"
+                               style="font-size:0.85rem; flex-shrink:0"
+                               th:title="#{appointment.badge.upcoming}"
+                               data-bs-toggle="tooltip"></i>
+                            <!-- Overdue appointment icon (only when no upcoming) -->
+                            <i th:if="${clientsWithOverdue != null and clientsWithOverdue.contains(c.id)
+                                        and (clientsWithUpcoming == null or !clientsWithUpcoming.contains(c.id))}"
+                               class="bi bi-calendar-x text-danger"
+                               style="font-size:0.85rem; flex-shrink:0"
+                               th:title="#{appointment.badge.overdue}"
+                               data-bs-toggle="tooltip"></i>
+                        </div>
                     </td>
                     <td class="d-none d-md-table-cell" th:text="${c.phone ?: '—'}"></td>
                     <td class="text-end" onclick="event.stopPropagation()">

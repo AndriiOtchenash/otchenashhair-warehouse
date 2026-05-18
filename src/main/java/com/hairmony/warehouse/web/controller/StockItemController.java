@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,8 +22,13 @@ public class StockItemController {
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate,
                        @RequestParam(required = false) String batchNumber,
                        @RequestParam(required = false) BigDecimal purchasePrice,
-                       @RequestParam Long productId) {
-        stockService.updateStockItem(id, expiryDate, batchNumber, purchasePrice);
+                       @RequestParam Long productId,
+                       RedirectAttributes redirectAttributes) {
+        try {
+            stockService.updateStockItem(id, expiryDate, batchNumber, purchasePrice);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
         return "redirect:/products/" + productId;
     }
 }

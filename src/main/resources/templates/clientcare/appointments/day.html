@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{appointments.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <style>
+        /* ── FullCalendar accent override ── */
+        .fc .fc-button-primary {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+        .fc .fc-button-primary:hover {
+            background-color: #3d6b4a;
+            border-color: #3d6b4a;
+        }
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+            background-color: #2f5439;
+            border-color: #2f5439;
+        }
+        .fc .fc-button-primary:disabled {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            opacity: 0.55;
+        }
+
+        /* Toolbar wraps on narrow screens (desktop only) */
+        .fc .fc-toolbar.fc-header-toolbar {
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
+        .fc .fc-toolbar-chunk {
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+        }
+
+        /* Events are clickable */
+        .fc-event { cursor: pointer; }
+
+        /* Phone inline next to name inside timeGrid event */
+        .fc-event-phone {
+            font-size: 0.78em;
+            opacity: 0.92;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* Context banner (link-visit flow) */
+        .cal-context-banner {
+            background: var(--accent-light);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            flex-wrap: wrap;
+        }
+
+        /* ── Month view: desktop — single-line pill ──────────────────── */
+        @media (min-width: 768px) {
+            .fc-month-pill {
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+                overflow: hidden;
+                padding: 0 2px;
+                line-height: 1.4;
+            }
+            .fc-month-pill-time {
+                font-size: 0.72em;
+                font-weight: 700;
+                opacity: 0.9;
+                flex-shrink: 0;
+                letter-spacing: -0.02em;
+            }
+            .fc-month-pill-title {
+                font-size: 0.82em;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        }
+
+        /* ── Mobile: hide FC toolbar, show custom one ────────────────── */
+        @media (max-width: 767px) {
+            .fc .fc-toolbar.fc-header-toolbar { display: none !important; }
+
+            /* Today banner - full-width, accent background */
+            .today-banner {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.4rem;
+                width: 100%;
+                background: var(--accent);
+                color: #fff;
+                border: none;
+                padding: 0.7rem 1rem;
+                font-size: 0.9rem;
+                font-weight: 600;
+                letter-spacing: 0.01em;
+                cursor: pointer;
+                text-align: center;
+                transition: background 0.15s;
+            }
+            .today-banner:active { background: #2f5439; }
+
+            /* Nav row: < period > [D][W][M] */
+            .cal-nav-row {
+                display: flex;
+                align-items: center;
+                gap: 0.35rem;
+                padding: 0.45rem 0.6rem;
+                background: #fff;
+                border-top: 1px solid rgba(74,124,89,0.15);
+                border-bottom: 1px solid #e9ecef;
+            }
+            .cal-period-label {
+                flex: 1;
+                text-align: center;
+                font-size: 0.82rem;
+                font-weight: 600;
+                color: #1e2d24;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .cal-nav-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 2.1rem;
+                height: 2.1rem;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                background: #fff;
+                color: #495057;
+                cursor: pointer;
+                flex-shrink: 0;
+                font-size: 0.9rem;
+                padding: 0;
+            }
+            .cal-nav-btn:active { background: var(--accent-light); border-color: var(--accent); }
+
+            .cal-view-btns {
+                display: flex;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                overflow: hidden;
+                flex-shrink: 0;
+            }
+            .cal-view-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 2.1rem;
+                height: 2.1rem;
+                border: none;
+                border-left: 1px solid #dee2e6;
+                background: #fff;
+                color: #6c757d;
+                cursor: pointer;
+                font-size: 0.85rem;
+                padding: 0;
+                transition: background 0.1s, color 0.1s;
+            }
+            .cal-view-btn:first-child { border-left: none; }
+            .cal-view-btn.active {
+                background: var(--accent-light);
+                color: var(--accent);
+            }
+
+            /* Month view: strip event block so only dot is visible */
+            .fc-daygrid-event {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 1px 0 !important;
+            }
+            .fc-daygrid-event-harness { height: 13px !important; }
+
+            .fc-dot-pill {
+                display: flex;
+                align-items: center;
+                padding: 2px 3px;
+            }
+            .fc-dot-circle {
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+
+            .fc-daygrid-day-frame { cursor: pointer; }
+
+            .fc-more-link {
+                font-size: 0.65rem !important;
+                font-weight: 600;
+                padding: 0 3px;
+            }
+        }
+    </style>
+
+    <!-- Context banner — visible when booking for a specific client -->
+    <div th:if="${calClientId != null}" class="cal-context-banner">
+        <span>
+            <i class="bi bi-person-check me-1"></i>
+            <span th:text="#{appointments.calendar.pickSlot}">Оберіть час для запису</span>
+            <strong th:if="${calClientName != null}" th:text="': ' + ${calClientName}"></strong>
+        </span>
+        <a th:href="${calReturnTo != null} ? ${calReturnTo} : '/clientcare/clients/' + ${calClientId}"
+           class="btn btn-outline-secondary btn-sm"
+           th:text="#{btn.cancel}">Скасувати</a>
+    </div>
+
+    <!-- overflow-hidden clips children to the card's border-radius -->
+    <div class="card overflow-hidden">
+
+        <!-- ── Mobile custom header (hidden on desktop) ── -->
+        <div class="d-md-none">
+            <!-- Today banner: tapping navigates to today -->
+            <button id="todayBanner" class="today-banner" type="button">
+                <i class="bi bi-calendar-heart"></i>
+                <span id="todayLabel"></span>
+            </button>
+            <!-- Nav row: prev / period title / next / view switcher -->
+            <div class="cal-nav-row">
+                <button class="cal-nav-btn" id="calPrev" type="button" aria-label="Попередній">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <span class="cal-period-label" id="calPeriodLabel"></span>
+                <button class="cal-nav-btn" id="calNext" type="button" aria-label="Наступний">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+                <div class="cal-view-btns" role="group">
+                    <button class="cal-view-btn" id="viewDay"   type="button" title="День">
+                        <i class="bi bi-calendar-day"></i>
+                    </button>
+                    <button class="cal-view-btn" id="viewWeek"  type="button" title="Тиждень">
+                        <i class="bi bi-calendar2-week"></i>
+                    </button>
+                    <button class="cal-view-btn" id="viewMonth" type="button" title="Місяць">
+                        <i class="bi bi-calendar3"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Calendar grid ── -->
+        <div class="card-body p-2 p-md-3">
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- FullCalendar v6 — CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales-all.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.15/index.global.min.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const INITIAL_DATE   = /*[[${initialDate}]]*/ null;
+        const CAL_CLIENT_ID  = /*[[${calClientId}]]*/ null;
+        const CAL_LINK_VISIT = /*[[${calLinkVisitId}]]*/ null;
+        const CAL_RETURN_TO  = /*[[${calReturnTo}]]*/ null;
+        const CSRF_PARAM     = /*[[${_csrf != null ? _csrf.parameterName : '_csrf'}]]*/ '_csrf';
+        const CSRF_TOKEN     = /*[[${_csrf != null ? _csrf.token : ''}]]*/ '';
+        const TODAY_LABEL    = /*[[#{common.today}]]*/ 'Сьогодні';
+
+        const FC_LOCALE = (function () {
+            const lang = /*[[${#locale.language}]]*/ 'uk';
+            return (lang === 'uk' || lang === 'pl') ? lang : 'en';
+        })();
+
+        function isMobile() { return window.innerWidth < 768; }
+
+        /** Build URL for new appointment, preserving link-visit context. */
+        function newApptUrl(dateStr) {
+            const date = dateStr.slice(0, 10);
+            const time = dateStr.length >= 16 ? dateStr.slice(11, 16) : null;
+            let url = '/clientcare/appointments/new?date=' + date;
+            if (time)           url += '&startTime=' + time;
+            if (CAL_CLIENT_ID)  url += '&clientId='    + CAL_CLIENT_ID;
+            if (CAL_LINK_VISIT) url += '&linkVisitId='  + CAL_LINK_VISIT;
+            if (CAL_RETURN_TO)  url += '&returnTo='     + encodeURIComponent(CAL_RETURN_TO);
+            return url;
+        }
+
+        /** Format JS Date as local YYYY-MM-DDTHH:MM (no timezone suffix). */
+        function toLocalISO(date) {
+            const p = n => String(n).padStart(2, '0');
+            return date.getFullYear() + '-' + p(date.getMonth() + 1) + '-' + p(date.getDate())
+                 + 'T' + p(date.getHours()) + ':' + p(date.getMinutes());
+        }
+
+        /** POST reschedule; revert event on failure. */
+        function reschedule(event, revertFn) {
+            if (!event.end) { revertFn(); return; }
+            const params = new URLSearchParams({ start: toLocalISO(event.start), end: toLocalISO(event.end) });
+            params.append(CSRF_PARAM, CSRF_TOKEN);
+            fetch('/clientcare/appointments/' + event.id + '/reschedule', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    params.toString()
+            }).then(r => { if (!r.ok) revertFn(); }).catch(() => revertFn());
+        }
+
+        /**
+         * eventContent:
+         *   dayGridMonth + mobile  → colored dot
+         *   dayGridMonth + desktop → single-line "10:00 Клієнт"
+         *   timeGrid*              → time / title / phone
+         */
+        function buildEventContent(arg) {
+            const view  = arg.view.type;
+            const color = arg.event.backgroundColor;
+
+            if (view === 'dayGridMonth') {
+                if (isMobile()) {
+                    const pill = document.createElement('div');
+                    pill.className = 'fc-dot-pill';
+                    const dot = document.createElement('span');
+                    dot.className = 'fc-dot-circle';
+                    dot.style.background = color;
+                    pill.appendChild(dot);
+                    return { domNodes: [pill] };
+                }
+                // Desktop: single-line pill
+                const pill = document.createElement('div');
+                pill.className = 'fc-month-pill';
+                if (arg.timeText) {
+                    const t = document.createElement('span');
+                    t.className = 'fc-month-pill-time';
+                    t.textContent = arg.timeText;
+                    pill.appendChild(t);
+                }
+                const title = document.createElement('span');
+                title.className = 'fc-month-pill-title';
+                title.textContent = arg.event.title || '';
+                pill.appendChild(title);
+                return { domNodes: [pill] };
+            }
+
+            // timeGrid: time row, then name + phone on one row
+            const wrapper = document.createElement('div');
+            wrapper.className = 'fc-event-main-frame';
+            if (arg.timeText) {
+                const t = document.createElement('div');
+                t.className = 'fc-event-time';
+                t.textContent = arg.timeText;
+                wrapper.appendChild(t);
+            }
+            const nameRow = document.createElement('div');
+            nameRow.className = 'fc-event-title fc-sticky';
+            nameRow.style.cssText = 'display:flex;align-items:baseline;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = arg.event.title || '';
+            nameRow.appendChild(nameSpan);
+            const phone = arg.event.extendedProps.phone;
+            if (phone) {
+                const sep = document.createElement('span');
+                sep.className = 'fc-event-phone';
+                sep.textContent = '\u00b7';
+                sep.style.cssText = 'margin:0 0.3em;';
+                nameRow.appendChild(sep);
+                const phoneSpan = document.createElement('span');
+                phoneSpan.className = 'fc-event-phone';
+                phoneSpan.textContent = phone;
+                nameRow.appendChild(phoneSpan);
+            }
+            wrapper.appendChild(nameRow);
+            return { domNodes: [wrapper] };
+        }
+
+        /** Update custom mobile toolbar: period label + active view button. */
+        function updateMobileToolbar(view) {
+            const label = document.getElementById('calPeriodLabel');
+            if (label) label.textContent = view.title;
+
+            const viewMap = { timeGridDay: 'viewDay', timeGridWeek: 'viewWeek', dayGridMonth: 'viewMonth' };
+            document.querySelectorAll('.cal-view-btn').forEach(b => b.classList.remove('active'));
+            const activeId = viewMap[view.type];
+            if (activeId) {
+                const btn = document.getElementById(activeId);
+                if (btn) btn.classList.add('active');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const defaultView = isMobile() ? 'timeGridDay' : 'timeGridWeek';
+            const savedView   = localStorage.getItem('fcView') || defaultView;
+
+            const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+                initialView: savedView,
+                initialDate: INITIAL_DATE || undefined,
+                locale:      FC_LOCALE,
+                height:      'auto',
+                firstDay:    1,
+
+                headerToolbar: {
+                    left:   'prev,next today',
+                    center: 'title',
+                    right:  'timeGridDay,timeGridWeek,dayGridMonth'
+                },
+
+                slotMinTime:  '08:00:00',
+                slotMaxTime:  '21:00:00',
+                slotDuration: '00:30:00',
+                scrollTime:   '09:00:00',
+                allDaySlot:   false,
+
+                businessHours: {
+                    daysOfWeek: [1, 2, 3, 4, 5, 6],
+                    startTime:  '09:00',
+                    endTime:    '19:00'
+                },
+
+                editable:   true,
+                selectable: false,
+
+                events: '/clientcare/appointments/api',
+
+                datesSet: function (info) {
+                    localStorage.setItem('fcView', info.view.type);
+                    updateMobileToolbar(info.view);
+                },
+
+                eventContent: buildEventContent,
+
+                eventClick: function (info) {
+                    info.jsEvent.preventDefault();
+                    if (isMobile() && info.view.type === 'dayGridMonth') {
+                        cal.changeView('timeGridDay', info.event.start);
+                        return;
+                    }
+                    window.location.href = info.event.extendedProps.editUrl;
+                },
+
+                dateClick: function (info) {
+                    if (isMobile() && info.view.type === 'dayGridMonth') {
+                        cal.changeView('timeGridDay', info.date);
+                        return;
+                    }
+                    if (info.date < new Date()) return;
+                    window.location.href = newApptUrl(info.dateStr);
+                },
+
+                moreLinkClick: function (info) {
+                    if (isMobile()) {
+                        cal.changeView('timeGridDay', info.date);
+                        return 'prevent';
+                    }
+                },
+
+                eventAllow: function (dropInfo) {
+                    return dropInfo.start >= new Date();
+                },
+
+                eventDrop:   function (info) { reschedule(info.event, info.revert); },
+                eventResize: function (info) { reschedule(info.event, info.revert); }
+            });
+
+            cal.render();
+
+            // ── Wire up mobile custom toolbar ──────────────────────────────
+            if (isMobile()) {
+                // Today banner: format today's date with locale
+                const bcp = FC_LOCALE === 'uk' ? 'uk-UA' : FC_LOCALE === 'pl' ? 'pl-PL' : 'en-US';
+                const now = new Date();
+                const datePart = new Intl.DateTimeFormat(bcp, {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                }).format(now);
+                // Capitalize first letter of TODAY_LABEL
+                const label = TODAY_LABEL.charAt(0).toUpperCase() + TODAY_LABEL.slice(1);
+                const todaySpan = document.getElementById('todayLabel');
+                if (todaySpan) todaySpan.textContent = label + ' — ' + datePart;
+
+                // Navigation buttons
+                const el = id => document.getElementById(id);
+                el('todayBanner').onclick = () => cal.today();
+                el('calPrev').onclick     = () => cal.prev();
+                el('calNext').onclick     = () => cal.next();
+                el('viewDay').onclick     = () => cal.changeView('timeGridDay');
+                el('viewWeek').onclick    = () => cal.changeView('timeGridWeek');
+                el('viewMonth').onclick   = () => cal.changeView('dayGridMonth');
+            }
+        });
+        /*]]>*/
+    </script>
+</div>
+</body>
+</html>
