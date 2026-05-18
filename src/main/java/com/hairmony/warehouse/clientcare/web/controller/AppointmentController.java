@@ -163,6 +163,7 @@ public class AppointmentController {
         AppointmentDto dto = appointmentService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));
         appointmentService.changeStatus(id, AppointmentStatus.COMPLETED);
+        visitService.unlinkCompletedAppointment(id);
         LocalDate date = dto.getStartAt() != null ? dto.getStartAt().toLocalDate() : LocalDate.now();
         if (dto.getClientId() != null) {
             String returnTo = "/clientcare/appointments?date=" + date;

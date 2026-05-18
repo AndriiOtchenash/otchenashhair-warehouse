@@ -98,7 +98,7 @@
                         </select>
                         <div class="mt-1">
                             <span class="text-muted small" th:text="#{common.or}">або</span>
-                            <a th:href="@{/clients/new(returnTo='expense')}"
+                            <a id="newClientLink" href="/clients/new?returnTo=expense"
                                class="small fw-semibold text-decoration-none ms-1"
                                style="color:var(--accent)"
                                th:text="#{client.createNew}">Створити нового клієнта →</a>
@@ -229,6 +229,27 @@
             if (writeOffReasonSelect && !isWriteOff) writeOffReasonSelect.value = '';
         }
 
+        const PRESELECTED_CLIENT_ID = /*[[${dto.clientId}]]*/ null;
+
+        // Clear stale autosave synchronously (before DOMContentLoaded callbacks run)
+        // so the restore banner never appears when we're returning from client creation.
+        if (PRESELECTED_CLIENT_ID) {
+            try { localStorage.removeItem('form_autosave_expense_form'); } catch (e) {}
+        }
+
+        function updateNewClientLink() {
+            const link = document.getElementById('newClientLink');
+            if (!link) return;
+            const typeSelect = document.querySelector('[name="movementType"]');
+            const productSelect = document.getElementById('productSelect');
+            const quantityInput = document.getElementById('quantity');
+            let href = '/clients/new?returnTo=expense';
+            if (productSelect && productSelect.value) href += '&productId=' + encodeURIComponent(productSelect.value);
+            if (typeSelect && typeSelect.value) href += '&movementType=' + encodeURIComponent(typeSelect.value);
+            if (quantityInput && quantityInput.value) href += '&quantity=' + encodeURIComponent(quantityInput.value);
+            link.href = href;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const productSelect = document.getElementById('productSelect');
             if (productSelect && productSelect.value) updateStockHint(productSelect);
@@ -236,8 +257,21 @@
             const typeSelect = document.querySelector('[name="movementType"]');
             if (typeSelect) {
                 toggleTypeFields();
-                typeSelect.addEventListener('change', toggleTypeFields);
+                // Restore a pre-selected client that toggleTypeFields may have cleared on init
+                if (PRESELECTED_CLIENT_ID) {
+                    const clientSel = document.querySelector('[name="clientId"]');
+                    if (clientSel) {
+                        clientSel.value = PRESELECTED_CLIENT_ID;
+                        const sf = document.getElementById('saleFields');
+                        if (sf) sf.style.display = '';
+                    }
+                }
+                typeSelect.addEventListener('change', function () {
+                    toggleTypeFields();
+                    updateNewClientLink();
+                });
             }
+            updateNewClientLink();
 
             const writeOffReasonSelect = document.getElementById('writeOffReasonSelect');
             if (writeOffReasonSelect) {
@@ -246,6 +280,9 @@
 
             const priceInput = document.getElementById('unitPriceInput');
             if (priceInput) priceInput.addEventListener('input', checkPriceWarning);
+
+            const quantityInput = document.getElementById('quantity');
+            if (quantityInput) quantityInput.addEventListener('input', updateNewClientLink);
 
             const form = document.querySelector('form[data-autosave-key="expense_form"]');
             if (form) {

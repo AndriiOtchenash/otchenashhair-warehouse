@@ -111,11 +111,15 @@ public class ClientController {
     public String newForm(Model model,
                           @RequestParam(required = false) String returnTo,
                           @RequestParam(required = false) Long productId,
-                          @RequestParam(required = false) Long movementId) {
+                          @RequestParam(required = false) Long movementId,
+                          @RequestParam(required = false) String movementType,
+                          @RequestParam(required = false) String quantity) {
         model.addAttribute("client", new ClientDto());
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         if (productId != null) model.addAttribute("productId", productId);
         if (movementId != null) model.addAttribute("movementId", movementId);
+        if (movementType != null) model.addAttribute("movementType", movementType);
+        if (quantity != null) model.addAttribute("quantity", quantity);
         return "clients/form";
     }
 
@@ -126,16 +130,24 @@ public class ClientController {
                             @RequestParam(required = false) String returnTo,
                             @RequestParam(required = false) Long productId,
                             @RequestParam(required = false) Long movementId,
+                            @RequestParam(required = false) String movementType,
+                            @RequestParam(required = false) String quantity,
                             HttpServletRequest request) {
         if (result.hasErrors()) {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (productId != null) model.addAttribute("productId", productId);
             if (movementId != null) model.addAttribute("movementId", movementId);
+            if (movementType != null) model.addAttribute("movementType", movementType);
+            if (quantity != null) model.addAttribute("quantity", quantity);
             return "clients/form";
         }
         ClientDto saved = clientService.save(dto);
         if ("expense".equals(returnTo)) {
-            return "redirect:/movements/expense?clientId=" + saved.getId();
+            StringBuilder redirect = new StringBuilder("/movements/expense?clientId=").append(saved.getId());
+            if (productId != null) redirect.append("&productId=").append(productId);
+            if (movementType != null) redirect.append("&movementType=").append(movementType);
+            if (quantity != null) redirect.append("&quantity=").append(quantity);
+            return "redirect:" + redirect;
         }
         if ("product".equals(returnTo) && productId != null) {
             String query = movementId != null

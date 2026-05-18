@@ -61,10 +61,14 @@ public class StockController {
     @GetMapping("/expense")
     public String expenseForm(@RequestParam(required = false) Long productId,
                               @RequestParam(required = false) Long clientId,
+                              @RequestParam(required = false) MovementType movementType,
+                              @RequestParam(required = false) java.math.BigDecimal quantity,
                               Model model) {
         StockExpenseDto dto = new StockExpenseDto();
         if (productId != null) dto.setProductId(productId);
         if (clientId != null) dto.setClientId(clientId);
+        if (movementType != null) dto.setMovementType(movementType);
+        if (quantity != null) dto.setQuantity(quantity);
         populateExpenseModel(model);
         model.addAttribute("dto", dto);
         return "stock/expense";

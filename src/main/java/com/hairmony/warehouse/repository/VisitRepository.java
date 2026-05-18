@@ -15,6 +15,8 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
 
     Optional<Visit> findFirstByClientIdOrderByVisitDateDescCreatedAtDesc(Long clientId);
 
+    Optional<Visit> findByNextAppointmentId(Long appointmentId);
+
     /**
      * Returns the latest visit per client where nextVisitDate is set (any date).
      * Eagerly fetches client to avoid lazy-load outside transaction.
