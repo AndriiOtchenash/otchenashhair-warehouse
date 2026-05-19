@@ -261,6 +261,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   stock level shown prominently in info strip with color: green(OK)/yellow(LOW)/red(OUT)
 - Mobile tables: hide secondary columns with d-none d-md-table-cell;
   keep essential columns (name, status/type, quantity, actions) always visible
+- Page-header add button (mobile): icon only on mobile, text hidden via `d-none d-md-inline ms-1` on the `<span>`.
+  page-header stays in row layout on all screen sizes (title left, button right via justify-content:space-between).
+  Pattern: `<i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1" th:text="...">Label</span>`
 - Filter UX pattern (client detail, product detail, supplier detail): filter bar with
   Row 1 = від/до date range (two input-group side by side, id=dateFromWrap/dateToWrap);
   Row 2 = type select + gift button (client detail only) / product name search (supplier detail);

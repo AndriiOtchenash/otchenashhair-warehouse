@@ -14,6 +14,18 @@
             th:text="${isEdit} ? #{appointments.title} : #{appointments.add}">Запис</h1>
     </div>
 
+    <!-- Rebook banner: shown when creating a new appointment after a NO_SHOW -->
+    <div th:if="${missedAppointmentAt}"
+         class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-person-x-fill text-danger flex-shrink-0"></i>
+        <span>
+            <span th:text="#{appointment.rebook.missedLabel}">Клієнт не з'явився на прийом</span>
+            <strong th:text="${#temporals.format(missedAppointmentAt, 'dd.MM.yyyy')}"></strong>
+            <span th:text="#{appointment.rebook.at}">о</span>
+            <strong th:text="${#temporals.format(missedAppointmentAt, 'HH:mm')}"></strong>
+        </span>
+    </div>
+
     <div class="card">
         <div class="card-body">
             <form th:action="${isEdit} ? @{/clientcare/appointments/{id}/edit(id=${appointment.id})} : @{/clientcare/appointments/new}"
@@ -29,6 +41,8 @@
                 <input type="hidden" th:name="formDate" th:value="${formDate}"/>
                 <input type="hidden" th:if="${returnTo != null}" name="returnTo" th:value="${returnTo}"/>
                 <input type="hidden" th:if="${linkVisitId != null}" name="linkVisitId" th:value="${linkVisitId}"/>
+                <input type="hidden" th:if="${rebookedFromId != null}" name="rebookedFromId"
+                       th:value="${rebookedFromId}"/>
 
                 <!-- ── Client section ── -->
                 <th:block th:if="${clientLocked}">
@@ -37,7 +51,11 @@
                                th:text="#{appointment.form.client.mode.existing}">Клієнт</label>
                         <div class="form-control-plaintext fw-semibold py-0"
                              th:text="${lockedClientName}"></div>
-                        <input type="hidden" th:field="*{clientId}"/>
+                        <!-- Existing client -->
+                        <input type="hidden" th:if="*{clientId != null}" th:field="*{clientId}"/>
+                        <!-- Guest: preserve name + phone -->
+                        <input type="hidden" th:if="*{clientId == null}" th:field="*{guestName}"/>
+                        <input type="hidden" th:if="*{clientId == null and guestPhone != null}" th:field="*{guestPhone}"/>
                     </div>
                 </th:block>
 
@@ -229,7 +247,7 @@
             <!-- ── No-show follow-up panel ── -->
             <div th:if="${isNoShow}" class="mt-3 pt-3 border-top">
                 <div class="alert alert-secondary py-2 mb-2 d-flex align-items-center gap-2">
-                    <i class="bi bi-person-x-fill fs-5 text-warning flex-shrink-0"></i>
+                    <i class="bi bi-person-x-fill fs-5 text-danger flex-shrink-0"></i>
                     <div>
                         <div class="fw-semibold small" th:text="#{appointment.noshow.panel.title}">Клієнт не прийшов</div>
                         <div class="text-muted small" th:text="#{appointment.noshow.panel.hint}">Зв'яжіться та запропонуйте новий час</div>
@@ -241,7 +259,11 @@
                         <i class="bi bi-list-check me-1"></i>
                         <span th:text="#{appointment.noshow.panel.followup}">Черга follow-up</span>
                     </a>
-                    <a th:href="@{/clientcare/appointments/new(clientId=${appointment.clientId})}"
+                    <a th:href="@{/clientcare/appointments/new(
+                           clientId=${appointment.clientId},
+                           appointmentType=${appointment.appointmentType},
+                           notes=${appointment.notes},
+                           rebookedFromId=${appointment.id})}"
                        class="btn btn-outline-success btn-sm flex-grow-1">
                         <i class="bi bi-calendar-plus me-1"></i>
                         <span th:text="#{appointment.noshow.panel.rebook}">Записати повторно</span>
