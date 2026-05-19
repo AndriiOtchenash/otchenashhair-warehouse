@@ -852,7 +852,9 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
   Spring @Scheduled + spring-boot-starter-mail
 - Export to Excel — reports page + movement history; Apache POI (xlsx)
 - Inventory count / stock-take — formal workflow: enter physical counts per product,
-  system auto-generates ADJUSTMENT movements for the differences
+  system auto-generates ADJUSTMENT movements for the differences;
+  scanner page `/scan?mode=stocktake` as dedicated entry point — add back to sidebar as "Інвентаризація"
+  (standalone "Сканер" nav link was removed 2026-05-19 as redundant — income/expense already go to /scan with mode pre-selected)
 - User roles (ADMIN/OPERATOR) — Role entity already exists; @PreAuthorize on
   delete/cancel/deactivate endpoints to restrict to ADMIN only;
   IDOR protection needed when roles are introduced:
