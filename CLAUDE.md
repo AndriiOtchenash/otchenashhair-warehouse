@@ -788,10 +788,23 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
 **NO_SHOW post-action flow (2026-05-18):**
 - `POST /{id}/status?status=NO_SHOW` redirects to `GET /{id}/edit` (not to calendar)
 - Edit page detects `isNoShow` = `status == NO_SHOW && clientId != null`; shows action panel:
-  - Gray alert "Клієнт не прийшов / Зв'яжіться та запропонуйте новий час"
+  - Gray alert with `bi-person-x-fill text-danger` icon
   - "Черга follow-up" → `/clientcare/followups?visitFilter=overdue`
-  - "Записати повторно" → `/clientcare/appointments/new?clientId=X`
+  - "Записати повторно" → `/clientcare/appointments/new?clientId=X&appointmentType=X&notes=X&rebookedFromId=X`
 - Client stays in follow-up queue (FOLLOWUP_OVERDUE_STATUSES includes NO_SHOW)
+
+**NO_SHOW rebook flow (2026-05-19):**
+- "Записати повторно" passes `appointmentType`, `notes`, `rebookedFromId` (original appointment ID) as URL params
+- `AppointmentController.newForm()` accepts these params; pre-fills DTO with type and notes; calls `addMissedAppointmentBanner()`
+- `addMissedAppointmentBanner()`: loads original appointment's `startAt`, puts `missedAppointmentAt` + `rebookedFromId` in model
+- `form.html` shows amber banner above the card: `bi-person-x-fill text-danger` + "Клієнт не з'явився на прийом DD.MM.YYYY о HH:mm"
+- `rebookedFromId` persisted as hidden input in form — banner survives validation errors
+
+**Client field locked in edit mode (2026-05-19):**
+- `AppointmentController.editForm()` always calls `lockClientForEdit(dto, model)` — no toggle or dropdown shown
+- `lockClientForEdit()`: sets `clientLocked=true`; for existing client → loads name from service; for guest → shows "guestName · guestPhone"
+- `clientLocked` template block updated: existing client submits hidden `clientId`; guest submits hidden `guestName` + `guestPhone`
+- Same lock applied in `update()` error re-render paths
 
 **KPI status sets split (2026-05-18):**
 - `ClientCareService` now has two overdue constants:
@@ -808,6 +821,11 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
 - `ClientCareService` now uses `now` (not `todayStart`) as the boundary for upcoming vs. overdue
 - Appointments earlier today that have already passed are correctly counted as overdue
 - Applied in both `getFollowupQueue()` and `getDashboardData()`
+
+**Follow-up queue same-day overdue fix (2026-05-19):**
+- Bug: appointment today (time passed, still PLANNED/CONFIRMED) → `DAYS.between(today, today) = 0` → `visitToday()` = true → appeared in `visitFilter=scheduled` instead of `overdue`
+- Fix: in `getFollowupQueue()` overdue loop, if `days == 0` force to `-1` — appointment confirmed past by `findOverdueForClients(startAt < now)` but same calendar date
+- `visitOverdue()` checks `days < 0`; `visitToday()` checks `days == 0` — now correctly separated
 
 **"Переглянути календар" button fix (2026-05-18):**
 - Condition changed from `th:if="${linkVisitId != null}"` to `th:if="${linkVisitId != null or clientLocked eq true}"`
