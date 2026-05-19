@@ -51,9 +51,9 @@ public class ClientController {
     public String list(Model model, HttpServletRequest request) {
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("newClient", new ClientDto());
-        model.addAttribute("clientsWithMovements", clientService.getClientIdsWithMovements());
+        model.addAttribute("clientsNotDeletable", clientService.getClientIdsNotDeletable());
         model.addAttribute("clientsWithUpcoming",
-                appointmentService.getClientIdsWithUpcomingAppointments(7));
+                appointmentService.getClientIdsWithUpcomingAppointments());
         model.addAttribute("clientsWithOverdue",
                 appointmentService.getClientIdsWithOverdueAppointments());
         return isClientCare(request) ? "clientcare/clients/list" : "clients/list";
@@ -180,9 +180,9 @@ public class ClientController {
                          HttpServletRequest request) {
         if (result.hasErrors()) {
             model.addAttribute("clients", clientService.findAll());
-            model.addAttribute("clientsWithMovements", clientService.getClientIdsWithMovements());
+            model.addAttribute("clientsNotDeletable", clientService.getClientIdsNotDeletable());
             model.addAttribute("clientsWithUpcoming",
-                    appointmentService.getClientIdsWithUpcomingAppointments(7));
+                    appointmentService.getClientIdsWithUpcomingAppointments());
             model.addAttribute("clientsWithOverdue",
                     appointmentService.getClientIdsWithOverdueAppointments());
             return isClientCare(request) ? "clientcare/clients/list" : "clients/list";

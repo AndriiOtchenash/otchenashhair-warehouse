@@ -8,10 +8,17 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface VisitRepository extends JpaRepository<Visit, Long> {
 
     List<Visit> findAllByClientIdOrderByVisitDateDescCreatedAtDesc(Long clientId);
+
+    boolean existsByClientId(Long clientId);
+
+    /** All client IDs that have at least one visit (for deletion guard). */
+    @Query("SELECT DISTINCT v.client.id FROM Visit v")
+    Set<Long> findAllClientIdsWithVisits();
 
     Optional<Visit> findFirstByClientIdOrderByVisitDateDescCreatedAtDesc(Long clientId);
 

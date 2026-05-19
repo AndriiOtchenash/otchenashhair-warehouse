@@ -85,11 +85,10 @@ public class AppointmentService {
     private static final Collection<AppointmentStatus> ACTIVE_STATUSES =
             EnumSet.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
 
-    /** Client IDs with a PLANNED/CONFIRMED appointment in the next N days (for list icons). */
+    /** Client IDs with any future PLANNED/CONFIRMED appointment (no upper bound, for list icons). */
     @Transactional(readOnly = true)
-    public Set<Long> getClientIdsWithUpcomingAppointments(int days) {
-        LocalDateTime now = LocalDateTime.now();
-        return appointmentRepository.findClientIdsWithUpcomingBetween(now, now.plusDays(days), ACTIVE_STATUSES);
+    public Set<Long> getClientIdsWithUpcomingAppointments() {
+        return appointmentRepository.findClientIdsWithAnyUpcomingFrom(LocalDateTime.now(), ACTIVE_STATUSES);
     }
 
     /** Client IDs with a PLANNED/CONFIRMED appointment that is past (overdue, for list icons). */
