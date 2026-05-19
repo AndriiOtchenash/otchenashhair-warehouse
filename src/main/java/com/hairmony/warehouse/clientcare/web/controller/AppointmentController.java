@@ -79,6 +79,9 @@ public class AppointmentController {
                           @RequestParam(required = false) String startTime,
                           @RequestParam(required = false) String returnTo,
                           @RequestParam(required = false) Long linkVisitId,
+                          @RequestParam(required = false) Long rebookedFromId,
+                          @RequestParam(required = false) AppointmentType appointmentType,
+                          @RequestParam(required = false) String notes,
                           Model model) {
         LocalDate formDate = date != null ? date : LocalDate.now();
         LocalTime lt = parseStartTime(startTime);
@@ -86,6 +89,8 @@ public class AppointmentController {
         dto.setStartAt(formDate.atTime(lt));
         dto.setEndAt(formDate.atTime(lt.plusHours(1)));
         dto.setStatus(AppointmentStatus.PLANNED);
+        if (appointmentType != null) dto.setAppointmentType(appointmentType);
+        if (notes != null && !notes.isBlank()) dto.setNotes(notes);
         if (clientId != null) {
             dto.setClientId(clientId);
             model.addAttribute("clientLocked", true);
@@ -93,6 +98,7 @@ public class AppointmentController {
         }
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
+        addMissedAppointmentBanner(rebookedFromId, model);
         populateFormModel(model);
         model.addAttribute("appointment", dto);
         model.addAttribute("formDate", formDate);
@@ -106,12 +112,14 @@ public class AppointmentController {
                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate formDate,
                        @RequestParam(required = false) String returnTo,
                        @RequestParam(required = false) Long linkVisitId,
+                       @RequestParam(required = false) Long rebookedFromId,
                        Model model) {
         if (result.hasErrors()) {
             populateFormModel(model);
             model.addAttribute("formDate", formDate);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
+            addMissedAppointmentBanner(rebookedFromId, model);
             return "clientcare/appointments/form";
         }
         if (dto.getStartAt() != null && dto.getStartAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
@@ -120,6 +128,7 @@ public class AppointmentController {
             model.addAttribute("formDate", formDate);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
+            addMissedAppointmentBanner(rebookedFromId, model);
             return "clientcare/appointments/form";
         }
         Long appointmentId = appointmentService.save(dto);
@@ -154,6 +163,7 @@ public class AppointmentController {
         model.addAttribute("canComplete", canComplete);
         model.addAttribute("isOverdue", isOverdue);
         model.addAttribute("isNoShow", isNoShow);
+        lockClientForEdit(dto, model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "clientcare/appointments/form";
     }
@@ -184,6 +194,7 @@ public class AppointmentController {
             model.addAttribute("isEdit", true);
             model.addAttribute("formDate", dto.getStartAt() != null
                     ? dto.getStartAt().toLocalDate() : LocalDate.now());
+            lockClientForEdit(dto, model);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "clientcare/appointments/form";
         }
@@ -192,6 +203,7 @@ public class AppointmentController {
             populateFormModel(model);
             model.addAttribute("isEdit", true);
             model.addAttribute("formDate", dto.getStartAt().toLocalDate());
+            lockClientForEdit(dto, model);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "clientcare/appointments/form";
         }
@@ -274,5 +286,31 @@ public class AppointmentController {
             case CANCELLED -> "#dc3545";
             case NO_SHOW   -> "#fd7e14";
         };
+    }
+
+    /** Locks the client field in edit mode — no toggle or dropdown shown. */
+    private void lockClientForEdit(AppointmentDto dto, Model model) {
+        model.addAttribute("clientLocked", true);
+        if (dto.getClientId() != null) {
+            String name = dto.getClientName() != null
+                    ? dto.getClientName()
+                    : clientService.findById(dto.getClientId()).getName();
+            model.addAttribute("lockedClientName", name);
+        } else {
+            String display = dto.getGuestName() != null ? dto.getGuestName() : "";
+            if (dto.getGuestPhone() != null && !dto.getGuestPhone().isBlank()) {
+                display += " · " + dto.getGuestPhone();
+            }
+            model.addAttribute("lockedClientName", display);
+        }
+    }
+
+    /** Loads the missed (NO_SHOW) appointment's startAt for the rebook banner. */
+    private void addMissedAppointmentBanner(Long rebookedFromId, Model model) {
+        if (rebookedFromId == null) return;
+        model.addAttribute("rebookedFromId", rebookedFromId);
+        appointmentService.findById(rebookedFromId)
+                .filter(a -> a.getStartAt() != null)
+                .ifPresent(a -> model.addAttribute("missedAppointmentAt", a.getStartAt()));
     }
 }

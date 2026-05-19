@@ -80,7 +80,10 @@ public class ClientCareService {
             if (!apptSignalDate.containsKey(clientId)) {
                 LocalDate d = a.getStartAt().toLocalDate();
                 apptSignalDate.put(clientId, d);
-                apptSignalDays.put(clientId, ChronoUnit.DAYS.between(today, d)); // negative
+                long days = ChronoUnit.DAYS.between(today, d);
+                // Appointment is confirmed past (startAt < now) — force negative so visitOverdue() = true
+                // even when startAt is earlier today (days == 0 by date but time has already passed)
+                apptSignalDays.put(clientId, days == 0 ? -1 : days);
                 apptClient.put(clientId, a.getClient());
             }
         }
