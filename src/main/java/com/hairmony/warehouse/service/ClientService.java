@@ -1,8 +1,10 @@
 package com.hairmony.warehouse.service;
 
 import com.hairmony.warehouse.domain.client.Client;
+import com.hairmony.warehouse.repository.AppointmentRepository;
 import com.hairmony.warehouse.repository.ClientRepository;
 import com.hairmony.warehouse.repository.StockMovementRepository;
+import com.hairmony.warehouse.repository.VisitRepository;
 import com.hairmony.warehouse.web.dto.ClientDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,8 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final AppointmentRepository appointmentRepository;
+    private final VisitRepository visitRepository;
 
     @Transactional(readOnly = true)
     public List<ClientDto> findAll() {
@@ -72,12 +76,21 @@ public class ClientService {
         if (stockMovementRepository.existsByClientId(id)) {
             throw new IllegalStateException("client.delete.error.hasMovements");
         }
+        if (appointmentRepository.existsByClientId(id)) {
+            throw new IllegalStateException("client.delete.error.hasAppointments");
+        }
+        if (visitRepository.existsByClientId(id)) {
+            throw new IllegalStateException("client.delete.error.hasVisits");
+        }
         clientRepository.deleteById(id);
     }
 
     @Transactional(readOnly = true)
-    public Set<Long> getClientIdsWithMovements() {
-        return stockMovementRepository.findAllClientIdsWithMovements();
+    public Set<Long> getClientIdsNotDeletable() {
+        Set<Long> ids = new java.util.HashSet<>(stockMovementRepository.findAllClientIdsWithMovements());
+        ids.addAll(appointmentRepository.findAllClientIdsWithAppointments());
+        ids.addAll(visitRepository.findAllClientIdsWithVisits());
+        return ids;
     }
 
     public List<Client> findAllEntities() {

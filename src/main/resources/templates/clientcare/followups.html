@@ -40,6 +40,9 @@
             .filter-pill { font-size: 0.75rem; padding: 0.18rem 0.55rem; }
         }
         .badge-done { background: #d1e7dd; color: #0a3622; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.45rem; border-radius: 5px; white-space: nowrap; }
+        @media (hover: hover) {
+            .client-name-link:hover { text-decoration: underline !important; }
+        }
         .badge-note-icon { cursor: default; color: #6c757d; }
         .activity-btn-wrap { position: relative; display: inline-block; }
         .activity-count-badge {
@@ -130,10 +133,9 @@
                     <td>
                         <div class="d-flex align-items-center gap-1 flex-wrap">
                             <a th:href="@{/clientcare/clients/{id}(id=${c.clientId})}"
-                               class="d-md-none text-decoration-none text-body fw-medium"
+                               class="text-decoration-none text-body fw-medium client-name-link"
                                style="font-size:0.9rem;"
                                th:text="${c.clientName}">Ім'я</a>
-                            <span class="d-none d-md-inline" th:text="${c.clientName}">Ім'я</span>
                             <!-- DONE badge -->
                             <th:block th:with="fu=${latestFollowUps.get(c.clientId)}">
                                 <span th:if="${fu != null and fu.action().name() == 'DONE'}"
@@ -207,12 +209,6 @@
                                       th:data-activity-badge="${c.clientId}"
                                       th:text="${activityCounts.get(c.clientId)}"></span>
                             </span>
-                            <!-- Open client — desktop only -->
-                            <a th:href="@{/clientcare/clients/{id}(id=${c.clientId})}"
-                               class="btn btn-outline-primary btn-sm d-none d-md-inline-flex"
-                               th:title="#{clientcare.followups.open}">
-                                <i class="bi bi-arrow-right"></i>
-                            </a>
                         </div>
                     </td>
                 </tr>

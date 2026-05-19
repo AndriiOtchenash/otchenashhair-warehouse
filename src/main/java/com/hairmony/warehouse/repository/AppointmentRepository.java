@@ -17,6 +17,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     List<Appointment> findAllByClientIdOrderByStartAtAsc(Long clientId);
 
+    boolean existsByClientId(Long clientId);
+
+    /** All client IDs that have at least one appointment (for deletion guard). */
+    @Query("SELECT DISTINCT a.client.id FROM Appointment a WHERE a.client IS NOT NULL")
+    Set<Long> findAllClientIdsWithAppointments();
+
     /** Upcoming/today appointments for linked clients (not guests), ordered earliest first. */
     @Query("SELECT a FROM Appointment a JOIN FETCH a.client WHERE a.startAt >= :from AND a.status IN :statuses ORDER BY a.startAt ASC")
     List<Appointment> findUpcomingForClients(@Param("from") LocalDateTime from,
@@ -31,6 +37,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Query("SELECT DISTINCT a.client.id FROM Appointment a WHERE a.client IS NOT NULL AND a.startAt BETWEEN :from AND :to AND a.status IN :statuses")
     Set<Long> findClientIdsWithUpcomingBetween(@Param("from") LocalDateTime from,
                                                @Param("to") LocalDateTime to,
+                                               @Param("statuses") Collection<AppointmentStatus> statuses);
+
+    /** Client IDs with any future linked appointment (no upper bound, for list-page icons). */
+    @Query("SELECT DISTINCT a.client.id FROM Appointment a WHERE a.client IS NOT NULL AND a.startAt >= :from AND a.status IN :statuses")
+    Set<Long> findClientIdsWithAnyUpcomingFrom(@Param("from") LocalDateTime from,
                                                @Param("statuses") Collection<AppointmentStatus> statuses);
 
     /** Client IDs with a linked appointment whose startAt is before :before (for list-page overdue icons). */
