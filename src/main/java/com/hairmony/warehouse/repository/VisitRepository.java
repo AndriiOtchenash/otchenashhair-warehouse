@@ -24,6 +24,10 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
 
     Optional<Visit> findByNextAppointmentId(Long appointmentId);
 
+    /** Client IDs that have at least one visit with billing data but not yet paid. */
+    @Query("SELECT DISTINCT v.client.id FROM Visit v WHERE v.paid = false AND (v.priceAtTime IS NOT NULL OR v.paymentMethod IS NOT NULL)")
+    Set<Long> findClientIdsWithUnpaidVisits();
+
     /**
      * Returns the latest visit per client where nextVisitDate is set (any date).
      * Eagerly fetches client to avoid lazy-load outside transaction.

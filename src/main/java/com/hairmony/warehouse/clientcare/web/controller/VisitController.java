@@ -1,8 +1,10 @@
 package com.hairmony.warehouse.clientcare.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.AppointmentService;
+import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
+import com.hairmony.warehouse.domain.appointment.PaymentMethod;
 import com.hairmony.warehouse.service.ClientService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class VisitController {
 
     private final VisitService visitService;
     private final AppointmentService appointmentService;
+    private final SalonServiceService salonServiceService;
     private final ClientService clientService;
     private final MessageSource messageSource;
 
@@ -49,6 +52,7 @@ public class VisitController {
         model.addAttribute("isLatestVisit", true);
         model.addAttribute("hasUpcomingAppointment",
                 appointmentService.getNextUpcomingForClient(clientId).isPresent());
+        populateFormModel(model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "clientcare/visits/form";
     }
@@ -64,10 +68,22 @@ public class VisitController {
             model.addAttribute("client", clientService.findById(dto.getClientId()));
             model.addAttribute("hasUpcomingAppointment",
                     appointmentService.getNextUpcomingForClient(dto.getClientId()).isPresent());
+            populateFormModel(model);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "clientcare/visits/form";
         }
-        Long visitId = visitService.save(dto);
+        Long visitId;
+        try {
+            visitId = visitService.save(dto);
+        } catch (IllegalStateException e) {
+            rejectCertificateError(e, result, model);
+            model.addAttribute("client", clientService.findById(dto.getClientId()));
+            model.addAttribute("hasUpcomingAppointment",
+                    appointmentService.getNextUpcomingForClient(dto.getClientId()).isPresent());
+            populateFormModel(model);
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
+            return "clientcare/visits/form";
+        }
         if ("schedule".equals(action)) {
             return "redirect:/clientcare/appointments?clientId=" + dto.getClientId()
                     + "&linkVisitId=" + visitId
@@ -88,6 +104,7 @@ public class VisitController {
         model.addAttribute("isLatestVisit", visitService.isLatestVisit(id, dto.getClientId()));
         model.addAttribute("hasUpcomingAppointment",
                 appointmentService.getNextUpcomingForClient(dto.getClientId()).isPresent());
+        populateFormModel(model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "clientcare/visits/form";
     }
@@ -105,10 +122,22 @@ public class VisitController {
             model.addAttribute("isLatestVisit", visitService.isLatestVisit(id, dto.getClientId()));
             model.addAttribute("hasUpcomingAppointment",
                     appointmentService.getNextUpcomingForClient(dto.getClientId()).isPresent());
+            populateFormModel(model);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "clientcare/visits/form";
         }
-        visitService.update(id, dto);
+        try {
+            visitService.update(id, dto);
+        } catch (IllegalStateException e) {
+            rejectCertificateError(e, result, model);
+            model.addAttribute("client", clientService.findById(dto.getClientId()));
+            model.addAttribute("isLatestVisit", visitService.isLatestVisit(id, dto.getClientId()));
+            model.addAttribute("hasUpcomingAppointment",
+                    appointmentService.getNextUpcomingForClient(dto.getClientId()).isPresent());
+            populateFormModel(model);
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
+            return "clientcare/visits/form";
+        }
         if ("schedule".equals(action)) {
             return "redirect:/clientcare/appointments?clientId=" + dto.getClientId()
                     + "&linkVisitId=" + id
@@ -117,6 +146,21 @@ public class VisitController {
         redirectAttributes.addFlashAttribute("successMessage",
                 messageSource.getMessage("visit.success.updated", null, LocaleContextHolder.getLocale()));
         return "redirect:" + safeRedirect(returnTo, "/clientcare/clients/" + dto.getClientId());
+    }
+
+    private void populateFormModel(Model model) {
+        model.addAttribute("activeServices", salonServiceService.findAllActive());
+        model.addAttribute("paymentMethods", PaymentMethod.values());
+    }
+
+    private void rejectCertificateError(IllegalStateException e, BindingResult result, Model model) {
+        String msg = e.getMessage();
+        if (msg != null && msg.contains(":")) {
+            String[] parts = msg.split(":", 2);
+            result.rejectValue("certificateCode", parts[0], new Object[]{parts[1]}, parts[0]);
+        } else {
+            result.reject("visit.certificate.error");
+        }
     }
 
     private static String safeRedirect(String returnTo, String fallback) {

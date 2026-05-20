@@ -28,7 +28,8 @@
 
     <div class="card">
         <div class="card-body">
-            <form th:action="${isEdit} ? @{/clientcare/appointments/{id}/edit(id=${appointment.id})} : @{/clientcare/appointments/new}"
+            <form id="appointmentForm"
+                  th:action="${isEdit} ? @{/clientcare/appointments/{id}/edit(id=${appointment.id})} : @{/clientcare/appointments/new}"
                   th:object="${appointment}" method="post" novalidate>
 
                 <!-- Validation errors -->
@@ -490,7 +491,7 @@
             }
             const clientEl = document.getElementById('clientId');
             if (clientEl) clientEl.addEventListener('change', updateCalendarBrowseLink);
-            document.querySelector('form').addEventListener('submit', function (e) {
+            document.getElementById('appointmentForm').addEventListener('submit', function (e) {
                 if (!validateTimes()) e.preventDefault();
             });
         });

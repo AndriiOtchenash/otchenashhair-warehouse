@@ -32,7 +32,7 @@ web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-020)
+- ddl-auto=none, Liquibase manages schema (migrations 001-021)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -106,7 +106,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
               CHECK constraint: client_id IS NOT NULL OR NULLIF(TRIM(guest_name), '') IS NOT NULL),
             018-add-next-appointment-to-visits (next_appointment_id BIGINT FK on visits → appointments ON DELETE SET NULL),
             019-create-services (services table for salon services),
-            020-create-gift-certificates (gift_certificates table + indexes on purchaser/recipient/status)
+            020-create-gift-certificates (gift_certificates table + indexes on purchaser/recipient/status),
+            021-add-visit-billing (service_id, price_at_time, payment_method, is_paid, certificate_code on visits)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -713,7 +714,7 @@ NO_SHOW: redirect to edit page with action panel ("Черга follow-up" / "За
 See full spec in TODO → Wave 6 section.
 
 **Wave 7 — Gift Certificates — DONE (2026-05-20, migration 020)**
-Full gift certificate lifecycle: issue, redeem, cancel, restore.
+Full gift certificate lifecycle: issue, cancel, restore, delete. Redemption happens via visit payment only.
 `domain/gift/GiftCertificate.java` — JPA entity (id, code, purchaser_client_id, purchaser_name, purchaser_phone,
   recipient_client_id, recipient_name, recipient_phone, service_id, service_name, status, notes, expires_at,
   issued_at, redeemed_at, cancelled_at). FK refs to clients/services stored as plain Long columns (not @ManyToOne).
@@ -722,22 +723,49 @@ Full gift certificate lifecycle: issue, redeem, cancel, restore.
   `findForClient()` (@Query), `expireOverdue()` (@Modifying JPQL UPDATE).
 `GiftCertificateService` — `@Transactional`; calls `syncExpired()` (expireOverdue) before every list query;
   `issue()` auto-creates client records for free-text purchaser/recipient and stores phone.
-  Status transitions (`redeem/restore/cancel`) return the updated entity (used for success message code).
+  Status transitions (`cancel/restore`) return the updated entity (used for success message code).
+  `restore()` — CANCELLED → ACTIVE (clears cancelledAt).
+  `delete()` — hard delete; throws if status is REDEEMED (redemption is permanent).
 `GiftCertificateController` at `/clientcare/gift-certificates`:
   - `GET /` — two modes: `?clientId=N` → client view (all statuses, no filter bar);
     standalone → status filter (server-side) + client instant search (client-side, `data-purchaser`/`data-recipient`).
   - `GET/POST /new` — issue form; `purchaserId` param pre-fills purchaser dropdown.
-  - `GET /{id}` — detail page.
-  - `POST /{id}/redeem|cancel|restore` — status transitions.
-Client detail fragment: shows up to 2 certs per client; "Переглянути всі →" link to `?clientId=N` when >2.
+  - `GET /{id}` — detail page; status badge in page-header next to cert code.
+  - `POST /{id}/cancel|restore|delete` — status transitions and hard delete.
+  - No `POST /{id}/redeem` — redemption is triggered by visit payment (CERTIFICATE method in visit form).
+Client detail fragment: shows only the latest cert; "Переглянути всі →" link to `?clientId=N` when >1.
 List page: status filter + client name instant search (placeholder "За ім'ям клієнта в сертифікаті").
 Code generation: 8-char alphanumeric (4+4 dash-separated), unambiguous alphabet (excludes 0/O, 1/I/L, 5/S, 8/B).
+
+**Wave 8 — Visit Billing Fields — DONE (2026-05-21, migration 021)**
+Architecture decision: Appointment = attendance only. Visit = protocol + payment.
+All financial fields moved from Appointment to Visit.
+Migration 021 adds to `visits`: `service_id BIGINT FK → services ON DELETE SET NULL`,
+  `price_at_time NUMERIC(10,2)`, `payment_method VARCHAR(20)`,
+  `is_paid BOOLEAN NOT NULL DEFAULT FALSE`, `certificate_code VARCHAR(20)`.
+`Visit.java` — real JPA `@Column` fields (was `@Transient` in draft).
+`VisitDto` — added: `serviceId`, `priceAtTime` (@DecimalMin), `paymentMethod`, `paid`, `certificateCode` (@Size max=20).
+`VisitService.applyCertificatePayment()` — validates cert code, sets REDEEMED + redeemedAt in same transaction.
+`VisitService.getClientIdsWithUnpaidVisits()` — `Set<Long>` via `VisitRepository.findClientIdsWithUnpaidVisits()`.
+`VisitController` — `populateFormModel()` helper loads activeServices + paymentMethods; `rejectCertificateError()` helper.
+Visit form billing section: service select, payment method select, price input (hidden when CERTIFICATE),
+  certificate code input (hidden when not CERTIFICATE), paid checkbox (accent color via CSS var override).
+JS submit guard: price=0 → "Ціну не вказано. Зберегти?"; price>0 + !paid → "Оплату не підтверджено. Зберегти?".
+Payment badges in visit cards: "Очікує оплати" (red, shown when price/method set but !paid);
+  "Оплачено" (green) — in both `fragments/client-detail.html` and `clientcare/clients/visits.html`.
+`AppointmentDto` — all financial fields removed. Appointment form billing section removed.
+`ClientCareDashboardDto` — added `unpaidVisitCount` field.
+`ClientCareService` — computes `unpaidVisitCount` via `visitService.getClientIdsWithUnpaidVisits().size()`.
+Dashboard KPI card "Очікує оплати" — in "ЗАПИСИ" section, hidden when count=0, links to `/clientcare/clients`.
+Client list — `−$` icon (red, bold, 1rem) next to name when client has unpaid visits;
+  `clientsWithUnpaidVisits` Set passed to model only in clientcare context.
+Font consistency — `body { font-family: var(--bs-body-font-family) }` added to both layouts.
 
 ---
 
 ## ClientCare — technical notes
 
-### Gift Certificates (Wave 7 — DONE, 2026-05-20)
+### Gift Certificates (Wave 7 — DONE, 2026-05-20; updated Wave 8, 2026-05-21)
 - `GiftCertificate` JPA entity in `domain/gift/`; FK references to clients/services stored as plain Long columns (no lazy-load issues in templates)
 - `GiftCertificateStatus` enum in `domain/gift/` (moved from dto package)
 - `syncExpired()` called before every list query — batch UPDATE via `@Modifying` JPQL (not per-row)
@@ -746,7 +774,11 @@ Code generation: 8-char alphanumeric (4+4 dash-separated), unambiguous alphabet 
 - Issue flow auto-creates client records for free-text purchaser and recipient (same pattern as before)
 - Status transitions return updated entity so controller can use `cert.getCode()` for flash message
 - `GiftCertificateFormDto` stays in `clientcare/web/dto/` (form validation only)
-- Draft notice removed from list template
+- **No redeem button anywhere in UI** — redemption happens only when user selects CERTIFICATE payment in visit form
+- `restore()` transitions CANCELLED → ACTIVE (not REDEEMED); clears `cancelledAt`
+- `delete()` hard-deletes; guards against deleting REDEEMED certs (permanent records)
+- Detail page: status badge sits in page-header inline with cert code (left side), "Назад" on right
+- Client detail fragment: shows only latest cert; "Переглянути всі →" appears only when >1 cert
 
 ### Scalp Photos (Wave 2a — DONE)
 - `driveUrl` is the source of truth; `driveFileId` nullable (best-effort regex extract)
@@ -760,7 +792,7 @@ Code generation: 8-char alphanumeric (4+4 dash-separated), unambiguous alphabet 
 - "Додати фото" button lives in the "Фото шкіри голови" card-header
 - `ScalpPhotoDto` — `@DateTimeFormat(ISO.DATE)` on `takenAt` (required for edit form date binding)
 
-### Visits (Wave 3 — DONE, updated 2026-05-17)
+### Visits (Wave 3 — DONE, updated 2026-05-21)
 - `VisitService` fully JPA-based; update uses dirty checking (no explicit save)
 - `@DateTimeFormat(ISO.DATE)` mandatory on all `LocalDate` DTO fields for `<input type="date">` edit binding
 - `VisitController.validateNextVisitDate()` removed — cross-field validation was in DTO; `nextVisitDate` field removed from form entirely (field stays in DB for legacy data)
@@ -769,6 +801,12 @@ Code generation: 8-char alphanumeric (4+4 dash-separated), unambiguous alphabet 
 - `VisitService.save()` returns `Long` (saved visit ID) — needed for action=schedule redirect
 - `returnTo` support: GET/POST /new and /{id}/edit accept `returnTo` param; form passes it as hidden input; `safeRedirect()` used in controller
 - Visit edit links in `clients/visits.html` pass `returnTo=/clientcare/clients/{id}/visits` so Back navigates to visits list
+- **Billing fields (Wave 8, migration 021):** `serviceId`, `priceAtTime`, `paymentMethod`, `paid`, `certificateCode` — real JPA columns
+- `applyCertificatePayment()`: CERTIFICATE method → validates code, sets cert REDEEMED + redeemedAt, sets visit.paid=true
+- `getClientIdsWithUnpaidVisits()` → `Set<Long>`; used by ClientCareService (dashboard KPI) and ClientController (list icons)
+- Visit form: `id="visitForm"` required — JS `getElementById` targets correct form (layout logout form is also a `<form>`)
+- Payment warning JS: price=0 → confirm "Ціну не вказано"; price>0 + !paid → confirm "Оплату не підтверджено"
+- Visit card layout: next-appointment indicators live inside `flex:1` column (same as visits.html); recommendations not text-muted; notes fst-italic
 
 **Visit → Appointment link (migration 018, 2026-05-17):**
 `visits.next_appointment_id BIGINT FK → appointments(id) ON DELETE SET NULL` — links a visit to its planned next appointment.
@@ -858,6 +896,7 @@ Rules:
 - Wave 5b — Calendar-based time selection from client detail visit card — DONE (2026-05-18)
 - Wave 6 — Appointment completion flow — DONE (2026-05-18)
 - Wave 7 — Gift Certificates — DONE (2026-05-20) — migration 020, JPA entity, service, controller, client detail block, list with status+client filter
+- Wave 8 — Visit Billing Fields — DONE (2026-05-21) — migration 021, financial fields on Visit, certificate redemption via visit, unpaid KPI card + client list icon
 
 **Note:** Wave 5 spec was moved to main "What's done" section. TODO reflects only remaining work.
 

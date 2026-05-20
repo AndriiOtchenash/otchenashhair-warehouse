@@ -2,15 +2,20 @@ package com.hairmony.warehouse.clientcare.service;
 
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
 import com.hairmony.warehouse.domain.appointment.Appointment;
+import com.hairmony.warehouse.domain.appointment.PaymentMethod;
 import com.hairmony.warehouse.domain.client.Client;
+import com.hairmony.warehouse.domain.gift.GiftCertificate;
+import com.hairmony.warehouse.domain.gift.GiftCertificateStatus;
 import com.hairmony.warehouse.domain.visit.Visit;
 import com.hairmony.warehouse.repository.AppointmentRepository;
 import com.hairmony.warehouse.repository.ClientRepository;
+import com.hairmony.warehouse.repository.GiftCertificateRepository;
 import com.hairmony.warehouse.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -20,6 +25,7 @@ public class VisitService {
     private final VisitRepository visitRepository;
     private final ClientRepository clientRepository;
     private final AppointmentRepository appointmentRepository;
+    private final GiftCertificateRepository certificateRepository;
 
     @Transactional(readOnly = true)
     public List<VisitDto> findByClientId(Long clientId) {
@@ -43,6 +49,7 @@ public class VisitService {
     /** Saves a new visit and returns its generated ID. */
     @Transactional
     public Long save(VisitDto dto) {
+        applyCertificatePayment(dto);
         Client client = clientRepository.findById(dto.getClientId())
                 .orElseThrow(() -> new IllegalStateException("client.notFound"));
         Visit visit = Visit.builder()
@@ -52,12 +59,18 @@ public class VisitService {
                 .scalpCondition(dto.getScalpCondition())
                 .recommendations(dto.getRecommendations())
                 .notes(dto.getNotes())
+                .serviceId(dto.getServiceId())
+                .priceAtTime(dto.getPriceAtTime())
+                .paymentMethod(dto.getPaymentMethod())
+                .paid(dto.isPaid())
+                .certificateCode(trimOrNull(dto.getCertificateCode()))
                 .build();
         return visitRepository.save(visit).getId();
     }
 
     @Transactional
     public void update(Long id, VisitDto dto) {
+        applyCertificatePayment(dto);
         Visit visit = visitRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("visit.notFound"));
         visit.setVisitDate(dto.getVisitDate());
@@ -65,6 +78,11 @@ public class VisitService {
         visit.setScalpCondition(dto.getScalpCondition());
         visit.setRecommendations(dto.getRecommendations());
         visit.setNotes(dto.getNotes());
+        visit.setServiceId(dto.getServiceId());
+        visit.setPriceAtTime(dto.getPriceAtTime());
+        visit.setPaymentMethod(dto.getPaymentMethod());
+        visit.setPaid(dto.isPaid());
+        visit.setCertificateCode(trimOrNull(dto.getCertificateCode()));
         // nextAppointment is managed separately via linkAppointment() — do not clear here
     }
 
@@ -84,6 +102,11 @@ public class VisitService {
                 .ifPresent(v -> v.setNextAppointment(null));
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> getClientIdsWithUnpaidVisits() {
+        return visitRepository.findClientIdsWithUnpaidVisits();
+    }
+
     @Transactional
     public void delete(Long id) {
         visitRepository.deleteById(id);
@@ -99,10 +122,46 @@ public class VisitService {
         dto.setRecommendations(v.getRecommendations());
         dto.setNotes(v.getNotes());
         dto.setCreatedAt(v.getCreatedAt());
+        dto.setServiceId(v.getServiceId());
+        dto.setPriceAtTime(v.getPriceAtTime());
+        dto.setPaymentMethod(v.getPaymentMethod());
+        dto.setPaid(v.isPaid());
+        dto.setCertificateCode(v.getCertificateCode());
         if (v.getNextAppointment() != null) {
             dto.setNextAppointmentId(v.getNextAppointment().getId());
             dto.setNextAppointmentStartAt(v.getNextAppointment().getStartAt());
         }
         return dto;
+    }
+
+    /**
+     * When payment method is CERTIFICATE: validates the code and auto-marks as paid.
+     * Redemption is NOT persisted until migration 021 removes @Transient from Visit fields.
+     */
+    private void applyCertificatePayment(VisitDto dto) {
+        if (dto.getPaymentMethod() != PaymentMethod.CERTIFICATE) return;
+        String code = trimOrNull(dto.getCertificateCode());
+        if (code == null) return;
+
+        GiftCertificate cert = certificateRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalStateException(
+                        "visit.certificate.notFound:" + code));
+
+        if (cert.getStatus() == GiftCertificateStatus.EXPIRED) {
+            throw new IllegalStateException("visit.certificate.expired:" + code);
+        }
+        if (cert.getStatus() != GiftCertificateStatus.ACTIVE) {
+            throw new IllegalStateException("visit.certificate.notActive:" + code);
+        }
+
+        cert.setStatus(GiftCertificateStatus.REDEEMED);
+        cert.setRedeemedAt(LocalDateTime.now());
+        dto.setPaid(true);
+    }
+
+    private static String trimOrNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 }

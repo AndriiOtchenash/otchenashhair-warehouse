@@ -115,6 +115,12 @@
                                style="font-size:0.85rem; flex-shrink:0"
                                th:title="#{appointment.badge.overdue}"
                                data-bs-toggle="tooltip"></i>
+                            <!-- Unpaid visit icon -->
+                            <span th:if="${clientsWithUnpaidVisits != null and clientsWithUnpaidVisits.contains(c.id)}"
+                                  class="text-danger"
+                                  style="font-size:1.0rem; flex-shrink:0; font-weight:700; line-height:1;"
+                                  th:title="#{client.unpaid.visit}"
+                                  data-bs-toggle="tooltip">−<i class="bi bi-currency-dollar"></i></span>
                         </div>
                     </td>
                     <td class="d-none d-md-table-cell" th:text="${c.phone ?: '—'}"></td>

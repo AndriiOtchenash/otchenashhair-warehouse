@@ -99,7 +99,7 @@ public class GiftCertificateController {
         return "clientcare/gift-certificates/detail";
     }
 
-    // ── Restore ───────────────────────────────────────────────────────────────
+    // ── Restore (CANCELLED → ACTIVE) ─────────────────────────────────────────
 
     @PostMapping("/{id}/restore")
     public String restore(@PathVariable Long id,
@@ -116,24 +116,26 @@ public class GiftCertificateController {
         return "redirect:" + safeRedirect(returnTo, "/clientcare/gift-certificates");
     }
 
-    // ── Redeem ────────────────────────────────────────────────────────────────
+    // ── Delete (hard delete, blocked for REDEEMED) ────────────────────────────
 
-    @PostMapping("/{id}/redeem")
-    public String redeem(@PathVariable Long id,
+    @PostMapping("/{id}/delete")
+    public String delete(@PathVariable Long id,
                          @RequestParam(required = false) String returnTo,
                          RedirectAttributes redirectAttributes) {
+        String code = giftCertificateService.findById(id).getCode();
         try {
-            GiftCertificate cert = giftCertificateService.redeem(id);
+            giftCertificateService.delete(id);
             redirectAttributes.addFlashAttribute("successMessage",
-                    messageSource.getMessage("gift.success.redeemed",
-                            new Object[]{cert.getCode()}, LocaleContextHolder.getLocale()));
+                    messageSource.getMessage("gift.success.deleted",
+                            new Object[]{code}, LocaleContextHolder.getLocale()));
         } catch (IllegalStateException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    messageSource.getMessage(e.getMessage(), null, e.getMessage(), LocaleContextHolder.getLocale()));
         }
         return "redirect:" + safeRedirect(returnTo, "/clientcare/gift-certificates");
     }
 
-    // ── Cancel ────────────────────────────────────────────────────────────────
+    // ── Cancel (ACTIVE → CANCELLED) ───────────────────────────────────────────
 
     @PostMapping("/{id}/cancel")
     public String cancel(@PathVariable Long id,

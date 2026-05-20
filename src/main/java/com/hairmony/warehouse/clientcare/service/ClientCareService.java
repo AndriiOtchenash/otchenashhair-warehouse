@@ -33,6 +33,7 @@ public class ClientCareService {
     private final StockMovementRepository movementRepository;
     private final ClientRepository clientRepository;
     private final AppointmentRepository appointmentRepository;
+    private final VisitService visitService;
 
     private static final List<AppointmentStatus> UPCOMING_STATUSES =
             List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
@@ -149,9 +150,10 @@ public class ClientCareService {
                 .collect(Collectors.toSet());
         long upcomingVisit = upcomingClientIds.size();
         long overdueVisit  = overdueClientIds.size();
+        long unpaidVisit   = visitService.getClientIdsWithUnpaidVisits().size();
 
         if (all.isEmpty()) {
-            return new ClientCareDashboardDto(totalClients, 0, 0, 0, 0, 0, 0, overdueVisit, upcomingVisit);
+            return new ClientCareDashboardDto(totalClients, 0, 0, 0, 0, 0, 0, overdueVisit, upcomingVisit, unpaidVisit);
         }
 
         List<ClientFollowupDto> sortedBySpent = all.stream()
@@ -168,7 +170,7 @@ public class ClientCareService {
         long recent         = all.stream().filter(c -> c.daysSinceLastPurchase() < RECENT_DAYS).count();
         long repeatPossible = all.stream().filter(c -> c.daysSinceLastPurchase() >= REPEAT_FROM_DAYS && c.daysSinceLastPurchase() <= REPEAT_TO_DAYS).count();
 
-        return new ClientCareDashboardDto(totalClients, all.size(), needsContact, longAbsent, vipInactive, recent, repeatPossible, overdueVisit, upcomingVisit);
+        return new ClientCareDashboardDto(totalClients, all.size(), needsContact, longAbsent, vipInactive, recent, repeatPossible, overdueVisit, upcomingVisit, unpaidVisit);
     }
 
     private ClientFollowupDto toPurchaseDto(Object[] row, LocalDateTime now) {

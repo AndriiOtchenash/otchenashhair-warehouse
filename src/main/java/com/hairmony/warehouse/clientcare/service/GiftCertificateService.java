@@ -128,15 +128,29 @@ public class GiftCertificateService {
         return cert;
     }
 
+    /** Restores a CANCELLED certificate back to ACTIVE. */
     @Transactional
     public GiftCertificate restore(Long id) {
         GiftCertificate cert = findById(id);
-        if (cert.getStatus() != GiftCertificateStatus.REDEEMED) {
-            throw new IllegalStateException("Only redeemed certificates can be restored");
+        if (cert.getStatus() != GiftCertificateStatus.CANCELLED) {
+            throw new IllegalStateException("Only cancelled certificates can be restored");
         }
         cert.setStatus(GiftCertificateStatus.ACTIVE);
-        cert.setRedeemedAt(null);
+        cert.setCancelledAt(null);
         return cert;
+    }
+
+    /**
+     * Hard-deletes a certificate. Blocked for REDEEMED certificates
+     * because the visit payment record references the certificate code.
+     */
+    @Transactional
+    public void delete(Long id) {
+        GiftCertificate cert = findById(id);
+        if (cert.getStatus() == GiftCertificateStatus.REDEEMED) {
+            throw new IllegalStateException("gift.delete.error.redeemed");
+        }
+        repository.delete(cert);
     }
 
     @Transactional

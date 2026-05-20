@@ -10,6 +10,8 @@
             overflow: hidden;
             min-height: 2.6rem;
         }
+        #paid:checked { background-color: var(--accent); border-color: var(--accent); }
+        #paid:focus { box-shadow: 0 0 0 0.2rem rgba(74,124,89,.25); }
     </style>
 
     <div class="page-header">
@@ -29,7 +31,8 @@
 
     <div class="card" style="max-width: 640px;">
         <div class="card-body">
-            <form th:action="${visit.id != null}
+            <form id="visitForm"
+                  th:action="${visit.id != null}
                               ? @{/clientcare/visits/{id}/edit(id=${visit.id})}
                               : @{/clientcare/visits/new}"
                   th:object="${visit}" method="post">
@@ -68,6 +71,74 @@
                 <div class="mb-4">
                     <label class="form-label fw-semibold" th:text="#{visit.form.notes}">Нотатки</label>
                     <textarea class="form-control auto-resize" th:field="*{notes}"></textarea>
+                </div>
+
+                <!-- ── Billing section ── -->
+                <div class="card bg-light border-0 mb-4 p-3">
+                    <div class="fw-semibold small text-muted mb-2"
+                         th:text="#{visit.form.billing.section}">Послуга та оплата</div>
+
+                    <div class="mb-3">
+                        <label for="serviceId" class="form-label fw-semibold"
+                               th:text="#{visit.form.service}">Послуга</label>
+                        <select id="serviceId" class="form-select" th:field="*{serviceId}">
+                            <option value="" th:text="#{visit.form.service.placeholder}">— без послуги —</option>
+                            <option th:each="svc : ${activeServices}"
+                                    th:value="${svc.id}"
+                                    th:text="${svc.name}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label fw-semibold"
+                               th:text="#{visit.form.paymentMethod}">Спосіб оплати</label>
+                        <select id="paymentMethod" class="form-select" th:field="*{paymentMethod}"
+                                onchange="onPaymentMethodChange()">
+                            <option value="" th:text="#{visit.form.paymentMethod.placeholder}">— не вказано —</option>
+                            <option th:each="pm : ${paymentMethods}"
+                                    th:value="${pm.name()}"
+                                    th:text="#{payment.method.__${pm}__}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Price — hidden when CERTIFICATE -->
+                    <div id="priceSection" class="mb-3">
+                        <label for="priceAtTime" class="form-label fw-semibold"
+                               th:text="#{visit.form.price}">Ціна</label>
+                        <div class="input-group">
+                            <input type="number" id="priceAtTime" class="form-control"
+                                   step="0.01" min="0"
+                                   th:field="*{priceAtTime}"
+                                   th:classappend="${#fields.hasErrors('priceAtTime')} ? 'is-invalid'"
+                                   th:placeholder="#{visit.form.price.hint}"/>
+                            <span class="input-group-text">zł</span>
+                            <div class="invalid-feedback" th:errors="*{priceAtTime}"></div>
+                        </div>
+                    </div>
+
+                    <!-- Certificate code — shown only when CERTIFICATE -->
+                    <div id="certificateSection" class="mb-3" style="display:none">
+                        <label for="certificateCode" class="form-label fw-semibold"
+                               th:text="#{visit.form.certificateCode}">Код сертифіката</label>
+                        <input type="text" id="certificateCode" class="form-control text-uppercase"
+                               th:field="*{certificateCode}"
+                               th:classappend="${#fields.hasErrors('certificateCode')} ? 'is-invalid'"
+                               th:placeholder="#{visit.form.certificateCode.hint}"
+                               maxlength="20"
+                               oninput="this.value=this.value.toUpperCase()"/>
+                        <div class="invalid-feedback" th:errors="*{certificateCode}"></div>
+                        <div class="form-text" th:text="#{visit.form.certificateCode.hint.text}">
+                            Введіть код — оплата підтвердиться автоматично
+                        </div>
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="paid" th:field="*{paid}"/>
+                        <label class="form-check-label" for="paid"
+                               th:text="#{visit.form.paid}">Оплачено</label>
+                    </div>
                 </div>
 
                 <!-- Next appointment section -->
@@ -123,6 +194,32 @@
             autoResize(ta);
         });
 
+        document.getElementById('visitForm').addEventListener('submit', function(e) {
+            const price = parseFloat(document.getElementById('priceAtTime').value) || 0;
+            const paid  = document.getElementById('paid').checked;
+            if (price <= 0) {
+                if (!confirm(/*[[#{visit.noprice.confirm}]]*/ 'Ціну не вказано. Зберегти?')) {
+                    e.preventDefault();
+                }
+            } else if (!paid) {
+                if (!confirm(/*[[#{visit.unpaid.confirm}]]*/ 'Оплату не підтверджено. Зберегти?')) {
+                    e.preventDefault();
+                }
+            }
+        });
+
+        function onPaymentMethodChange() {
+            const method = document.getElementById('paymentMethod').value;
+            const isCert = method === 'CERTIFICATE';
+            document.getElementById('priceSection').style.display       = isCert ? 'none' : '';
+            document.getElementById('certificateSection').style.display = isCert ? ''     : 'none';
+            if (isCert) {
+                document.getElementById('priceAtTime').value = '';
+            } else {
+                document.getElementById('certificateCode').value = '';
+            }
+        }
+        onPaymentMethodChange();
     </script>
 
 </div>

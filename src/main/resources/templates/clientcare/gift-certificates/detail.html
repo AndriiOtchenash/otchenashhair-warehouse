@@ -5,10 +5,21 @@
 <div th:fragment="content">
 
     <div class="page-header mb-3">
-        <h1 class="page-title">
-            <i class="bi bi-gift me-2" style="color:var(--accent)"></i>
-            <span th:text="${cert.code}">GIFT-2026-0001</span>
-        </h1>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h1 class="page-title mb-0">
+                <i class="bi bi-gift me-2" style="color:var(--accent)"></i>
+                <span th:text="${cert.code}">GIFT-2026-0001</span>
+            </h1>
+            <span th:switch="${cert.status.name()}">
+                <span th:case="'ACTIVE'"    class="badge bg-success"   th:text="#{gift.status.ACTIVE}"></span>
+                <span th:case="'REDEEMED'"  class="badge bg-primary"   th:text="#{gift.status.REDEEMED}"></span>
+                <span th:case="'EXPIRED'"   class="badge bg-warning text-dark" th:text="#{gift.status.EXPIRED}"></span>
+                <span th:case="'CANCELLED'" class="badge bg-secondary" th:text="#{gift.status.CANCELLED}"></span>
+            </span>
+            <span th:if="${cert.active and cert.daysRemaining() <= 30}"
+                  class="badge bg-warning text-dark"
+                  th:text="${cert.daysRemaining() + ' д'}"></span>
+        </div>
         <a th:href="${returnTo != null ? returnTo : '/clientcare/gift-certificates'}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>
             <span class="d-none d-md-inline" th:text="#{btn.back}">Назад</span>
@@ -27,19 +38,6 @@
 
     <div class="card" style="max-width: 560px;">
         <div class="card-body">
-
-            <!-- Status badge -->
-            <div class="mb-3">
-                <span th:switch="${cert.status.name()}">
-                    <span th:case="'ACTIVE'"    class="badge bg-success fs-6"   th:text="#{gift.status.ACTIVE}"></span>
-                    <span th:case="'REDEEMED'"  class="badge bg-primary fs-6"   th:text="#{gift.status.REDEEMED}"></span>
-                    <span th:case="'EXPIRED'"   class="badge bg-warning text-dark fs-6" th:text="#{gift.status.EXPIRED}"></span>
-                    <span th:case="'CANCELLED'" class="badge bg-secondary fs-6" th:text="#{gift.status.CANCELLED}"></span>
-                </span>
-                <span th:if="${cert.active and cert.daysRemaining() <= 30}"
-                      class="badge bg-warning text-dark ms-2"
-                      th:text="${cert.daysRemaining() + ' д'}"></span>
-            </div>
 
             <!-- Details table -->
             <table class="table table-auto mb-3">
@@ -102,31 +100,35 @@
             </table>
 
             <!-- Actions -->
-            <div th:if="${cert.active}" class="d-flex gap-2">
-                <form th:action="@{/clientcare/gift-certificates/{id}/redeem(id=${cert.id})}"
-                      method="post" class="d-inline">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                    <input type="hidden" name="returnTo" th:value="@{/clientcare/gift-certificates/{id}(id=${cert.id})}"/>
-                    <button type="submit" class="btn btn-primary"
-                            th:data-confirm="#{gift.redeem.confirm}"
-                            onclick="return confirm(this.dataset.confirm)">
-                        <i class="bi bi-check2-circle me-1"></i>
-                        <span th:text="#{gift.btn.redeem}">Погасити</span>
-                    </button>
-                </form>
+
+            <!-- ACTIVE: Скасувати + Видалити -->
+            <div th:if="${cert.active}" class="d-flex gap-2 justify-content-end">
                 <form th:action="@{/clientcare/gift-certificates/{id}/cancel(id=${cert.id})}"
                       method="post" class="d-inline">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
                     <input type="hidden" name="returnTo" th:value="@{/clientcare/gift-certificates/{id}(id=${cert.id})}"/>
-                    <button type="submit" class="btn btn-outline-danger"
+                    <button type="submit" class="btn btn-outline-secondary"
                             th:data-confirm="#{gift.cancel.confirm}"
                             onclick="return confirm(this.dataset.confirm)">
-                        <i class="bi bi-x-lg me-1"></i>
+                        <i class="bi bi-slash-circle me-1"></i>
                         <span th:text="#{gift.btn.cancel}">Скасувати</span>
                     </button>
                 </form>
+                <button type="button" class="btn btn-outline-danger"
+                        data-bs-toggle="modal" data-bs-target="#deleteCertModal">
+                    <i class="bi bi-trash me-1"></i>
+                    <span th:text="#{btn.delete}">Видалити</span>
+                </button>
             </div>
-            <div th:if="${cert.redeemed}" class="d-flex gap-2">
+
+            <!-- REDEEMED: read-only, no actions -->
+            <div th:if="${cert.redeemed}" class="text-muted small">
+                <i class="bi bi-info-circle me-1"></i>
+                <span th:text="#{gift.redeemed.hint}">Сертифікат погашено через оплату візиту</span>
+            </div>
+
+            <!-- CANCELLED: Відновити + Видалити -->
+            <div th:if="${cert.status.name() == 'CANCELLED'}" class="d-flex gap-2 justify-content-end">
                 <form th:action="@{/clientcare/gift-certificates/{id}/restore(id=${cert.id})}"
                       method="post" class="d-inline">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
@@ -138,27 +140,41 @@
                         <span th:text="#{gift.btn.restore}">Відновити</span>
                     </button>
                 </form>
-                <form th:action="@{/clientcare/gift-certificates/{id}/cancel(id=${cert.id})}"
-                      method="post" class="d-inline">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                    <input type="hidden" name="returnTo" th:value="@{/clientcare/gift-certificates/{id}(id=${cert.id})}"/>
-                    <button type="submit" class="btn btn-outline-danger"
-                            th:data-confirm="#{gift.cancel.confirm}"
-                            onclick="return confirm(this.dataset.confirm)">
-                        <i class="bi bi-x-lg me-1"></i>
-                        <span th:text="#{gift.btn.cancel}">Скасувати</span>
-                    </button>
-                </form>
+                <button type="button" class="btn btn-outline-danger"
+                        data-bs-toggle="modal" data-bs-target="#deleteCertModal">
+                    <i class="bi bi-trash me-1"></i>
+                    <span th:text="#{btn.delete}">Видалити</span>
+                </button>
+            </div>
+
+            <!-- Delete confirmation modal (ACTIVE and CANCELLED states) -->
+            <div th:if="${cert.active or cert.status.name() == 'CANCELLED'}"
+                 class="modal fade" id="deleteCertModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body py-4 text-center">
+                            <i class="bi bi-exclamation-triangle text-danger fs-1 d-block mb-3"></i>
+                            <p class="mb-1 fw-semibold" th:text="#{gift.delete.confirm}">Видалити сертифікат?</p>
+                            <p class="text-muted small mb-0" th:text="#{gift.delete.confirm.hint}">Дію неможливо скасувати</p>
+                        </div>
+                        <div class="modal-footer justify-content-center border-0 pt-0">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                            <form th:action="@{/clientcare/gift-certificates/{id}/delete(id=${cert.id})}"
+                                  method="post" class="d-inline">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                                <input type="hidden" name="returnTo"
+                                       th:value="${returnTo != null ? returnTo : '/clientcare/gift-certificates'}"/>
+                                <button type="submit" class="btn btn-danger" th:text="#{btn.yes}">Так</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
     </div>
 
-    <!-- Draft notice -->
-    <div class="alert alert-info mt-3 py-2 small" style="max-width: 560px;">
-        <i class="bi bi-info-circle me-1"></i>
-        <span th:text="#{gift.draft.notice}"></span>
-    </div>
 
 </div>
 </body>

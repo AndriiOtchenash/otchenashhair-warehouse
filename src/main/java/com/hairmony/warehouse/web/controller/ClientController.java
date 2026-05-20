@@ -58,6 +58,10 @@ public class ClientController {
                 appointmentService.getClientIdsWithUpcomingAppointments());
         model.addAttribute("clientsWithOverdue",
                 appointmentService.getClientIdsWithOverdueAppointments());
+        if (isClientCare(request)) {
+            model.addAttribute("clientsWithUnpaidVisits",
+                    visitService.getClientIdsWithUnpaidVisits());
+        }
         return isClientCare(request) ? "clientcare/clients/list" : "clients/list";
     }
 
@@ -191,6 +195,10 @@ public class ClientController {
                     appointmentService.getClientIdsWithUpcomingAppointments());
             model.addAttribute("clientsWithOverdue",
                     appointmentService.getClientIdsWithOverdueAppointments());
+            if (isClientCare(request)) {
+                model.addAttribute("clientsWithUnpaidVisits",
+                        visitService.getClientIdsWithUnpaidVisits());
+            }
             return isClientCare(request) ? "clientcare/clients/list" : "clients/list";
         }
         clientService.save(dto);
