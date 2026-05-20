@@ -153,7 +153,7 @@
                      th:text="${photo.notes}"></div>
                 <div class="gallery-tile-actions">
                     <a th:href="@{/clientcare/photos/{id}/edit(id=${photo.id}, returnTo='gallery')}"
-                       class="btn btn-outline-secondary btn-sm">
+                       class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-pencil"></i>
                     </a>
                     <form th:action="@{/clientcare/photos/{id}/delete(id=${photo.id})}"

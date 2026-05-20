@@ -25,7 +25,7 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
-                        <select class="form-select" th:field="*{productId}"
+                        <select class="form-select ts-client" th:field="*{productId}"
                                 th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
                                 th:disabled="${dto.productId != null}"
                                 id="productSelect"
@@ -89,7 +89,7 @@
 
                     <div class="col-md-6" id="saleFields">
                         <label class="form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
-                        <select class="form-select" th:field="*{clientId}">
+                        <select class="form-select ts-client" th:field="*{clientId}">
                             <option value="" th:text="#{stock.form.selectClient}">-- Оберіть клієнта --</option>
                             <option th:each="c : ${clients}"
                                     th:value="${c.id}"
@@ -222,7 +222,10 @@
             }
             if (!showClient) {
                 const clientSelect = document.querySelector('[name="clientId"]');
-                if (clientSelect) clientSelect.value = '';
+                if (clientSelect) {
+                    if (clientSelect.tomselect) clientSelect.tomselect.clear();
+                    else clientSelect.value = '';
+                }
             }
 
             if (writeOffReasonField) writeOffReasonField.style.display = isWriteOff ? '' : 'none';
@@ -352,10 +355,9 @@
                                     barcodeError.style.display = '';
                                     return;
                                 }
-                                productSelect.value = p.id;
+                                if (productSelect.tomselect) productSelect.tomselect.setValue(String(p.id));
+                                else productSelect.value = p.id;
                                 barcodeError.style.display = 'none';
-                                productSelect.classList.add('is-valid');
-                                setTimeout(function () { productSelect.classList.remove('is-valid'); }, 1500);
                                 updateStockHint(productSelect);
                             });
                         } else {

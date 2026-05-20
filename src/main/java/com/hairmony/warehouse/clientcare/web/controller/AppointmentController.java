@@ -260,18 +260,19 @@ public class AppointmentController {
     }
 
     private Map<String, Object> toCalendarEvent(AppointmentDto dto) {
-        String  color   = statusColor(dto.getStatus());
-        boolean movable = dto.getStatus() == AppointmentStatus.PLANNED
-                       || dto.getStatus() == AppointmentStatus.CONFIRMED;
+        boolean overdue = (dto.getStatus() == AppointmentStatus.PLANNED
+                        || dto.getStatus() == AppointmentStatus.CONFIRMED)
+                       && dto.getStartAt().isBefore(LocalDateTime.now());
+        boolean movable = !overdue
+                       && (dto.getStatus() == AppointmentStatus.PLANNED
+                        || dto.getStatus() == AppointmentStatus.CONFIRMED);
 
         Map<String, Object> evt = new LinkedHashMap<>();
-        evt.put("id",              String.valueOf(dto.getId()));
-        evt.put("title",           dto.getDisplayName());
-        evt.put("start",           dto.getStartAt().toString());
-        evt.put("end",             dto.getEndAt().toString());
-        evt.put("backgroundColor", color);
-        evt.put("borderColor",     color);
-        evt.put("editable",        movable);
+        evt.put("id",       String.valueOf(dto.getId()));
+        evt.put("title",    dto.getDisplayName());
+        evt.put("start",    dto.getStartAt().toString());
+        evt.put("end",      dto.getEndAt().toString());
+        evt.put("editable", movable);
 
         Map<String, Object> props = new LinkedHashMap<>();
         props.put("status",   dto.getStatus().name());
@@ -281,16 +282,6 @@ public class AppointmentController {
         evt.put("extendedProps", props);
 
         return evt;
-    }
-
-    private static String statusColor(AppointmentStatus status) {
-        return switch (status) {
-            case PLANNED   -> "#0d6efd";
-            case CONFIRMED -> "#4a7c59";
-            case COMPLETED -> "#adb5bd";
-            case CANCELLED -> "#dc3545";
-            case NO_SHOW   -> "#fd7e14";
-        };
     }
 
     /** Locks the client field in edit mode — no toggle or dropdown shown. */

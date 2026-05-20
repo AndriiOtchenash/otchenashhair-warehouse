@@ -1,0 +1,26 @@
+package com.hairmony.warehouse.repository;
+
+import com.hairmony.warehouse.domain.gift.GiftCertificate;
+import com.hairmony.warehouse.domain.gift.GiftCertificateStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public interface GiftCertificateRepository extends JpaRepository<GiftCertificate, Long> {
+
+    List<GiftCertificate> findAllByOrderByIssuedAtDesc();
+
+    List<GiftCertificate> findByStatusOrderByIssuedAtDesc(GiftCertificateStatus status);
+
+    @Query("SELECT g FROM GiftCertificate g WHERE g.purchaserClientId = :clientId OR g.recipientClientId = :clientId ORDER BY g.issuedAt DESC")
+    List<GiftCertificate> findForClient(@Param("clientId") Long clientId);
+
+    /** Marks all ACTIVE certificates past their expiry date as EXPIRED. */
+    @Modifying
+    @Query("UPDATE GiftCertificate g SET g.status = com.hairmony.warehouse.domain.gift.GiftCertificateStatus.EXPIRED WHERE g.status = com.hairmony.warehouse.domain.gift.GiftCertificateStatus.ACTIVE AND g.expiresAt < :today")
+    int expireOverdue(@Param("today") LocalDate today);
+}

@@ -289,7 +289,7 @@
                             <!-- Edit button: for any non-CANCELLATION, non-cancelled movement -->
                             <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
                                     type="button"
-                                    class="btn btn-sm btn-outline-secondary"
+                                    class="btn btn-sm btn-outline-primary"
                                     th:title="#{movement.edit.button}"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editModal"

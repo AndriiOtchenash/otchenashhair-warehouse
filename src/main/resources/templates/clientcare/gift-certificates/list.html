@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{gift.list.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <style>
+        .cert-code { font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.05em; }
+        .days-badge { font-size: 0.72rem; }
+        @media (max-width: 767.98px) {
+            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+            .cert-table { table-layout: fixed; min-width: 0 !important; width: 100%; }
+            .cert-table .col-code    { width: auto; }
+            .cert-table .col-expires { width: 5.5rem; }
+            .cert-table .col-status  { width: 5.5rem; }
+        }
+    </style>
+
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{gift.list.title}">Подарункові сертифікати</h1>
+        <a th:href="@{/clientcare/gift-certificates/new}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg"></i>
+            <span class="d-none d-md-inline ms-1" th:text="#{gift.btn.issue}">Видати сертифікат</span>
+        </a>
+    </div>
+
+    <!-- Client filter banner -->
+    <div th:if="${filterClient != null}" class="alert alert-secondary d-flex justify-content-between align-items-center py-2 mb-3">
+        <span>
+            <i class="bi bi-person me-1"></i>
+            <span th:text="#{gift.filter.client}">Клієнт:</span>
+            <strong th:text="${filterClient.name}"></strong>
+        </span>
+        <a th:href="@{/clientcare/gift-certificates}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-x-lg"></i>
+        </a>
+    </div>
+
+    <!-- Flash messages -->
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Filters (main list only — hidden in client view) -->
+    <div th:if="${filterClientId == null}" class="d-flex gap-2 mb-3">
+        <!-- Status (server-side) -->
+        <form method="get" th:action="@{/clientcare/gift-certificates}">
+            <div class="filter-select-wrap"
+                 th:classappend="${!#strings.isEmpty(statusFilter)} ? 'filter-active'"
+                 style="max-width: 200px">
+                <select name="status" id="statusSelect" class="form-select form-select-sm"
+                        onchange="this.form.submit()">
+                    <option value="" th:text="#{gift.filter.all}"
+                            th:selected="${#strings.isEmpty(statusFilter)}">Всі</option>
+                    <option th:each="s : ${statuses}"
+                            th:value="${s.name()}"
+                            th:text="#{gift.status.__${s.name()}__}"
+                            th:selected="${statusFilter == s.name()}"></option>
+                </select>
+                <button th:if="${!#strings.isEmpty(statusFilter)}"
+                        type="button" class="btn btn-outline-secondary btn-sm px-1"
+                        onclick="document.getElementById('statusSelect').value=''; this.closest('form').submit();"
+                        tabindex="-1">
+                    <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                </button>
+            </div>
+        </form>
+        <!-- Client search (client-side instant filter) -->
+        <div class="input-group input-group-sm" style="max-width:260px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" id="clientSearch" class="form-control"
+                   th:placeholder="#{gift.filter.searchClient}"
+                   oninput="filterByClient(this.value); toggleClientClear(this)"
+                   autocomplete="off"/>
+            <button type="button" class="btn btn-outline-secondary d-md-none"
+                    onclick="clearClientSearch()" tabindex="-1" style="display:none">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Empty state -->
+    <div th:if="${certificates.empty}" class="text-muted py-4 text-center">
+        <i class="bi bi-gift fs-1 d-block mb-2 text-warning opacity-50"></i>
+        <span th:text="#{gift.list.empty}">Сертифікатів ще немає</span>
+    </div>
+
+    <!-- Table -->
+    <div th:unless="${certificates.empty}" class="card">
+        <div class="card-body p-0">
+            <table class="table table-striped table-hover mb-0 cert-table">
+                <thead class="table-light">
+                <tr>
+                    <th class="col-code" th:text="#{gift.col.code}">Код</th>
+                    <th class="d-none d-md-table-cell" th:text="#{gift.col.purchaser}">Покупець</th>
+                    <th class="d-none d-md-table-cell" th:text="#{gift.col.recipient}">Отримувач</th>
+                    <th class="d-none d-md-table-cell" th:text="#{gift.col.service}">Послуга</th>
+                    <th class="col-expires" th:text="#{gift.col.expires}">Дійсний до</th>
+                    <th class="col-status" th:text="#{gift.col.status}">Статус</th>
+                    <th class="d-none d-md-table-cell"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="cert : ${certificates}"
+                    th:classappend="${cert.redeemed} ? 'table-secondary' : (${cert.expired} ? 'table-warning' : (${cert.cancelled} ? 'table-secondary' : ''))"
+                    th:attr="data-purchaser=${cert.purchaserName ?: ''},data-recipient=${cert.recipientName ?: ''}">
+                    <td class="cert-code">
+                        <a th:href="@{/clientcare/gift-certificates/{id}(id=${cert.id})}"
+                           th:text="${cert.code}" class="text-decoration-none">GIFT-2026-0001</a>
+                        <span th:if="${cert.recipientName != null}"
+                              class="d-block d-md-none text-muted" style="font-size:1.05em" th:text="${cert.recipientName}"></span>
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        <a th:if="${cert.purchaserClientId != null}"
+                           th:href="@{/clientcare/clients/{id}(id=${cert.purchaserClientId})}"
+                           th:text="${cert.purchaserName}"></a>
+                        <span th:unless="${cert.purchaserClientId != null}" th:text="${cert.purchaserName}"></span>
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        <span th:if="${cert.recipientClientId != null}">
+                            <a th:href="@{/clientcare/clients/{id}(id=${cert.recipientClientId})}"
+                               th:text="${cert.recipientName}"></a>
+                        </span>
+                        <span th:unless="${cert.recipientClientId != null}">
+                            <span th:text="${cert.recipientName}"></span>
+                            <span th:if="${cert.recipientPhone != null}"
+                                  class="text-muted small d-block" th:text="${cert.recipientPhone}"></span>
+                        </span>
+                    </td>
+                    <td class="d-none d-md-table-cell" th:text="${cert.serviceName}"></td>
+                    <td>
+                        <span th:text="${#temporals.format(cert.expiresAt, 'dd.MM.yyyy')}"></span>
+                        <span th:if="${cert.active and cert.daysRemaining() <= 30}"
+                              class="badge bg-warning text-dark days-badge ms-1"
+                              th:text="${cert.daysRemaining() + ' д'}"></span>
+                    </td>
+                    <td>
+                        <span th:switch="${cert.status.name()}">
+                            <span th:case="'ACTIVE'"   class="badge bg-success"   th:text="#{gift.status.ACTIVE}">Активний</span>
+                            <span th:case="'REDEEMED'" class="badge bg-primary"   th:text="#{gift.status.REDEEMED}">Використаний</span>
+                            <span th:case="'EXPIRED'"  class="badge bg-warning text-dark" th:text="#{gift.status.EXPIRED}">Прострочений</span>
+                            <span th:case="'CANCELLED'" class="badge bg-secondary" th:text="#{gift.status.CANCELLED}">Скасований</span>
+                        </span>
+                    </td>
+                    <td class="d-none d-md-table-cell text-end">
+                        <div th:if="${cert.active}" class="d-flex gap-1 justify-content-end">
+                            <form th:action="@{/clientcare/gift-certificates/{id}/redeem(id=${cert.id})}"
+                                  method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-primary"
+                                        th:data-confirm="#{gift.redeem.confirm}"
+                                        onclick="return confirm(this.dataset.confirm)">
+                                    <i class="bi bi-check2-circle me-1"></i>
+                                    <span class="d-none d-md-inline" th:text="#{gift.btn.redeem}">Погасити</span>
+                                </button>
+                            </form>
+                            <form th:action="@{/clientcare/gift-certificates/{id}/cancel(id=${cert.id})}"
+                                  method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        th:data-confirm="#{gift.cancel.confirm}"
+                                        onclick="return confirm(this.dataset.confirm)">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function filterByClient(value) {
+            const q = value.toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(function(row) {
+                const p = (row.dataset.purchaser || '').toLowerCase();
+                const r = (row.dataset.recipient  || '').toLowerCase();
+                row.style.display = (!q || p.includes(q) || r.includes(q)) ? '' : 'none';
+            });
+        }
+        function toggleClientClear(input) {
+            var btn = input.nextElementSibling;
+            if (btn) btn.style.display = input.value ? '' : 'none';
+        }
+        function clearClientSearch() {
+            var input = document.getElementById('clientSearch');
+            if (input) { input.value = ''; filterByClient(''); toggleClientClear(input); }
+        }
+    </script>
+
+</div>
+</body>
+</html>

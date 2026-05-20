@@ -103,7 +103,9 @@
                             <label for="guestPhone" class="form-label fw-semibold"
                                    th:text="#{appointment.form.guestPhone}">Телефон</label>
                             <input type="tel" id="guestPhone" class="form-control"
-                                   th:field="*{guestPhone}"/>
+                                   th:field="*{guestPhone}"
+                                   maxlength="20"
+                                   oninput="this.value=this.value.replace(/[^+0-9 ()\-]/g,'')"/>
                         </div>
                     </div>
                 </th:block>

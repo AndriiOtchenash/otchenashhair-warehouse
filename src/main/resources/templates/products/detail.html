@@ -37,7 +37,7 @@
                 </a>
             </th:block>
             <a th:href="@{/products/{id}/edit(id=${product.id},returnTo='detail')}"
-               class="btn btn-outline-secondary btn-sm">
+               class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-pencil me-1"></i>
                 <span th:text="#{btn.edit}">Редагувати</span>
             </a>
@@ -182,7 +182,7 @@
                     <td th:text="${#temporals.format(item.createdAt, 'dd.MM.yyyy')}"></td>
                     <td>
                         <button type="button"
-                                class="btn btn-sm btn-outline-secondary"
+                                class="btn btn-sm btn-outline-primary"
                                 th:title="#{stock.item.edit}"
                                 data-bs-toggle="modal"
                                 data-bs-target="#editStockItemModal"
@@ -299,7 +299,7 @@
                     <td>
                         <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
                                 type="button"
-                                class="btn btn-sm btn-outline-secondary"
+                                class="btn btn-sm btn-outline-primary"
                                 th:title="#{movement.edit.button}"
                                 data-bs-toggle="modal"
                                 data-bs-target="#editMovementModal"
