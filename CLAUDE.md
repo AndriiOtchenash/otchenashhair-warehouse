@@ -571,8 +571,10 @@ No Drive API, no Service Account — purely URL storage.
 **Wave 3b-2 — Google Drive virtual gallery — CANCELLED**
 Decided not to implement. Photos are viewed directly in Google Drive via "Відкрити папку" link.
 
-**Wave 4 — Protocol entity**
+**Wave 4 — Protocol entity — POSTPONED**
 `Protocol` (id, name, products, durationDays)
+Postponed: makes sense when the client base grows and repeat treatment courses become common.
+Not relevant at the current stage of the salon.
 
 **Wave 5 — Appointment Calendar — DONE (2026-05-17, migration 017)**
 (see full spec in ClientCare — technical notes below)

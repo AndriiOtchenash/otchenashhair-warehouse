@@ -202,6 +202,22 @@
                 </div>
             </form>
 
+            <!-- ── In progress: appointment has started but not ended ── -->
+            <div th:if="${isInProgress}" class="mt-3 pt-3 border-top">
+                <div class="alert alert-info py-2 mb-2">
+                    <i class="bi bi-activity me-1"></i>
+                    <span th:text="#{appointment.inprogress.banner}">Прийом зараз триває</span>
+                </div>
+                <form th:action="@{/clientcare/appointments/{id}/complete(id=${appointment.id})}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check2-circle me-2"></i>
+                        <span th:text="#{appointment.complete.btn}">Завершити прийом і оформити протокол візиту →</span>
+                    </button>
+                    <div class="text-muted small mt-1 text-center" th:text="#{appointment.complete.hint}"></div>
+                </form>
+            </div>
+
             <!-- ── Overdue: client came or no-show? ── -->
             <div th:if="${isOverdue}" class="mt-3 pt-3 border-top">
                 <div class="alert alert-warning py-2 mb-2">
@@ -230,8 +246,8 @@
                 </div>
             </div>
 
-            <!-- ── Complete appointment (future/today, not overdue) ── -->
-            <div th:if="${canComplete eq true and isOverdue ne true}" class="mt-3 pt-3 border-top">
+            <!-- ── Complete appointment (future, not started yet) ── -->
+            <div th:if="${canComplete eq true and isInProgress ne true and isOverdue ne true}" class="mt-3 pt-3 border-top">
                 <form th:action="@{/clientcare/appointments/{id}/complete(id=${appointment.id})}" method="post">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
                     <button type="submit" class="btn btn-success w-100">

@@ -155,12 +155,17 @@ public class AppointmentController {
         boolean canComplete = dto.getClientId() != null
                 && (dto.getStatus() == AppointmentStatus.PLANNED
                     || dto.getStatus() == AppointmentStatus.CONFIRMED);
+        LocalDateTime now = LocalDateTime.now();
+        boolean isInProgress = canComplete
+                && dto.getStartAt() != null && dto.getEndAt() != null
+                && dto.getStartAt().isBefore(now) && dto.getEndAt().isAfter(now);
         boolean isOverdue = canComplete
-                && dto.getStartAt() != null
-                && dto.getStartAt().isBefore(LocalDateTime.now());
+                && dto.getEndAt() != null
+                && dto.getEndAt().isBefore(now);
         boolean isNoShow = dto.getClientId() != null
                 && dto.getStatus() == AppointmentStatus.NO_SHOW;
         model.addAttribute("canComplete", canComplete);
+        model.addAttribute("isInProgress", isInProgress);
         model.addAttribute("isOverdue", isOverdue);
         model.addAttribute("isNoShow", isNoShow);
         lockClientForEdit(dto, model);
