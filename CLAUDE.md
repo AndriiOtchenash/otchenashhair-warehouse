@@ -21,6 +21,10 @@ web/controller/ — MVC controllers (thin):
   StockItemController (/stock/items/{id}/edit), MovementController (/movements/history),
   ProfileController, LoginController, ReportController, AiController,
   GlobalExceptionHandler (@ControllerAdvice)
+clientcare/web/controller/ — ClientCare controllers:
+  ClientCareController, ClientCareFollowupController, FollowUpActionController,
+  AppointmentController, ScalpPhotoController, DriveFolderController, VisitController,
+  GiftCertificateController (/clientcare/gift-certificates)
 web/dto/ — form objects and filter DTOs
 web/validator/ — custom Bean Validation annotations (ValidDateRange + DateRangeValidator)
 web/interceptor/ — CurrentUriInterceptor
@@ -848,7 +852,7 @@ Rules:
 - Wave 3 — DONE — Visit entity with JPA + migration 013
 - Wave 3b — DONE — Google Drive folder link per client: migration 014, fields on Client, DriveFolderController, "Відкрити папку" button in shared client detail fragment
 - Wave 3b-2 — CANCELLED — virtual gallery not needed
-- Wave 4 — Protocol entity — treatment type → recommended product list
+- Wave 4 — Protocol entity — POSTPONED (treatment type → recommended product list; not relevant at current stage)
 - Wave 5 — DONE — Appointment Calendar: migration 017, AppointmentController, AppointmentService, AppointmentDto, day view
   (see details in "Appointment Calendar" section above — NOT in TODO)
 - Wave 5b — Calendar-based time selection from client detail visit card — DONE (2026-05-18)
