@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,7 +22,11 @@ public interface GiftCertificateRepository extends JpaRepository<GiftCertificate
     List<GiftCertificate> findForClient(@Param("clientId") Long clientId);
 
     /** Marks all ACTIVE certificates past their expiry date as EXPIRED. */
+    /** Marks all ACTIVE certificates past their expiry date as EXPIRED.
+     *  REQUIRES_NEW: always runs in its own writable transaction,
+     *  even when called from a read-only context (e.g. ClientService.getClientIdsNotDeletable). */
     @Modifying
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Query("UPDATE GiftCertificate g SET g.status = com.hairmony.warehouse.domain.gift.GiftCertificateStatus.EXPIRED WHERE g.status = com.hairmony.warehouse.domain.gift.GiftCertificateStatus.ACTIVE AND g.expiresAt < :today")
     int expireOverdue(@Param("today") LocalDate today);
 }
