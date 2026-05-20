@@ -25,7 +25,7 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
-                        <select class="form-select" id="productSelect" th:field="*{productId}"
+                        <select class="form-select ts-client" id="productSelect" th:field="*{productId}"
                                 th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
                                 th:disabled="${dto.productId != null}"
                                 onchange="updateQuantityStep(this)">
@@ -52,7 +52,7 @@
 
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" th:text="#{stock.form.supplier}">Постачальник</label>
-                        <select class="form-select" th:field="*{supplierId}"
+                        <select class="form-select ts-client" th:field="*{supplierId}"
                                 th:classappend="${#fields.hasErrors('supplierId')} ? 'is-invalid'">
                             <option value="" th:text="#{stock.form.selectSupplier}">-- Оберіть постачальника --</option>
                             <option th:each="s : ${suppliers}"
@@ -175,10 +175,9 @@
                     .then(function (r) {
                         if (r.ok) {
                             return r.json().then(function (p) {
-                                productSelect.value = p.id;
+                                if (productSelect.tomselect) productSelect.tomselect.setValue(String(p.id));
+                                else productSelect.value = p.id;
                                 barcodeError.style.display = 'none';
-                                productSelect.classList.add('is-valid');
-                                setTimeout(function () { productSelect.classList.remove('is-valid'); }, 1500);
                                 updateQuantityStep(productSelect);
                             });
                         } else {

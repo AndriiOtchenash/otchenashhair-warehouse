@@ -1,5 +1,6 @@
 package com.hairmony.warehouse.service;
 
+import com.hairmony.warehouse.clientcare.service.GiftCertificateService;
 import com.hairmony.warehouse.domain.client.Client;
 import com.hairmony.warehouse.repository.AppointmentRepository;
 import com.hairmony.warehouse.repository.ClientRepository;
@@ -8,6 +9,8 @@ import com.hairmony.warehouse.repository.VisitRepository;
 import com.hairmony.warehouse.web.dto.ClientDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,9 @@ public class ClientService {
     private final StockMovementRepository stockMovementRepository;
     private final AppointmentRepository appointmentRepository;
     private final VisitRepository visitRepository;
+
+    @Autowired @Lazy
+    private GiftCertificateService giftCertificateService;
 
     @Transactional(readOnly = true)
     public List<ClientDto> findAll() {
@@ -82,6 +88,9 @@ public class ClientService {
         if (visitRepository.existsByClientId(id)) {
             throw new IllegalStateException("client.delete.error.hasVisits");
         }
+        if (!giftCertificateService.findForClient(id).isEmpty()) {
+            throw new IllegalStateException("client.delete.error.hasCertificates");
+        }
         clientRepository.deleteById(id);
     }
 
@@ -90,6 +99,10 @@ public class ClientService {
         Set<Long> ids = new java.util.HashSet<>(stockMovementRepository.findAllClientIdsWithMovements());
         ids.addAll(appointmentRepository.findAllClientIdsWithAppointments());
         ids.addAll(visitRepository.findAllClientIdsWithVisits());
+        giftCertificateService.findAll().forEach(c -> {
+            if (c.getPurchaserClientId() != null) ids.add(c.getPurchaserClientId());
+            if (c.getRecipientClientId() != null) ids.add(c.getRecipientClientId());
+        });
         return ids;
     }
 

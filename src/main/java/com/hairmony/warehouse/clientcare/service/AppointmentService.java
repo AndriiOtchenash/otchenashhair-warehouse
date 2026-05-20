@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -25,6 +26,8 @@ import java.util.stream.Collectors;
 @Transactional
 @RequiredArgsConstructor
 public class AppointmentService {
+
+    private static final DateTimeFormatter NOTE_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final AppointmentRepository appointmentRepository;
     private final ClientRepository clientRepository;
@@ -39,6 +42,20 @@ public class AppointmentService {
     }
 
     public Long save(AppointmentDto dto) {
+        // Auto-promote guest to a real client so they appear in the follow-up queue
+        if (dto.getClientId() == null && trimOrNull(dto.getGuestName()) != null) {
+            LocalDate apptDate = dto.getStartAt() != null
+                    ? dto.getStartAt().toLocalDate() : LocalDate.now();
+            String note = apptDate.format(NOTE_DATE) + " — запис нового клієнта";
+            Client newClient = clientRepository.save(
+                    Client.builder()
+                            .name(dto.getGuestName().trim())
+                            .phone(trimOrNull(dto.getGuestPhone()))
+                            .notes(note)
+                            .build());
+            dto.setClientId(newClient.getId());
+            // guestName/guestPhone will be set to null by toEntity() since clientId is now set
+        }
         return appointmentRepository.save(toEntity(dto)).getId();
     }
 

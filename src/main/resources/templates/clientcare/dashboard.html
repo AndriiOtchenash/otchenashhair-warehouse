@@ -48,14 +48,14 @@
         <!-- Пропущені візити -->
         <div class="col-6 col-md-4">
             <a th:href="@{/clientcare/followups(visitFilter='overdue')}" class="text-decoration-none">
-                <div class="card kpi-card h-100 p-3">
+                <div class="card kpi-card h-100 p-3" style="background:#f8d7da;">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="kpi-number text-danger" th:text="${dashboard.overdueVisitCount}">0</div>
-                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.overdueVisit}">Пропущені візити</div>
-                            <div class="kpi-hint" th:text="#{clientcare.card.overdueVisit.hint}">Дата пройшла, не прийшли</div>
+                            <div class="kpi-number" style="color:#842029;" th:text="${dashboard.overdueVisitCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;color:#842029;" th:text="#{clientcare.card.overdueVisit}">Пропущені візити</div>
+                            <div class="kpi-hint" style="color:#842029;" th:text="#{clientcare.card.overdueVisit.hint}">Дата пройшла, не прийшли</div>
                         </div>
-                        <i class="bi bi-calendar-x kpi-icon text-danger"></i>
+                        <i class="bi bi-calendar-x kpi-icon" style="color:#842029;"></i>
                     </div>
                 </div>
             </a>
@@ -64,14 +64,14 @@
         <!-- Заплановані візити -->
         <div class="col-6 col-md-4">
             <a th:href="@{/clientcare/followups(visitFilter='scheduled')}" class="text-decoration-none">
-                <div class="card kpi-card h-100 p-3">
+                <div class="card kpi-card h-100 p-3" style="background:#fff3cd;">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="kpi-number text-success" th:text="${dashboard.upcomingVisitCount}">0</div>
-                            <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.upcomingVisit}">Заплановані візити</div>
-                            <div class="kpi-hint" th:text="#{clientcare.card.upcomingVisit.hint}">Майбутній прийом</div>
+                            <div class="kpi-number" style="color:#664d03;" th:text="${dashboard.upcomingVisitCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;color:#664d03;" th:text="#{clientcare.card.upcomingVisit}">Заплановані візити</div>
+                            <div class="kpi-hint" style="color:#664d03;" th:text="#{clientcare.card.upcomingVisit.hint}">Майбутній прийом</div>
                         </div>
-                        <i class="bi bi-calendar-check kpi-icon text-success"></i>
+                        <i class="bi bi-calendar-check kpi-icon" style="color:#664d03;"></i>
                     </div>
                 </div>
             </a>

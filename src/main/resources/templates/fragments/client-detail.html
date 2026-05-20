@@ -82,7 +82,14 @@
             opacity: 0.55;
         }
         .scalp-photo-tile:hover .scalp-photo-delete { opacity: 1; }
+        /* Tabs horizontal scroll on mobile */
+        #clientTabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        #clientTabs::-webkit-scrollbar { display: none; }
+        #clientTabs .nav-link { white-space: nowrap; color: #6c757d; }
+        #clientTabs .nav-link:hover { color: var(--accent); border-color: transparent transparent var(--bs-border-color); }
+        #clientTabs .nav-link.active { color: var(--accent); border-top: 2px solid var(--accent); border-left-color: var(--bs-border-color); border-right-color: var(--bs-border-color); border-bottom-color: #fff; }
     </style>
+
     <div class="page-header">
         <div>
             <h1 class="page-title" th:text="${client.name}"></h1>
@@ -98,7 +105,7 @@
                 <i class="bi bi-calendar-plus me-md-1"></i>
                 <span class="d-none d-md-inline" th:text="#{btn.bookAppointment}">Записати</span>
             </a>
-            <a th:href="${editUrl}" class="btn btn-outline-secondary btn-sm">
+            <a th:href="${editUrl}" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-pencil me-1"></i>
                 <span th:text="#{btn.edit}">Редагувати</span>
             </a>
@@ -109,388 +116,500 @@
         </div>
     </div>
 
-    <!-- Client info strip -->
-    <div class="card mb-3">
-        <div class="card-header" th:text="#{client.detail.info}">Інформація</div>
-        <div class="card-body py-2">
-            <div class="d-flex flex-wrap gap-4">
-                <div>
-                    <span class="text-muted small" th:text="#{client.detail.totalOps}">Операцій</span>:
-                    <strong th:text="${movements.size()}"></strong>
-                </div>
-                <div th:if="${client.notes != null and !client.notes.isEmpty()}">
-                    <span class="text-muted small" th:text="#{client.form.notes}">Примітки</span>:
-                    <span th:text="${client.notes}"></span>
-                </div>
-                <!-- Next appointment badge (clientcare contexts only) -->
-                <div th:if="${nextAppointment != null}">
-                    <a th:href="@{/clientcare/appointments(date=${#temporals.format(nextAppointment.startAt, 'yyyy-MM-dd')})}"
-                       class="text-decoration-none">
-                        <span class="badge rounded-pill text-bg-success d-inline-flex align-items-center gap-1">
-                            <i class="bi bi-calendar-check-fill"></i>
-                            <span th:text="#{appointment.badge.upcoming}">Наступний запис</span>:
-                            <strong th:text="${#temporals.format(nextAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(nextAppointment.startAt, 'HH:mm')}"></strong>
-                        </span>
-                    </a>
-                </div>
-                <div th:if="${overdueAppointment != null}">
-                    <a th:href="@{/clientcare/appointments(date=${#temporals.format(overdueAppointment.startAt, 'yyyy-MM-dd')})}"
-                       class="text-decoration-none">
-                        <span class="badge rounded-pill text-bg-danger d-inline-flex align-items-center gap-1">
-                            <i class="bi bi-calendar-x-fill"></i>
-                            <span th:text="#{appointment.badge.overdue}">Прострочений</span>:
-                            <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
-                        </span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Visits (ClientCare only) -->
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-                <span th:text="#{visit.section.title}">Візити</span>
-                <span class="badge bg-secondary"
-                      th:unless="${visits.isEmpty()}"
-                      th:text="${visits.size()}"></span>
-            </div>
-            <a th:href="@{/clientcare/visits/new(clientId=${client.id})}"
-               class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-plus-lg me-1"></i>
-                <span th:text="#{visit.add}">Додати візит</span>
-            </a>
-        </div>
-        <div class="card-body p-0">
-            <div th:if="${visits.isEmpty()}" class="text-muted small py-3 text-center">
-                <i class="bi bi-calendar-x d-block fs-3 mb-1 opacity-50"></i>
-                <span th:text="#{visit.empty}">Візитів поки немає</span>
-            </div>
-            <th:block th:unless="${visits.isEmpty()}" th:with="visit=${visits[0]}">
-                <div class="px-3 py-2">
-                    <div class="d-flex justify-content-between align-items-start gap-3">
-                        <div style="min-width:0; flex:1">
-                            <div class="fw-semibold"
-                                 th:text="${#temporals.format(visit.visitDate, 'dd.MM.yyyy')}"></div>
-                            <div th:if="${visit.complaint != null and !visit.complaint.isEmpty()}"
-                                 class="text-muted small mt-1">
-                                <span class="fw-semibold" th:text="#{visit.form.complaint}">Скарга</span>:
-                                <span th:text="${visit.complaint}"></span>
-                            </div>
-                            <div th:if="${visit.scalpCondition != null and !visit.scalpCondition.isEmpty()}"
-                                 class="text-muted small mt-1">
-                                <span class="fw-semibold" th:text="#{visit.form.scalpCondition}">Стан</span>:
-                                <span th:text="${visit.scalpCondition}"></span>
-                            </div>
-                            <div th:if="${visit.recommendations != null and !visit.recommendations.isEmpty()}"
-                                 class="text-muted small mt-1">
-                                <span class="fw-semibold" th:text="#{visit.form.recommendations}">Рекомендації</span>:
-                                <span th:text="${visit.recommendations}"></span>
-                            </div>
-                            <div th:if="${visit.notes != null and !visit.notes.isEmpty()}"
-                                 class="text-muted small mt-1">
-                                <span class="fw-semibold" th:text="#{visit.form.notes}">Нотатки</span>:
-                                <span th:text="${visit.notes}"></span>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-1 flex-shrink-0">
-                            <a th:href="@{/clientcare/visits/{id}/edit(id=${visit.id})}"
-                               class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <form th:action="@{/clientcare/visits/{id}/delete(id=${visit.id})}"
-                                  method="post" class="d-inline">
-                                <input type="hidden" name="clientId" th:value="${client.id}"/>
-                                <button type="submit"
-                                        class="btn btn-outline-danger btn-sm"
-                                        th:onclick="'return confirm(\'' + #{visit.delete.confirm} + '\')'">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    <!-- Next appointment indicator -->
-                    <div th:if="${visit.nextAppointmentId != null}" class="mt-2 small text-success">
-                        <i class="bi bi-calendar-check-fill me-1"></i>
-                        <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
-                        <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
-                    </div>
-                    <div th:if="${visit.nextAppointmentId == null and nextAppointment == null}" class="mt-2 small text-warning">
-                        <i class="bi bi-calendar-x me-1"></i>
-                        <span th:text="#{visit.nextAppointment.notScheduled}">Не запланований</span>
-                    </div>
-                </div>
-                <div class="px-3 pb-2 mt-1 d-flex align-items-center gap-2">
-                    <a th:if="${visits.size() > 1}"
-                       th:href="@{/clientcare/clients/{id}/visits(id=${client.id}, returnTo=${currentPageUrl})}"
-                       class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-clock-history me-1"></i>
-                        <span th:text="#{visit.viewAll}">Всі візити</span>
-                        <span class="badge bg-secondary ms-1" th:text="${visits.size()}"></span>
-                    </a>
-                </div>
-            </th:block>
-        </div>
-    </div>
-
-    <!-- Scalp Photos -->
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-                <span th:text="#{scalp.photo.title}">Фото шкіри голови</span>
-                <span class="badge bg-secondary"
-                      th:unless="${scalpPhotos.isEmpty()}"
+    <!-- Tabs nav -->
+    <ul class="nav nav-tabs mb-3" id="clientTabs" role="tablist">
+        <li class="nav-item flex-shrink-0" role="presentation">
+            <button class="nav-link active" id="tab-profile-btn"
+                    data-bs-toggle="tab" data-bs-target="#tab-profile"
+                    type="button" role="tab">
+                <span th:text="#{tab.profile}">Профіль</span>
+            </button>
+        </li>
+        <li class="nav-item flex-shrink-0" role="presentation">
+            <button class="nav-link" id="tab-purchases-btn"
+                    data-bs-toggle="tab" data-bs-target="#tab-purchases"
+                    type="button" role="tab">
+                <span th:text="#{tab.purchases}">Покупки</span>
+                <span th:unless="${movements.empty}" class="badge bg-secondary ms-1"
+                      th:text="${movements.size()}"></span>
+            </button>
+        </li>
+        <li class="nav-item flex-shrink-0" role="presentation">
+            <button class="nav-link" id="tab-photos-btn"
+                    data-bs-toggle="tab" data-bs-target="#tab-photos"
+                    type="button" role="tab">
+                <span th:text="#{tab.photos}">Фото</span>
+                <span th:unless="${scalpPhotos.empty}" class="badge bg-secondary ms-1"
                       th:text="${scalpPhotos.size()}"></span>
-            </div>
-            <a th:href="@{/clientcare/photos/new(clientId=${client.id})}"
-               class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-plus-lg me-1"></i>
-                <span th:text="#{scalp.photo.add}">Додати фото</span>
-            </a>
-        </div>
-        <div class="card-body py-2">
-            <div th:if="${scalpPhotos.isEmpty()}" class="text-muted small py-1"
-                 th:text="#{scalp.photo.empty}">Фото поки немає</div>
-            <div th:unless="${scalpPhotos.isEmpty()}">
-                <div class="scalp-photo-grid">
-                    <div th:each="photo, pStat : ${scalpPhotos}"
-                         th:if="${pStat.index < 3}"
-                         class="scalp-photo-tile">
-                        <a th:href="${photo.driveUrl}" target="_blank" rel="noopener"
-                           class="scalp-photo-thumb">
-                            <img th:if="${photo.driveFileId != null}"
-                                 th:src="'https://drive.google.com/thumbnail?id=' + ${photo.driveFileId} + '&sz=w200'"
-                                 th:alt="#{|scalp.zone.${photo.zone}|}"
-                                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
-                            <span th:if="${photo.driveFileId != null}"
-                                  class="scalp-photo-fallback" style="display:none">
-                                <i class="bi bi-image"></i>
-                            </span>
-                            <span th:unless="${photo.driveFileId != null}"
-                                  class="scalp-photo-fallback">
-                                <i class="bi bi-image"></i>
-                            </span>
-                        </a>
-                        <div class="scalp-photo-meta">
-                            <span class="badge bg-secondary" style="font-size:0.6rem"
-                                  th:text="#{|scalp.zone.${photo.zone}|}">Зона</span>
-                            <span class="text-muted" style="font-size:0.68rem"
-                                  th:text="${#temporals.format(photo.takenAt, 'dd.MM.yy')}"></span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- ── ПРОФІЛЬ TAB ─────────────────────────────────────────────── -->
+        <div class="tab-pane fade show active" id="tab-profile" role="tabpanel">
+
+            <!-- Client info strip -->
+            <div class="card mb-3">
+                <div class="card-header" th:text="#{client.detail.info}">Інформація</div>
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div>
+                            <span class="text-muted small" th:text="#{client.detail.totalOps}">Операцій</span>:
+                            <strong th:text="${movements.size()}"></strong>
                         </div>
-                        <div th:if="${photo.notes != null and !photo.notes.isEmpty()}"
-                             class="scalp-photo-notes"
-                             th:text="${photo.notes}"></div>
-                        <form th:action="@{/clientcare/photos/{id}/delete(id=${photo.id})}"
-                              method="post">
-                            <input type="hidden" name="clientId" th:value="${client.id}"/>
-                            <button type="submit" class="scalp-photo-delete"
-                                    th:onclick="'return confirm(\'' + #{scalp.photo.delete.confirm} + '\')'">
-                                <i class="bi bi-trash"></i>
+                        <div th:if="${client.notes != null and !client.notes.isEmpty()}">
+                            <span class="text-muted small" th:text="#{client.form.notes}">Примітки</span>:
+                            <span th:text="${client.notes}"></span>
+                        </div>
+                        <!-- Next appointment badge (clientcare contexts only) -->
+                        <div th:if="${nextAppointment != null}">
+                            <a th:href="@{/clientcare/appointments(date=${#temporals.format(nextAppointment.startAt, 'yyyy-MM-dd')})}"
+                               class="text-decoration-none">
+                                <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#d1e7dd;color:#0a3622">
+                                    <i class="bi bi-calendar-check-fill"></i>
+                                    <span th:text="#{appointment.badge.upcoming}">Наступний запис</span>:
+                                    <strong th:text="${#temporals.format(nextAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(nextAppointment.startAt, 'HH:mm')}"></strong>
+                                </span>
+                            </a>
+                        </div>
+                        <div th:if="${overdueAppointment != null}">
+                            <a th:href="@{/clientcare/appointments(date=${#temporals.format(overdueAppointment.startAt, 'yyyy-MM-dd')})}"
+                               class="text-decoration-none">
+                                <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#f8d7da;color:#842029">
+                                    <i class="bi bi-calendar-x-fill"></i>
+                                    <span th:text="#{appointment.badge.overdue}">Прострочений</span>:
+                                    <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
+                                </span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visits -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-calendar-check me-2" style="color: var(--accent)"></i>
+                        <span th:text="#{visit.section.title}">Візити</span>
+                        <span class="badge bg-secondary ms-1"
+                              th:unless="${visits.isEmpty()}"
+                              th:text="${visits.size()}"></span>
+                    </div>
+                    <a th:href="@{/clientcare/visits/new(clientId=${client.id},returnTo=${currentPageUrl})}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>
+                        <span th:text="#{visit.add}">Додати</span>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${visits.isEmpty()}" class="text-muted small px-3 py-2"
+                         th:text="#{visit.empty}">Візитів поки немає</div>
+                    <th:block th:unless="${visits.isEmpty()}" th:with="visit=${visits[0]}">
+                        <div class="px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div style="min-width:0; flex:1">
+                                    <div class="fw-semibold"
+                                         th:text="${#temporals.format(visit.visitDate, 'dd.MM.yyyy')}"></div>
+                                    <div th:if="${visit.complaint != null and !visit.complaint.isEmpty()}"
+                                         class="text-muted small mt-1">
+                                        <span class="fw-semibold" th:text="#{visit.form.complaint}">Скарга</span>:
+                                        <span th:text="${visit.complaint}"></span>
+                                    </div>
+                                    <div th:if="${visit.scalpCondition != null and !visit.scalpCondition.isEmpty()}"
+                                         class="text-muted small mt-1">
+                                        <span class="fw-semibold" th:text="#{visit.form.scalpCondition}">Стан</span>:
+                                        <span th:text="${visit.scalpCondition}"></span>
+                                    </div>
+                                    <div th:if="${visit.recommendations != null and !visit.recommendations.isEmpty()}"
+                                         class="text-muted small mt-1">
+                                        <span class="fw-semibold" th:text="#{visit.form.recommendations}">Рекомендації</span>:
+                                        <span th:text="${visit.recommendations}"></span>
+                                    </div>
+                                    <div th:if="${visit.notes != null and !visit.notes.isEmpty()}"
+                                         class="text-muted small mt-1">
+                                        <span class="fw-semibold" th:text="#{visit.form.notes}">Нотатки</span>:
+                                        <span th:text="${visit.notes}"></span>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1 flex-shrink-0">
+                                    <a th:href="@{/clientcare/visits/{id}/edit(id=${visit.id})}"
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form th:action="@{/clientcare/visits/{id}/delete(id=${visit.id})}"
+                                          method="post" class="d-inline">
+                                        <input type="hidden" name="clientId" th:value="${client.id}"/>
+                                        <button type="submit"
+                                                class="btn btn-outline-danger btn-sm"
+                                                th:data-confirm="#{visit.delete.confirm}"
+                                                onclick="return confirm(this.dataset.confirm)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            <!-- Next appointment indicator -->
+                            <div th:if="${visit.nextAppointmentId != null}" class="mt-2 small text-success">
+                                <i class="bi bi-calendar-check-fill me-1"></i>
+                                <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
+                                <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
+                            </div>
+                            <div th:if="${visit.nextAppointmentId == null and nextAppointment == null}" class="mt-2 small text-warning">
+                                <i class="bi bi-calendar-x me-1"></i>
+                                <span th:text="#{visit.nextAppointment.notScheduled}">Не запланований</span>
+                            </div>
+                        </div>
+                        <div class="px-3 pb-2 mt-1 d-flex align-items-center gap-2">
+                            <a th:if="${visits.size() > 1}"
+                               th:href="@{/clientcare/clients/{id}/visits(id=${client.id}, returnTo=${currentPageUrl})}"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-clock-history me-1"></i>
+                                <span th:text="#{visit.viewAll}">Всі візити</span>
+                                <span class="badge bg-secondary ms-1" th:text="${visits.size()}"></span>
+                            </a>
+                        </div>
+                    </th:block>
+                </div>
+            </div>
+
+            <!-- Gift certificates -->
+            <div th:if="${giftCertificates != null}" class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-gift me-2" style="color: var(--accent)"></i>
+                        <span th:text="#{gift.client.section.title}">Подарункові сертифікати</span>
+                    </div>
+                    <a th:href="@{/clientcare/gift-certificates/new(purchaserId=${client.id},returnTo=${currentPageUrl})}"
+                       class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>
+                        <span th:text="#{gift.btn.issue}">Видати</span>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${giftCertificates.empty}" class="text-muted small px-3 py-2"
+                         th:text="#{gift.client.empty}">Сертифікатів поки немає</div>
+                    <div th:each="cert, iterStat : ${giftCertificates}"
+                         th:if="${iterStat.index < 2}"
+                         class="px-3 py-2 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <a th:href="@{/clientcare/gift-certificates/{id}(id=${cert.id},returnTo=${currentPageUrl})}"
+                                   class="fw-semibold text-decoration-none"
+                                   style="font-family:monospace; font-size:0.9rem;"
+                                   th:text="${cert.code}">GIFT-2026-0001</a>
+                                <!-- Role badges on new line -->
+                                <div class="mt-1">
+                                    <span th:if="${cert.purchaserClientId == client.id}"
+                                          class="badge bg-secondary me-1" style="font-size:0.65rem;"
+                                          th:text="#{gift.role.purchaser}">Покупець</span>
+                                    <span th:if="${cert.recipientClientId == client.id}"
+                                          class="badge bg-info text-dark me-1" style="font-size:0.65rem;"
+                                          th:text="#{gift.role.recipient}">Отримувач</span>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    <span th:text="${cert.serviceName}"></span>
+                                    <span class="mx-1">·</span>
+                                    <span th:text="#{gift.col.expires}">до</span>
+                                    <span th:text="${#temporals.format(cert.expiresAt, 'dd.MM.yyyy')}"></span>
+                                    <!-- Days remaining warning -->
+                                    <span th:if="${cert.active and cert.daysRemaining() <= 30}"
+                                          class="badge bg-warning text-dark ms-1"
+                                          style="font-size:0.65rem;"
+                                          th:text="${cert.daysRemaining() + ' д'}"></span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                <span th:switch="${cert.status.name()}">
+                                    <span th:case="'ACTIVE'"    class="badge bg-success"   th:text="#{gift.status.ACTIVE}"></span>
+                                    <span th:case="'REDEEMED'"  class="badge bg-primary"   th:text="#{gift.status.REDEEMED}"></span>
+                                    <span th:case="'EXPIRED'"   class="badge bg-warning text-dark" th:text="#{gift.status.EXPIRED}"></span>
+                                    <span th:case="'CANCELLED'" class="badge bg-secondary" th:text="#{gift.status.CANCELLED}"></span>
+                                </span>
+                                <form th:if="${cert.active}"
+                                      th:action="@{/clientcare/gift-certificates/{id}/redeem(id=${cert.id})}"
+                                      method="post" class="d-inline">
+                                    <input type="hidden" name="returnTo" th:value="${currentPageUrl}"/>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                                            th:data-confirm="#{gift.redeem.confirm}"
+                                            onclick="return confirm(this.dataset.confirm)">
+                                        <i class="bi bi-check2-circle me-1"></i>
+                                        <span class="d-none d-md-inline" th:text="#{gift.btn.redeem}">Погасити</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div th:if="${giftCertificates.size() > 2}" class="px-3 pb-2 mt-1">
+                        <a th:href="@{/clientcare/gift-certificates(clientId=${client.id})}"
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-gift me-1"></i>
+                            <span th:text="#{gift.viewAll}">Всі сертифікати</span>
+                            <span class="badge bg-secondary ms-1" th:text="${giftCertificates.size()}"></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /#tab-profile -->
+
+        <!-- ── ПОКУПКИ TAB ─────────────────────────────────────────────── -->
+        <div class="tab-pane fade" id="tab-purchases" role="tabpanel">
+            <div class="card">
+                <div th:unless="${movements.empty}" class="p-2 border-bottom">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="input-group input-group-sm" id="dateFromWrap" style="flex:1;min-width:0">
+                            <span class="input-group-text" th:text="#{movements.filter.dateFrom}">Від</span>
+                            <input type="date" class="form-control" id="histDateFrom"
+                                   onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                            <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                                    id="clearDateFromBtn" onclick="clearDateFrom()" tabindex="-1" style="display:none">
+                                <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                            </button>
+                        </div>
+                        <div class="input-group input-group-sm" id="dateToWrap" style="flex:1;min-width:0">
+                            <span class="input-group-text" th:text="#{movements.filter.dateTo}">До</span>
+                            <input type="date" class="form-control" id="histDateTo"
+                                   onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                            <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                                    id="clearDateToBtn" onclick="clearDateTo()" tabindex="-1" style="display:none">
+                                <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="filter-select-wrap" id="typeSelectWrap" style="flex:1;min-width:0">
+                            <select class="form-select form-select-sm" id="histType" onchange="applyHistoryFilters()">
+                                <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
+                                <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
+                                <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
+                                <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
+                            </select>
+                            <button type="button" id="clearTypeBtn"
+                                    class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                    onclick="clearHistType()" tabindex="-1" style="display:none">
+                                <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                            </button>
+                        </div>
+                        <button type="button" id="giftFilterBtn"
+                                class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                                th:data-label="#{btn.quickFilter.gifts}"
+                                onclick="toggleGiftFilter()">
+                            <i class="bi bi-gift me-1"></i><span th:text="#{btn.quickFilter.gifts}">Подарунки</span>
+                        </button>
+                    </div>
+                    <div class="input-group input-group-sm" id="searchGroup">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="histSearch"
+                               th:placeholder="#{product.form.name}"
+                               oninput="applyHistoryFilters()"/>
+                        <button type="button" class="btn btn-outline-secondary d-md-none"
+                                onclick="clearHistSearch()" tabindex="-1" id="clearSearchBtn" style="display:none">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <button type="button" id="resetFiltersBtn"
+                                class="btn btn-outline-secondary btn-sm" style="display:none"
+                                onclick="resetHistFilters()">
+                            <i class="bi bi-funnel"></i>
+                            <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${movements.empty}" class="text-center text-muted py-4">
+                        <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
+                        <span th:text="#{client.detail.noHistory}">Операцій немає</span>
+                    </div>
+                    <table th:unless="${movements.empty}" class="table table-sm table-hover table-striped mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th th:text="#{product.detail.date}">Дата</th>
+                            <th th:text="#{product.form.name}">Товар</th>
+                            <th th:text="#{stock.form.movementType}">Тип</th>
+                            <th th:text="#{stock.form.quantity}">Кількість</th>
+                            <th th:text="#{stock.form.salePrice}">Ціна</th>
+                            <th th:text="#{stock.form.notes}">Примітки</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="m : ${movements}"
+                            th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted'"
+                            th:attr="data-type=${m.movementType.name()},data-name=${m.product.name},data-reason=${m.writeOffReason ?: ''},data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')}">
+                            <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+                            <td>
+                                <a th:href="@{/products/{id}(id=${m.product.id},from='client',clientId=${client.id})}"
+                                   th:text="${m.product.name}"
+                                   class="text-decoration-none fw-semibold text-dark"></a>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill"
+                                      th:classappend="${m.movementType.name() == 'SALE'} ? 'bg-primary' :
+                                                     (${m.movementType.name() == 'WRITE_OFF'} ? 'badge-writeoff' : 'bg-secondary')"
+                                      th:text="#{movementType.__${m.movementType}__}"></span>
+                                <div th:if="${m.writeOffReason != null}" class="mt-1">
+                                    <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
+                                          th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
+                                </div>
+                            </td>
+                            <td>
+                                <span th:text="${@qf.format(m.quantity, m.product.unit.name())}"></span>
+                                <span class="text-muted small" th:text="#{unit.__${m.product.unit}__}"></span>
+                            </td>
+                            <td th:text="${m.unitPrice != null ? m.unitPrice + ' zł' : '—'}"></td>
+                            <td th:text="${m.notes ?: '—'}"></td>
+                            <td>
+                                <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        th:title="#{movement.edit.button}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editMovementModal"
+                                        th:attr="data-movement-id=${m.id},
+                                                 data-movement-type=${m.movementType.name()},
+                                                 data-client-id=${m.client != null ? m.client.id : ''},
+                                                 data-notes=${m.notes ?: ''}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <span th:if="${cancelledMovementIds.contains(m.id)}"
+                                      class="text-muted small" style="font-size:0.7rem"
+                                      th:text="#{movement.cancel.badge}"></span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div><!-- /#tab-purchases -->
+
+        <!-- ── ФОТО TAB ────────────────────────────────────────────────── -->
+        <div class="tab-pane fade" id="tab-photos" role="tabpanel">
+
+            <!-- Google Drive folder -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <a th:unless="${client.driveFolderUrl == null}"
+                           th:href="${client.driveFolderUrl}" target="_blank" rel="noopener"
+                           class="d-md-none btn btn-outline-warning btn-sm py-0 px-1">
+                            <i class="bi bi-folder2-open fs-5"></i>
+                        </a>
+                        <i th:if="${client.driveFolderUrl == null}"
+                           class="bi bi-folder2-open text-warning"></i>
+                        <i class="d-none d-md-inline bi bi-folder2-open text-warning"
+                           th:unless="${client.driveFolderUrl == null}"></i>
+                        <span th:text="#{drive.folder.section.title}">Папка Google Drive</span>
+                        <span th:unless="${client.driveFolderUrl == null}"
+                              class="badge bg-success" style="font-size:0.68rem;"
+                              th:text="#{drive.folder.status.connected}">Підключена</span>
+                    </div>
+                    <a th:if="${client.driveFolderUrl == null}"
+                       th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>
+                        <span th:text="#{drive.folder.btn.connect}">Підключити</span>
+                    </a>
+                    <div th:unless="${client.driveFolderUrl == null}" class="d-flex align-items-center gap-1">
+                        <a th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form th:action="@{/clientcare/clients/{id}/drive-folder/remove(id=${client.id})}"
+                              method="post" class="d-inline"
+                              th:data-confirm="#{drive.folder.remove.confirm}"
+                              onsubmit="return confirm(this.dataset.confirm)">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-x-lg"></i>
                             </button>
                         </form>
                     </div>
                 </div>
-                <div class="mt-2 d-flex align-items-center gap-2">
-                    <a th:if="${scalpPhotos.size() > 3}"
-                       th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${currentPageUrl})}"
-                       class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-images me-1"></i>
-                        <span th:text="#{scalp.photo.viewAll}">Всі фото</span>
-                        <span class="badge bg-secondary ms-1" th:text="${scalpPhotos.size()}"></span>
-                    </a>
-                    <a th:if="${scalpPhotos.size() <= 3 and !scalpPhotos.isEmpty()}"
-                       th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${currentPageUrl})}"
-                       class="text-muted small text-decoration-none">
-                        <i class="bi bi-grid me-1"></i>
-                        <span th:text="#{scalp.photo.viewAll}">Всі фото</span>
+                <div class="card-body py-2 px-3">
+                    <div th:if="${client.driveFolderUrl == null}" class="text-muted small"
+                         th:text="#{drive.folder.empty}">Папку не підключено</div>
+                    <a th:unless="${client.driveFolderUrl == null}"
+                       th:href="${client.driveFolderUrl}" target="_blank" rel="noopener"
+                       class="d-none d-md-inline-flex btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>
+                        <span th:text="#{drive.folder.btn.open}">Відкрити папку</span>
                     </a>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Google Drive folder -->
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-                <!-- Mobile: icon is a link to Drive when folder linked -->
-                <a th:unless="${client.driveFolderUrl == null}"
-                   th:href="${client.driveFolderUrl}" target="_blank" rel="noopener"
-                   class="d-md-none btn btn-outline-warning btn-sm py-0 px-1">
-                    <i class="bi bi-folder2-open fs-5"></i>
-                </a>
-                <i th:if="${client.driveFolderUrl == null}"
-                   class="bi bi-folder2-open text-warning"></i>
-                <i class="d-none d-md-inline bi bi-folder2-open text-warning"
-                   th:unless="${client.driveFolderUrl == null}"></i>
-                <span th:text="#{drive.folder.section.title}">Папка Google Drive</span>
-                <span th:unless="${client.driveFolderUrl == null}"
-                      class="badge bg-success" style="font-size:0.68rem;"
-                      th:text="#{drive.folder.status.connected}">Підключена</span>
-            </div>
-            <a th:if="${client.driveFolderUrl == null}"
-               th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
-               class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-plus-lg me-1"></i>
-                <span th:text="#{drive.folder.btn.connect}">Підключити</span>
-            </a>
-            <div th:unless="${client.driveFolderUrl == null}" class="d-flex align-items-center gap-1">
-                <a th:href="@{/clientcare/clients/{id}/drive-folder/edit(id=${client.id})}"
-                   class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                <form th:action="@{/clientcare/clients/{id}/drive-folder/remove(id=${client.id})}"
-                      method="post" class="d-inline"
-                      th:data-confirm="#{drive.folder.remove.confirm}"
-                      onsubmit="return confirm(this.dataset.confirm)">
-                    <button type="submit" class="btn btn-outline-danger btn-sm">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </form>
-            </div>
-        </div>
-        <div class="card-body py-2 px-3">
-            <div th:if="${client.driveFolderUrl == null}" class="text-muted small"
-                 th:text="#{drive.folder.empty}">Папку не підключено</div>
-            <a th:unless="${client.driveFolderUrl == null}"
-               th:href="${client.driveFolderUrl}" target="_blank" rel="noopener"
-               class="d-none d-md-inline-flex btn btn-outline-secondary btn-sm">
-                <i class="bi bi-box-arrow-up-right me-1"></i>
-                <span th:text="#{drive.folder.btn.open}">Відкрити папку</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- Movement history -->
-    <div class="card">
-        <div class="card-header" th:text="#{client.detail.history}">Історія операцій</div>
-        <div th:unless="${movements.empty}" class="p-2 border-bottom">
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <div class="input-group input-group-sm" id="dateFromWrap" style="flex:1;min-width:0">
-                    <span class="input-group-text" th:text="#{movements.filter.dateFrom}">Від</span>
-                    <input type="date" class="form-control" id="histDateFrom"
-                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
-                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
-                            id="clearDateFromBtn" onclick="clearDateFrom()" tabindex="-1" style="display:none">
-                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
-                    </button>
+            <!-- Scalp photos -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <span th:text="#{scalp.photo.title}">Фото шкіри голови</span>
+                        <span class="badge bg-secondary"
+                              th:unless="${scalpPhotos.isEmpty()}"
+                              th:text="${scalpPhotos.size()}"></span>
+                    </div>
+                    <a th:href="@{/clientcare/photos/new(clientId=${client.id})}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>
+                        <span th:text="#{scalp.photo.add}">Додати фото</span>
+                    </a>
                 </div>
-                <div class="input-group input-group-sm" id="dateToWrap" style="flex:1;min-width:0">
-                    <span class="input-group-text" th:text="#{movements.filter.dateTo}">До</span>
-                    <input type="date" class="form-control" id="histDateTo"
-                           onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
-                    <button type="button" class="btn btn-outline-secondary d-md-none px-1"
-                            id="clearDateToBtn" onclick="clearDateTo()" tabindex="-1" style="display:none">
-                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <div class="filter-select-wrap" id="typeSelectWrap" style="flex:1;min-width:0">
-                    <select class="form-select form-select-sm" id="histType" onchange="applyHistoryFilters()">
-                        <option value="" th:text="#{movements.filter.allTypes}">— Всі типи —</option>
-                        <option value="SALE" th:text="#{movementType.SALE}">Sale</option>
-                        <option value="WRITE_OFF" th:text="#{movementType.WRITE_OFF}">Write Off</option>
-                        <option value="ADJUSTMENT" th:text="#{movementType.ADJUSTMENT}">Adjustment</option>
-                    </select>
-                    <button type="button" id="clearTypeBtn"
-                            class="btn btn-outline-secondary btn-sm d-md-none px-1"
-                            onclick="clearHistType()" tabindex="-1" style="display:none">
-                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
-                    </button>
-                </div>
-                <button type="button" id="giftFilterBtn"
-                        class="btn btn-outline-secondary btn-sm flex-shrink-0"
-                        th:data-label="#{btn.quickFilter.gifts}"
-                        onclick="toggleGiftFilter()">
-                    <i class="bi bi-gift me-1"></i><span th:text="#{btn.quickFilter.gifts}">Подарунки</span>
-                </button>
-            </div>
-            <div class="input-group input-group-sm" id="searchGroup">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" id="histSearch"
-                       th:placeholder="#{product.form.name}"
-                       oninput="applyHistoryFilters()"/>
-                <button type="button" class="btn btn-outline-secondary d-md-none"
-                        onclick="clearHistSearch()" tabindex="-1" id="clearSearchBtn" style="display:none">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-            <div class="mt-2">
-                <button type="button" id="resetFiltersBtn"
-                        class="btn btn-outline-secondary btn-sm" style="display:none"
-                        onclick="resetHistFilters()">
-                    <i class="bi bi-funnel"></i>
-                    <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
-                </button>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div th:if="${movements.empty}" class="text-center text-muted py-4">
-                <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
-                <span th:text="#{client.detail.noHistory}">Операцій немає</span>
-            </div>
-            <table th:unless="${movements.empty}" class="table table-sm table-hover table-striped mb-0">
-                <thead class="table-light">
-                <tr>
-                    <th th:text="#{product.detail.date}">Дата</th>
-                    <th th:text="#{product.form.name}">Товар</th>
-                    <th th:text="#{stock.form.movementType}">Тип</th>
-                    <th th:text="#{stock.form.quantity}">Кількість</th>
-                    <th th:text="#{stock.form.salePrice}">Ціна</th>
-                    <th th:text="#{stock.form.notes}">Примітки</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="m : ${movements}"
-                    th:classappend="${cancelledMovementIds.contains(m.id)} ? 'text-muted'"
-                    th:attr="data-type=${m.movementType.name()},data-name=${m.product.name},data-reason=${m.writeOffReason ?: ''},data-date=${#temporals.format(m.createdAt, 'yyyy-MM-dd')}">
-                    <td th:text="${#temporals.format(m.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
-                    <td>
-                        <a th:href="@{/products/{id}(id=${m.product.id},from='client',clientId=${client.id})}"
-                           th:text="${m.product.name}"
-                           class="text-decoration-none fw-semibold text-dark"></a>
-                    </td>
-                    <td>
-                        <span class="badge rounded-pill"
-                              th:classappend="${m.movementType.name() == 'SALE'} ? 'bg-primary' :
-                                             (${m.movementType.name() == 'WRITE_OFF'} ? 'badge-writeoff' : 'bg-secondary')"
-                              th:text="#{movementType.__${m.movementType}__}"></span>
-                        <div th:if="${m.writeOffReason != null}" class="mt-1">
-                            <span class="badge bg-light text-secondary border" style="font-size:0.65rem"
-                                  th:text="#{writeOffReason.__${m.writeOffReason}__}"></span>
+                <div class="card-body py-2">
+                    <div th:if="${scalpPhotos.isEmpty()}" class="text-muted small py-1"
+                         th:text="#{scalp.photo.empty}">Фото поки немає</div>
+                    <div th:unless="${scalpPhotos.isEmpty()}">
+                        <div class="scalp-photo-grid">
+                            <div th:each="photo : ${scalpPhotos}"
+                                 class="scalp-photo-tile">
+                                <a th:href="${photo.driveUrl}" target="_blank" rel="noopener"
+                                   class="scalp-photo-thumb">
+                                    <img th:if="${photo.driveFileId != null}"
+                                         th:src="'https://drive.google.com/thumbnail?id=' + ${photo.driveFileId} + '&sz=w200'"
+                                         th:alt="#{|scalp.zone.${photo.zone}|}"
+                                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+                                    <span th:if="${photo.driveFileId != null}"
+                                          class="scalp-photo-fallback" style="display:none">
+                                        <i class="bi bi-image"></i>
+                                    </span>
+                                    <span th:unless="${photo.driveFileId != null}"
+                                          class="scalp-photo-fallback">
+                                        <i class="bi bi-image"></i>
+                                    </span>
+                                </a>
+                                <div class="scalp-photo-meta">
+                                    <span class="badge bg-secondary" style="font-size:0.6rem"
+                                          th:text="#{|scalp.zone.${photo.zone}|}">Зона</span>
+                                    <span class="text-muted" style="font-size:0.68rem"
+                                          th:text="${#temporals.format(photo.takenAt, 'dd.MM.yy')}"></span>
+                                </div>
+                                <div th:if="${photo.notes != null and !photo.notes.isEmpty()}"
+                                     class="scalp-photo-notes"
+                                     th:text="${photo.notes}"></div>
+                                <form th:action="@{/clientcare/photos/{id}/delete(id=${photo.id})}"
+                                      method="post">
+                                    <input type="hidden" name="clientId" th:value="${client.id}"/>
+                                    <button type="submit" class="scalp-photo-delete"
+                                            th:data-confirm="#{scalp.photo.delete.confirm}"
+                                            onclick="return confirm(this.dataset.confirm)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
-                    </td>
-                    <td>
-                        <span th:text="${@qf.format(m.quantity, m.product.unit.name())}"></span>
-                        <span class="text-muted small" th:text="#{unit.__${m.product.unit}__}"></span>
-                    </td>
-                    <td th:text="${m.unitPrice != null ? m.unitPrice + ' zł' : '—'}"></td>
-                    <td th:text="${m.notes ?: '—'}"></td>
-                    <td>
-                        <button th:if="${m.originalMovementId == null and !cancelledMovementIds.contains(m.id)}"
-                                type="button"
-                                class="btn btn-sm btn-outline-secondary"
-                                th:title="#{movement.edit.button}"
-                                data-bs-toggle="modal"
-                                data-bs-target="#editMovementModal"
-                                th:attr="data-movement-id=${m.id},
-                                         data-movement-type=${m.movementType.name()},
-                                         data-client-id=${m.client != null ? m.client.id : ''},
-                                         data-notes=${m.notes ?: ''}">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <span th:if="${cancelledMovementIds.contains(m.id)}"
-                              class="text-muted small" style="font-size:0.7rem"
-                              th:text="#{movement.cancel.badge}"></span>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+                        <div class="mt-2">
+                            <a th:href="@{/clientcare/clients/{id}/photos(id=${client.id}, returnTo=${currentPageUrl})}"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-images me-1"></i>
+                                <span th:text="#{scalp.photo.viewAll}">Галерея</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /#tab-photos -->
+
+    </div><!-- /.tab-content -->
 
     <!-- Edit movement modal -->
     <div class="modal fade" id="editMovementModal" tabindex="-1">
@@ -529,7 +648,10 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const CLIENT_TAB_KEY = 'clientTab_' + /*[[${client.id}]]*/ 0;
+
         let giftFilterActive = false;
 
         function toggleGiftFilter() {
@@ -613,6 +735,19 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Tab persistence
+            const savedTab = sessionStorage.getItem(CLIENT_TAB_KEY);
+            if (savedTab) {
+                const tabEl = document.querySelector('#clientTabs [data-bs-target="' + savedTab + '"]');
+                if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+            }
+            document.querySelectorAll('#clientTabs [data-bs-toggle="tab"]').forEach(function(el) {
+                el.addEventListener('shown.bs.tab', function() {
+                    sessionStorage.setItem(CLIENT_TAB_KEY, this.getAttribute('data-bs-target'));
+                });
+            });
+
+            // Edit movement modal
             const editMovModal = document.getElementById('editMovementModal');
             if (editMovModal) {
                 editMovModal.addEventListener('show.bs.modal', function(event) {
@@ -633,6 +768,7 @@
                 });
             }
         });
+        /*]]>*/
     </script>
 </th:block>
 </body>

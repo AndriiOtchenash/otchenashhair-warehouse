@@ -41,6 +41,8 @@
             if (!(el.name in data)) return;
             if (el.type === 'checkbox' || el.type === 'radio') {
                 el.checked = data[el.name];
+            } else if (el.tagName === 'SELECT' && el.tomselect) {
+                el.tomselect.setValue(data[el.name]);
             } else {
                 el.value = data[el.name];
             }

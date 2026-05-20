@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.AppointmentService;
+import com.hairmony.warehouse.clientcare.service.GiftCertificateService;
 import com.hairmony.warehouse.clientcare.service.ScalpPhotoService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.domain.stock.StockMovement;
@@ -32,6 +33,7 @@ public class ClientController {
     private final ScalpPhotoService scalpPhotoService;
     private final VisitService visitService;
     private final AppointmentService appointmentService;
+    private final GiftCertificateService giftCertificateService;
     private final MessageSource messageSource;
 
     private boolean isClientCare(HttpServletRequest request) {
@@ -74,6 +76,7 @@ public class ClientController {
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("scalpPhotos", scalpPhotoService.findByClientId(id));
         model.addAttribute("visits", visitService.findByClientId(id));
+        model.addAttribute("giftCertificates", giftCertificateService.findForClient(id));
         if (from != null) model.addAttribute("from", from);
         if (productId != null) model.addAttribute("productId", productId);
 
@@ -154,6 +157,9 @@ public class ClientController {
                     ? "?reopenMovement=" + movementId + "&newClientId=" + saved.getId()
                     : "?newClientId=" + saved.getId();
             return "redirect:/products/" + productId + query;
+        }
+        if ("gift-certificate".equals(returnTo)) {
+            return "redirect:/clientcare/gift-certificates/new?purchaserId=" + saved.getId();
         }
         if ("history".equals(returnTo)) {
             String query = movementId != null

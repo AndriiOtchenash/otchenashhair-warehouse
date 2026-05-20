@@ -10,7 +10,7 @@ Spring Security, Lombok, DevTools, Spring Data JPA, JPA Specifications.
 ## Package: com.hairmony.warehouse
 
 ## Architecture
-domain/ — JPA entities (category, client, product, stock, supplier, user, visit, scalp, followup, appointment)
+domain/ — JPA entities (category, client, product, stock, supplier, user, visit, scalp, followup, appointment, gift)
 repository/ — Spring Data JPA + JpaSpecificationExecutor for movements
 service/ — business logic (ProductService, StockService, ClientService,
            SupplierService, CategoryService, MovementHistoryService,
@@ -28,7 +28,7 @@ web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-018)
+- ddl-auto=none, Liquibase manages schema (migrations 001-020)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -100,7 +100,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             016-add-product-deactivation (deactivated_at + deactivation_reason on products),
             017-create-appointments (appointments table + indexes on start_at and client_id;
               CHECK constraint: client_id IS NOT NULL OR NULLIF(TRIM(guest_name), '') IS NOT NULL),
-            018-add-next-appointment-to-visits (next_appointment_id BIGINT FK on visits → appointments ON DELETE SET NULL)
+            018-add-next-appointment-to-visits (next_appointment_id BIGINT FK on visits → appointments ON DELETE SET NULL),
+            019-create-services (services table for salon services),
+            020-create-gift-certificates (gift_certificates table + indexes on purchaser/recipient/status)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -221,6 +223,77 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   language follows active locale (uk→Ukrainian, pl→Polish, en→English);
   AJAX, no page reload; 3 quick-question buttons; fully i18n'd UI;
   API key via GEMINI_API_KEY env var / gemini.api.key in dev properties
+
+## Color palette
+
+### CSS variables (defined in both `layout/main.html` and `layout/clientcare.html` `:root`)
+| Variable          | Value     | Usage                                        |
+|-------------------|-----------|----------------------------------------------|
+| `--accent`        | `#4a7c59` | Primary brand green — buttons, active nav, links, badges |
+| `--accent-light`  | `#e8f5e9` | Hover bg on table rows, card headers (clientcare), filter active border highlight bg |
+| `--sidebar-bg`    | `#1e2d24` | Sidebar / mobile topbar background           |
+| `--sidebar-text`  | `#c8d8cb` | Default sidebar link text                    |
+| `--sidebar-hover` | `#2e4a35` | Sidebar link hover background                |
+| `--sidebar-active`| `#4a7c59` | Active sidebar nav link background (= accent)|
+
+### Page background & chrome
+| Element              | Color     |
+|----------------------|-----------|
+| `body` background    | `#f4f6f4` |
+| Page title           | `#1e2d24` |
+| Card shadow          | `rgba(0,0,0,0.07)` |
+| Card header border   | `#f0f0f0` |
+| Sidebar dividers     | `#2e4a35` |
+| Lang/pill borders    | `#3a5a42` |
+| Nav section label    | `#6b8c74` |
+| Brand accent span    | `#8fb59a` |
+| Table header text    | `#6c757d` |
+
+### Buttons
+| Button               | Color     |
+|----------------------|-----------|
+| btn-primary bg       | `#4a7c59` (accent) |
+| btn-primary hover    | `#3d6b4a` |
+
+### Signal / status badges (`.days-*` — defined in `followups.html`, reused inline elsewhere)
+| Class / usage              | Background | Text      | Semantic meaning                  |
+|----------------------------|------------|-----------|-----------------------------------|
+| `.days-urgent`             | `#f8d7da`  | `#842029` | Overdue / danger (Bootstrap danger-subtle) |
+| `.days-warn`               | `#fff3cd`  | `#664d03` | Warning / planned (Bootstrap warning-subtle) |
+| `.days-ok`                 | `#d1e7dd`  | `#0a3622` | OK / in-progress / done (Bootstrap success-subtle) |
+| COMPLETED events / secondary | `#e2e3e5` | `#41464b` | Neutral (Bootstrap secondary-subtle) |
+| `.badge-done`              | `#d1e7dd`  | `#0a3622` | Done action badge in followup queue |
+
+### Global CSS classes (defined in both layouts, always available)
+| Class              | Background  | Text      | Usage                              |
+|--------------------|-------------|-----------|------------------------------------|
+| `.badge-writeoff`  | `#f5a3b0`   | `#7d2535` | WRITE_OFF movement type badge (soft pink) |
+| `.badge-active`    | `#d4edda`   | `#155724` | Active status badge                |
+| `.badge-inactive`  | `#f8d7da`   | `#721c24` | Inactive status badge              |
+| `.filter-active`   | —           | —         | `2px solid var(--accent)` border on active filter wrappers |
+
+### Calendar event colors (`appointments/day.html` `eventDidMount`)
+| State              | Background | Border     | Text      |
+|--------------------|------------|------------|-----------|
+| PLANNED            | `#fff3cd`  | `#ffe69c`  | `#664d03` |
+| CONFIRMED          | `#4a7c59`  | `#4a7c59`  | `#fff`    |
+| COMPLETED          | `#e2e3e5`  | `#c4c8cb`  | `#41464b` |
+| CANCELLED          | `#dc3545`  | `#dc3545`  | `#fff`    |
+| NO_SHOW            | `#fd7e14`  | `#fd7e14`  | `#fff`    |
+| Overdue (PLANNED/CONFIRMED + past end) | `#f8d7da` | `#f1aeb5` | `#842029` |
+| In-progress (PLANNED/CONFIRMED + now inside) | `#d1e7dd` | `#a3cfbb` | `#0a3622` |
+
+### Client detail appointment badges (inline style in `fragments/client-detail.html`)
+| Badge              | Background | Text      |
+|--------------------|------------|-----------|
+| Upcoming appt      | `#d1e7dd`  | `#0a3622` |
+| Overdue appt       | `#f8d7da`  | `#842029` |
+
+### Dashboard KPI cards (inline style in `clientcare/dashboard.html`)
+| Card                  | Background | Text      |
+|-----------------------|------------|-----------|
+| Заплановані записи    | `#fff3cd`  | `#664d03` |
+| Пропущені записи      | `#f8d7da`  | `#842029` |
 
 ## UX patterns (apply consistently)
 - Confirmation modals use btn.yes / btn.no ("Так" / "Ні") — not action-named buttons
@@ -571,8 +644,10 @@ No Drive API, no Service Account — purely URL storage.
 **Wave 3b-2 — Google Drive virtual gallery — CANCELLED**
 Decided not to implement. Photos are viewed directly in Google Drive via "Відкрити папку" link.
 
-**Wave 4 — Protocol entity**
+**Wave 4 — Protocol entity — POSTPONED**
 `Protocol` (id, name, products, durationDays)
+Postponed: makes sense when the client base grows and repeat treatment courses become common.
+Not relevant at the current stage of the salon.
 
 **Wave 5 — Appointment Calendar — DONE (2026-05-17, migration 017)**
 (see full spec in ClientCare — technical notes below)
@@ -607,8 +682,17 @@ Calendar `/clientcare/appointments` — FullCalendar v6 (CDN), day/week/month vi
 Drag-and-drop and resize: `POST /{id}/reschedule?start=...&end=...` — only PLANNED/CONFIRMED events are draggable (editable:false for others).
 Click event → edit form. Click empty slot → new appointment form (preserves link-visit context params).
 `GET /clientcare/appointments/api?start=...&end=...` — JSON event feed; strips timezone suffix from params for robust LocalDateTime parsing.
-`toCalendarEvent()` in controller: builds FC event JSON with id/title/start/end/backgroundColor/borderColor/editable/extendedProps(status,clientId,phone,editUrl).
-Status colors: PLANNED=#0d6efd, CONFIRMED=#4a7c59(accent), COMPLETED=#adb5bd, CANCELLED=#dc3545, NO_SHOW=#fd7e14.
+`toCalendarEvent()` in controller: builds FC event JSON with id/title/start/end/editable/extendedProps(status,clientId,phone,editUrl).
+  backgroundColor/borderColor/textColor removed from backend — all coloring done client-side via `eventDidMount` in `day.html`.
+Event coloring (client-side, `eventDidMount`): PLANNED=warning-subtle (#fff3cd/#664d03), CONFIRMED=accent green (#4a7c59),
+  CANCELLED=red (#dc3545), NO_SHOW=orange (#fd7e14), COMPLETED=secondary-subtle (#e2e3e5/#41464b);
+  overdue (PLANNED/CONFIRMED + start < now + end ≤ now)=danger-subtle (#f8d7da/#842029);
+  in-progress (PLANNED/CONFIRMED + start ≤ now + end > now)=success-subtle (#d1e7dd/#0a3622).
+  Text of light-bg events forced bold via `querySelectorAll('div,span').forEach(el => el.style.color = text)`.
+Calendar CSS overrides (project palette): `--fc-event-bg-color:#6b9e79`, today column header=accent bg+white text,
+  today date circle in month view, green more-link; today column fill `--fc-today-bg-color:#f1f9f2` (accent-light).
+Day view: column header row hidden (`display:none`); weekday name shown in nav toolbar (mobile: via `updateMobileToolbar()`;
+  desktop: dynamic `<div class="fc-title-weekday">` injected into `.fc-toolbar-title` in `datesSet` callback).
 View preference persisted in `localStorage('fcView')`; defaults to `timeGridDay` on mobile, `timeGridWeek` on desktop.
 Locale: Spring `#locale.language` mapped to FullCalendar locale (uk/pl/en); `@fullcalendar/core locales-all.global.min.js` loaded from CDN.
 CSRF: reschedule POST sends token as request param (same as form submissions).
@@ -624,9 +708,41 @@ Overdue: amber banner + "Прийшов" / "Не прийшов" buttons.
 NO_SHOW: redirect to edit page with action panel ("Черга follow-up" / "Записати повторно").
 See full spec in TODO → Wave 6 section.
 
+**Wave 7 — Gift Certificates — DONE (2026-05-20, migration 020)**
+Full gift certificate lifecycle: issue, redeem, cancel, restore.
+`domain/gift/GiftCertificate.java` — JPA entity (id, code, purchaser_client_id, purchaser_name, purchaser_phone,
+  recipient_client_id, recipient_name, recipient_phone, service_id, service_name, status, notes, expires_at,
+  issued_at, redeemed_at, cancelled_at). FK refs to clients/services stored as plain Long columns (not @ManyToOne).
+`domain/gift/GiftCertificateStatus.java` — enum: ACTIVE / REDEEMED / EXPIRED / CANCELLED.
+`repository/GiftCertificateRepository.java` — `findAllByOrderByIssuedAtDesc()`, `findByStatusOrderByIssuedAtDesc()`,
+  `findForClient()` (@Query), `expireOverdue()` (@Modifying JPQL UPDATE).
+`GiftCertificateService` — `@Transactional`; calls `syncExpired()` (expireOverdue) before every list query;
+  `issue()` auto-creates client records for free-text purchaser/recipient and stores phone.
+  Status transitions (`redeem/restore/cancel`) return the updated entity (used for success message code).
+`GiftCertificateController` at `/clientcare/gift-certificates`:
+  - `GET /` — two modes: `?clientId=N` → client view (all statuses, no filter bar);
+    standalone → status filter (server-side) + client instant search (client-side, `data-purchaser`/`data-recipient`).
+  - `GET/POST /new` — issue form; `purchaserId` param pre-fills purchaser dropdown.
+  - `GET /{id}` — detail page.
+  - `POST /{id}/redeem|cancel|restore` — status transitions.
+Client detail fragment: shows up to 2 certs per client; "Переглянути всі →" link to `?clientId=N` when >2.
+List page: status filter + client name instant search (placeholder "За ім'ям клієнта в сертифікаті").
+Code generation: 8-char alphanumeric (4+4 dash-separated), unambiguous alphabet (excludes 0/O, 1/I/L, 5/S, 8/B).
+
 ---
 
 ## ClientCare — technical notes
+
+### Gift Certificates (Wave 7 — DONE, 2026-05-20)
+- `GiftCertificate` JPA entity in `domain/gift/`; FK references to clients/services stored as plain Long columns (no lazy-load issues in templates)
+- `GiftCertificateStatus` enum in `domain/gift/` (moved from dto package)
+- `syncExpired()` called before every list query — batch UPDATE via `@Modifying` JPQL (not per-row)
+- Two list modes: `clientId` param → client view (all statuses); standalone → status filter + client-side search
+- Client instant search: JS reads `data-purchaser`/`data-recipient` row attrs, `filterByClient()` hides non-matching rows
+- Issue flow auto-creates client records for free-text purchaser and recipient (same pattern as before)
+- Status transitions return updated entity so controller can use `cert.getCode()` for flash message
+- `GiftCertificateFormDto` stays in `clientcare/web/dto/` (form validation only)
+- Draft notice removed from list template
 
 ### Scalp Photos (Wave 2a — DONE)
 - `driveUrl` is the source of truth; `driveFileId` nullable (best-effort regex extract)
@@ -737,6 +853,7 @@ Rules:
   (see details in "Appointment Calendar" section above — NOT in TODO)
 - Wave 5b — Calendar-based time selection from client detail visit card — DONE (2026-05-18)
 - Wave 6 — Appointment completion flow — DONE (2026-05-18)
+- Wave 7 — Gift Certificates — DONE (2026-05-20) — migration 020, JPA entity, service, controller, client detail block, list with status+client filter
 
 **Note:** Wave 5 spec was moved to main "What's done" section. TODO reflects only remaining work.
 
@@ -852,7 +969,9 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
   Spring @Scheduled + spring-boot-starter-mail
 - Export to Excel — reports page + movement history; Apache POI (xlsx)
 - Inventory count / stock-take — formal workflow: enter physical counts per product,
-  system auto-generates ADJUSTMENT movements for the differences
+  system auto-generates ADJUSTMENT movements for the differences;
+  scanner page `/scan?mode=stocktake` as dedicated entry point — add back to sidebar as "Інвентаризація"
+  (standalone "Сканер" nav link was removed 2026-05-19 as redundant — income/expense already go to /scan with mode pre-selected)
 - User roles (ADMIN/OPERATOR) — Role entity already exists; @PreAuthorize on
   delete/cancel/deactivate endpoints to restrict to ADMIN only;
   IDOR protection needed when roles are introduced:
