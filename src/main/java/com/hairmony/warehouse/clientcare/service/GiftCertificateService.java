@@ -164,6 +164,20 @@ public class GiftCertificateService {
         return cert;
     }
 
+    // ── Certificate validity check (used by AJAX endpoint) ───────────────────
+
+    /**
+     * Returns the recipient name if the certificate code is ACTIVE, empty if not valid.
+     * Use {@code .isPresent()} to check validity, {@code .orElse(null)} to get the name.
+     */
+    @Transactional
+    public java.util.Optional<String> findRecipientIfValid(String code) {
+        syncExpired();
+        return repository.findByCode(code.trim().toUpperCase())
+                .filter(c -> c.getStatus() == GiftCertificateStatus.ACTIVE)
+                .map(GiftCertificate::getRecipientName);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void syncExpired() {

@@ -7,6 +7,38 @@
         .mode-toggle .btn-check:checked + .btn { background: var(--accent); color: #fff; border-color: var(--accent); }
         .client-section { display: none; }
         .client-section.active { display: block; }
+
+        /* ── Time block highlight ── */
+        .time-block {
+            background: var(--accent-light);
+            border: 1px solid rgba(74,124,89,0.15);
+            border-radius: 0.5rem;
+        }
+
+        /* ── Section label inside form ── */
+        .form-section-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--accent);
+        }
+
+        /* ── Divider between form sections ── */
+        .form-divider {
+            border: none;
+            border-top: 1px solid #e9ecef;
+            margin: 1rem 0;
+        }
+
+        /* ── Action bar at bottom of form ── */
+        .form-actions {
+            background: #f8fdf9;
+            border-top: 1px solid rgba(74,124,89,0.12);
+            border-radius: 0 0 0.375rem 0.375rem;
+            margin: 1rem -1rem -1rem;
+            padding: 0.75rem 1rem;
+        }
     </style>
 
     <div class="page-header">
@@ -27,6 +59,11 @@
     </div>
 
     <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-plus" th:unless="${isEdit}"></i>
+            <i class="bi bi-pencil-square" th:if="${isEdit}"></i>
+            <span th:text="${isEdit} ? #{appointments.title} : #{appointments.add}">Запис</span>
+        </div>
         <div class="card-body">
             <form id="appointmentForm"
                   th:action="${isEdit} ? @{/clientcare/appointments/{id}/edit(id=${appointment.id})} : @{/clientcare/appointments/new}"
@@ -45,23 +82,23 @@
                 <input type="hidden" th:if="${rebookedFromId != null}" name="rebookedFromId"
                        th:value="${rebookedFromId}"/>
 
-                <!-- ── Client section ── -->
+                <!-- ── Client ── -->
+                <div class="form-section-label mb-2">
+                    <i class="bi bi-person me-1"></i>
+                    <span th:text="#{appointment.form.client.mode.existing}">Клієнт</span>
+                </div>
+
                 <th:block th:if="${clientLocked}">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold"
-                               th:text="#{appointment.form.client.mode.existing}">Клієнт</label>
                         <div class="form-control-plaintext fw-semibold py-0"
                              th:text="${lockedClientName}"></div>
-                        <!-- Existing client -->
                         <input type="hidden" th:if="*{clientId != null}" th:field="*{clientId}"/>
-                        <!-- Guest: preserve name + phone -->
                         <input type="hidden" th:if="*{clientId == null}" th:field="*{guestName}"/>
                         <input type="hidden" th:if="*{clientId == null and guestPhone != null}" th:field="*{guestPhone}"/>
                     </div>
                 </th:block>
 
                 <th:block th:unless="${clientLocked}">
-                    <!-- ── Client mode toggle ── -->
                     <div class="mb-3">
                         <div class="btn-group w-100 mode-toggle" role="group">
                             <input type="radio" class="btn-check" name="clientMode" id="modeExisting"
@@ -78,11 +115,8 @@
                         </div>
                     </div>
 
-                    <!-- ── Existing client select ── -->
                     <div id="sectionExisting" class="client-section mb-3">
-                        <label class="form-label fw-semibold"
-                               th:text="#{appointment.form.client.mode.existing}">Клієнт</label>
-                        <select class="form-select" th:field="*{clientId}">
+                        <select class="form-select ts-client" th:field="*{clientId}">
                             <option value="" th:text="#{appointment.form.selectClient}">-- Оберіть --</option>
                             <option th:each="c : ${clients}"
                                     th:value="${c.id}"
@@ -91,7 +125,6 @@
                         </select>
                     </div>
 
-                    <!-- ── Guest fields ── -->
                     <div id="sectionGuest" class="client-section">
                         <div class="mb-3">
                             <label for="guestName" class="form-label fw-semibold"
@@ -111,57 +144,63 @@
                     </div>
                 </th:block>
 
+                <hr class="form-divider"/>
+
+                <!-- ── Service ── -->
+                <div class="form-section-label mb-2">
+                    <i class="bi bi-scissors me-1"></i>
+                    <span th:text="#{appointment.form.service}">Послуга</span>
+                </div>
+                <div class="mb-3">
+                    <select id="serviceId" class="form-select" th:field="*{serviceId}">
+                        <option value="" th:text="#{appointment.form.selectService}">-- Послуга --</option>
+                        <option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}">Service</option>
+                    </select>
+                </div>
+
+                <hr class="form-divider"/>
+
                 <!-- ── Date / time ── -->
-                <!-- hidden fields bound to DTO — submitted to server -->
                 <input type="hidden" id="startAt" th:field="*{startAt}"/>
                 <input type="hidden" id="endAt"   th:field="*{endAt}"/>
 
-                <div class="row g-2 mb-2">
-                    <div class="col-6">
-                        <label class="form-label fw-semibold small mb-1"
-                               th:text="#{appointment.form.date}">Дата</label>
+                <div class="time-block p-3 mb-3">
+                    <!-- Row 1: icon + label + date input inline -->
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="form-section-label d-flex align-items-center gap-1 flex-grow-1">
+                            <i class="bi bi-clock"></i>
+                            <span th:text="#{appointment.form.date}">Дата та час</span>
+                        </div>
                         <input type="date" id="startDate" class="form-control form-control-sm"
+                               style="width:9rem"
                                th:classappend="${#fields.hasErrors('startAt')} ? 'is-invalid'"
                                th:attr="min=${(isEdit != null && isEdit) ? null : #temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
                                oninput="syncStart(); updateStartTimeMin(); updateCalendarBrowseLink()"/>
                     </div>
-                    <div class="col-3">
-                        <label class="form-label fw-semibold small mb-1"
-                               th:text="#{appointment.form.startAt}">Початок</label>
-                        <input type="time" id="startTime" class="form-control form-control-sm" lang="en-GB"
-                               th:classappend="${#fields.hasErrors('startAt')} ? 'is-invalid'"
-                               oninput="syncStart(); autoAdjustEnd(); updateEndTimeMin(); this.classList.remove('is-invalid')"/>
-                        <div class="invalid-feedback" id="startTimeError"></div>
+                    <!-- Row 2: start + end time (full width) -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small mb-1"
+                                   th:text="#{appointment.form.startAt}">Початок</label>
+                            <input type="time" id="startTime" class="form-control form-control-sm" lang="en-GB"
+                                   th:classappend="${#fields.hasErrors('startAt')} ? 'is-invalid'"
+                                   oninput="syncStart(); autoAdjustEnd(); updateEndTimeMin(); this.classList.remove('is-invalid')"/>
+                            <div class="invalid-feedback" id="startTimeError"></div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold small mb-1"
+                                   th:text="#{appointment.form.endAt}">Кінець</label>
+                            <input type="time" id="endTime" class="form-control form-control-sm" lang="en-GB"
+                                   th:classappend="${#fields.hasErrors('endAt')} ? 'is-invalid'"
+                                   oninput="syncEndTime(); this.classList.remove('is-invalid')"/>
+                            <div class="invalid-feedback" id="endTimeError"></div>
+                        </div>
                     </div>
-                    <div class="col-3">
-                        <label class="form-label fw-semibold small mb-1"
-                               th:text="#{appointment.form.endAt}">Кінець</label>
-                        <input type="time" id="endTime" class="form-control form-control-sm" lang="en-GB"
-                               th:classappend="${#fields.hasErrors('endAt')} ? 'is-invalid'"
-                               oninput="syncEndTime(); this.classList.remove('is-invalid')"/>
-                        <div class="invalid-feedback" id="endTimeError"></div>
-                    </div>
-                </div>
-                <!-- Browse calendar link — shown when client is pre-selected (linkVisitId or clientLocked) -->
-                <div th:if="${linkVisitId != null or clientLocked eq true}" class="mb-3">
                     <a id="calendarBrowseBtn" href="#"
-                       class="btn btn-outline-secondary btn-sm">
+                       class="btn btn-outline-secondary btn-sm w-100">
                         <i class="bi bi-calendar3 me-1"></i>
                         <span th:text="#{appointment.form.browseCalendar}">Переглянути календар →</span>
                     </a>
-                </div>
-
-                <!-- ── Type ── -->
-                <div class="mb-3">
-                    <label for="appointmentType" class="form-label fw-semibold"
-                           th:text="#{appointment.form.type}">Тип прийому</label>
-                    <select id="appointmentType" class="form-select" th:field="*{appointmentType}">
-                        <option value="" th:text="#{appointment.form.selectType}">-- Тип --</option>
-                        <option th:each="t : ${types}"
-                                th:value="${t.name()}"
-                                th:text="#{appointmentType.__${t}__}">
-                        </option>
-                    </select>
                 </div>
 
                 <!-- ── Status (edit only) ── -->
@@ -177,7 +216,7 @@
                 </div>
 
                 <!-- ── Notes ── -->
-                <div class="mb-4">
+                <div class="mb-0">
                     <label for="notes" class="form-label fw-semibold"
                            th:text="#{appointment.form.notes}">Нотатки</label>
                     <textarea id="notes" class="form-control" rows="2"
@@ -187,10 +226,12 @@
                 </div>
 
                 <!-- ── Actions ── -->
-                <div class="d-flex gap-2 justify-content-between">
+                <div class="form-actions d-flex gap-2 justify-content-between">
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary"
-                                th:text="#{btn.save}">Зберегти</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2 me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
                         <a id="cancelBtn"
                            th:href="${returnTo != null ? returnTo : '#'}"
                            th:data-history-back="${returnTo == null}"
@@ -280,7 +321,7 @@
                     </a>
                     <a th:href="@{/clientcare/appointments/new(
                            clientId=${appointment.clientId},
-                           appointmentType=${appointment.appointmentType},
+                           serviceId=${appointment.serviceId},
                            notes=${appointment.notes},
                            rebookedFromId=${appointment.id})}"
                        class="btn btn-outline-success btn-sm flex-grow-1">
@@ -323,8 +364,6 @@
             guest.addEventListener('change',    () => applyMode('guest'));
         }
 
-        const GUEST_TYPES = ['', 'INITIAL_CONSULTATION', 'OTHER'];
-
         function applyMode(mode) {
             const sExisting = document.getElementById('sectionExisting');
             const sGuest    = document.getElementById('sectionGuest');
@@ -336,20 +375,9 @@
                 document.getElementById('guestName').value  = '';
                 document.getElementById('guestPhone').value = '';
             } else {
-                const sel = document.querySelector('select[name="clientId"]');
-                if (sel) sel.value = '';
-            }
-
-            // Filter appointment type options for guests
-            const typeSelect = document.getElementById('appointmentType');
-            if (typeSelect) {
-                Array.from(typeSelect.options).forEach(opt => {
-                    opt.hidden = mode === 'guest' && !GUEST_TYPES.includes(opt.value);
-                });
-                // If current selection is not allowed for guest, reset it
-                if (mode === 'guest' && !GUEST_TYPES.includes(typeSelect.value)) {
-                    typeSelect.value = '';
-                }
+                const sel = document.getElementById('clientId');
+                if (sel && sel.tomselect) sel.tomselect.clear();
+                else if (sel) sel.value = '';
             }
         }
 

@@ -25,7 +25,7 @@
             .stock-table { table-layout: fixed; width: 100%; min-width: 0 !important; }
             .stock-table .col-stock { width: 5rem; }
             .stock-table .col-actions { width: 6.5rem; }
-            .stock-table th { text-align: center; font-size: 0.72rem; }
+            .stock-table th { text-align: center; font-size: 0.75rem; }
             .stock-table .col-actions { text-align: center; }
             .stock-table .col-actions .d-flex { justify-content: center; }
             .btn-square { width: 2rem; height: 2rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
@@ -179,7 +179,7 @@
             </div>
             <div class="table-responsive-wrapper">
             <table th:unless="${rows.empty}" class="table table-hover mb-0 stock-table">
-                <thead class="table-light">
+                <thead style="--bs-table-bg: var(--accent-light)">
                 <tr>
                     <th th:text="#{product.form.name}">Назва</th>
                     <th class="col-stock" th:text="#{dashboard.currentStock}">Залишок</th>

@@ -4,10 +4,10 @@
 <body>
 <div th:fragment="content">
     <style>
-        .table th { font-size: 0.72rem; vertical-align: middle; }
+        .table th { font-size: 0.78rem; vertical-align: middle; }
         @media (max-width: 767px) {
-            .table th { font-size: 0.68rem; padding: 0.4rem; }
-            .table td { font-size: 0.8rem; padding: 0.4rem; }
+            .table th { font-size: 0.75rem; padding: 0.4rem; }
+            .table td { font-size: 0.9rem; padding: 0.4rem; }
             .followup-card .card-body { overflow-x: visible; }
             .followup-table { min-width: 0 !important; width: 100%; }
         }
@@ -71,7 +71,7 @@
         </div>
         <a th:href="@{/clientcare}" class="btn btn-outline-secondary btn-sm flex-shrink-0 ms-3 d-none d-md-inline-flex">
             <i class="bi bi-arrow-left me-1"></i>
-            <span th:text="#{btn.back}">Назад</span>
+            <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
         </a>
     </div>
 

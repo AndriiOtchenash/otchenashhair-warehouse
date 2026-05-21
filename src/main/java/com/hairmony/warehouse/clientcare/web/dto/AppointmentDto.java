@@ -1,7 +1,6 @@
 package com.hairmony.warehouse.clientcare.web.dto;
 
 import com.hairmony.warehouse.domain.appointment.AppointmentStatus;
-import com.hairmony.warehouse.domain.appointment.AppointmentType;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -41,7 +40,8 @@ public class AppointmentDto {
     private LocalDateTime endAt;
 
     private AppointmentStatus status;
-    private AppointmentType appointmentType;
+    private Long serviceId;
+    private String serviceName;  // read-only, populated from entity for display
 
     @Size(max = 2000, message = "{validation.size.max2000}")
     private String notes;

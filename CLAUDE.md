@@ -32,7 +32,7 @@ web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-021)
+- ddl-auto=none, Liquibase manages schema (migrations 001-022)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -107,7 +107,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             018-add-next-appointment-to-visits (next_appointment_id BIGINT FK on visits → appointments ON DELETE SET NULL),
             019-create-services (services table for salon services),
             020-create-gift-certificates (gift_certificates table + indexes on purchaser/recipient/status),
-            021-add-visit-billing (service_id, price_at_time, payment_method, is_paid, certificate_code on visits)
+            021-add-visit-billing (service_id, price_at_time, payment_method, is_paid, certificate_code on visits),
+            022-appointment-service-link (drops appointment_type; adds service_id BIGINT FK → services ON DELETE SET NULL on appointments)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -301,6 +302,10 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 | Пропущені записи      | `#f8d7da`  | `#842029` |
 
 ## UX patterns (apply consistently)
+- **Client select with search (TomSelect):** Any `<select>` used to pick a client from the database
+  must have class `ts-client` — TomSelect is initialized globally in `layout/clientcare.html` for all
+  `select.ts-client` elements (CDN tom-select@2.3.1, Bootstrap 5 skin, `allowEmptyOption: true`).
+  When clearing a TomSelect programmatically use `el.tomselect.clear()`, not `el.value = ''`.
 - Confirmation modals use btn.yes / btn.no ("Так" / "Ні") — not action-named buttons
 - Delete buttons: active (btn-outline-danger + modal) when deletable;
   disabled (btn-outline-secondary + tooltip with reason) when guarded
@@ -342,6 +347,9 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
 - Page-header add button (mobile): icon only on mobile, text hidden via `d-none d-md-inline ms-1` on the `<span>`.
   page-header stays in row layout on all screen sizes (title left, button right via justify-content:space-between).
   Pattern: `<i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1" th:text="...">Label</span>`
+- **Back button (mobile):** text hidden on mobile via `d-none d-sm-inline` on the text `<span>` — only the
+  `←` arrow icon shows on narrow screens. Applied globally to all templates with `bi-arrow-left`.
+  Pattern: `<i class="bi bi-arrow-left me-1"></i><span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>`
 - Filter UX pattern (client detail, product detail, supplier detail): filter bar with
   Row 1 = від/до date range (two input-group side by side, id=dateFromWrap/dateToWrap);
   Row 2 = type select + gift button (client detail only) / product name search (supplier detail);
@@ -361,8 +369,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
   filter bar added with від/до dates + product name search; .table { min-width: 0 }
 - Dashboard clickable rows pass from=dashboard; product detail Back button handles it → /
 - Movement journal thead: accent-light via --bs-table-bg; th vertical-align: middle
-- Table styles (detail pages + reports): .table th font-size 0.72rem, vertical-align middle;
-  mobile: 0.68rem/0.4rem padding for th, 0.8rem/0.4rem for td; table-striped on history tables;
+- Table styles (detail pages + reports): .table th font-size 0.78rem, vertical-align middle;
+  mobile: 0.75rem for th, 0.9rem for td; table-striped on history tables;
   .table-xs class for extra-compact rows (padding 0.2rem 0.5rem) — used on stock batches table;
   .table-auto resets font-size to inherit (used on product info table to keep default size);
   supplier detail: .table { min-width: 0 } so history table fits mobile width without scroll
@@ -658,7 +666,10 @@ Not relevant at the current stage of the salon.
 (see full spec in ClientCare — technical notes below)
 
 `Appointment` entity: id, client_id (nullable), guest_name, guest_phone, start_at, end_at,
-status (PLANNED/CONFIRMED/COMPLETED/CANCELLED/NO_SHOW), appointment_type, notes, created_at, updated_at.
+status (PLANNED/CONFIRMED/COMPLETED/CANCELLED/NO_SHOW), service_id (FK → services ON DELETE SET NULL),
+notes, created_at, updated_at.
+`appointment_type` column **removed** (migration 022) — replaced by `service_id` FK to services table.
+`AppointmentType` enum **deleted** — was purely decorative with no business logic impact.
 DB CHECK constraint: `client_id IS NOT NULL OR NULLIF(TRIM(guest_name), '') IS NOT NULL`.
 Business logic in service layer ensures either client or guest info is provided.
 
@@ -667,6 +678,7 @@ Business logic in service layer ensures either client or guest info is provided.
 - `@AssertTrue isEndAfterStart()` — endAt must be after startAt (replaces controller-level check)
 - `@Size(max=150)` guestName, `@Size(max=50)` guestPhone, `@Size(max=2000)` notes
 - `@DateTimeFormat(ISO.DATE_TIME)` on startAt/endAt for correct binding with datetime-local input
+- `serviceId` (Long) replaces `appointmentType`
 
 `AppointmentController` at `/clientcare/appointments`:
 - `GET /` — day view with date param (defaults to today)
@@ -682,6 +694,15 @@ Business logic in service layer ensures either client or guest info is provided.
 `AppointmentService.save()` returns `Long` (saved appointment ID) — needed for `linkAppointment()` call.
 
 Calendar form shows ALL validation errors in unified `<ul>` via `#fields.allErrors()` — works with both field and @AssertTrue errors.
+
+**Appointment form design (2026-05-21):**
+- Sections: Client → Service → Date/time → Status (edit only) → Notes
+- Service section moved **before** Date/time — user selects what they're booking first
+- Date/time block (`time-block`, accent-light bg): date input inline in the header row
+  (clock icon + "ДАТА ТА ЧАС" left, `<input type="date" style="width:9rem">` right);
+  start + end time inputs on full row below (`col-6` each); "Переглянути календар →" `w-100` at bottom
+- Client select uses `class="ts-client"` — TomSelect search enabled; cleared via `el.tomselect.clear()`
+- CSS: `.time-block`, `.form-section-label`, `.form-divider`, `.form-actions` — same as visit form
 
 Calendar `/clientcare/appointments` — FullCalendar v6 (CDN), day/week/month views with view switcher in toolbar.
 Drag-and-drop and resize: `POST /{id}/reschedule?start=...&end=...` — only PLANNED/CONFIRMED events are draggable (editable:false for others).
@@ -807,6 +828,14 @@ Font consistency — `body { font-family: var(--bs-body-font-family) }` added to
 - Visit form: `id="visitForm"` required — JS `getElementById` targets correct form (layout logout form is also a `<form>`)
 - Payment warning JS: price=0 → confirm "Ціну не вказано"; price>0 + !paid → confirm "Оплату не підтверджено"
 - Visit card layout: next-appointment indicators live inside `flex:1` column (same as visits.html); recommendations not text-muted; notes fst-italic
+- **Visit form design (2026-05-21):** same design language as appointment form — `form-section-label` (uppercase
+  green label with icon), `time-block` (accent-light bg block for billing section), `form-divider` (`<hr>`),
+  `form-actions` (bottom action bar with #f8fdf9 bg). Date input is inline in the section-label row
+  (calendar icon + "ДАТА ВІЗИТУ" left, date input right, `width:9rem`). No separate card-header.
+  Page title: "Новий протокол візиту" / "Редагувати протокол візиту".
+- **Certificate AJAX check** returns `{valid, recipientName}` — valid badge shows recipient name inline
+  (`· Отримувач: Name`); on mobile (`< sm`) only checkmark + name visible, label text hidden via `d-none d-sm-inline`
+- `GiftCertificateService.findRecipientIfValid(code)` → `Optional<String>` (recipient name when ACTIVE, empty if not valid)
 
 **Visit → Appointment link (migration 018, 2026-05-17):**
 `visits.next_appointment_id BIGINT FK → appointments(id) ON DELETE SET NULL` — links a visit to its planned next appointment.
@@ -950,12 +979,12 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
 - Edit page detects `isNoShow` = `status == NO_SHOW && clientId != null`; shows action panel:
   - Gray alert with `bi-person-x-fill text-danger` icon
   - "Черга follow-up" → `/clientcare/followups?visitFilter=overdue`
-  - "Записати повторно" → `/clientcare/appointments/new?clientId=X&appointmentType=X&notes=X&rebookedFromId=X`
+  - "Записати повторно" → `/clientcare/appointments/new?clientId=X&serviceId=X&notes=X&rebookedFromId=X`
 - Client stays in follow-up queue (FOLLOWUP_OVERDUE_STATUSES includes NO_SHOW)
 
 **NO_SHOW rebook flow (2026-05-19):**
-- "Записати повторно" passes `appointmentType`, `notes`, `rebookedFromId` (original appointment ID) as URL params
-- `AppointmentController.newForm()` accepts these params; pre-fills DTO with type and notes; calls `addMissedAppointmentBanner()`
+- "Записати повторно" passes `serviceId`, `notes`, `rebookedFromId` (original appointment ID) as URL params
+- `AppointmentController.newForm()` accepts these params; pre-fills DTO with serviceId and notes; calls `addMissedAppointmentBanner()`
 - `addMissedAppointmentBanner()`: loads original appointment's `startAt`, puts `missedAppointmentAt` + `rebookedFromId` in model
 - `form.html` shows amber banner above the card: `bi-person-x-fill text-danger` + "Клієнт не з'явився на прийом DD.MM.YYYY о HH:mm"
 - `rebookedFromId` persisted as hidden input in form — banner survives validation errors
@@ -987,10 +1016,10 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
 - Fix: in `getFollowupQueue()` overdue loop, if `days == 0` force to `-1` — appointment confirmed past by `findOverdueForClients(startAt < now)` but same calendar date
 - `visitOverdue()` checks `days < 0`; `visitToday()` checks `days == 0` — now correctly separated
 
-**"Переглянути календар" button fix (2026-05-18):**
-- Condition changed from `th:if="${linkVisitId != null}"` to `th:if="${linkVisitId != null or clientLocked eq true}"`
-- Button now persists even when `linkVisitId` is lost from URL after calendar round-trip (client still pre-selected)
-- `eq true` handles null `clientLocked` gracefully (SpEL `or` with null throws)
+**"Переглянути календар" button (updated 2026-05-21):**
+- Always shown — no `th:if` condition; placed inside `time-block` below the time inputs
+- Previously was shown only when `linkVisitId != null or clientLocked eq true`
+- `updateCalendarBrowseLink()` builds the URL dynamically; button is always useful for slot browsing
 
 **Dashboard KPI labels (2026-05-18):**
 - Section label "Візити" → "Записи" (uk), "Wizyty / Zapisy" (pl), "Appointments" (en)
@@ -1005,7 +1034,8 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
 **Implementation:**
 - `AppointmentController.dayView()` — accepts optional `clientId`, `linkVisitId`, `returnTo`; adds to model as `calClientId`, `calLinkVisitId`, `calReturnTo`
 - `appointments/day.html` — prev/next nav links and FAB use `@{...}` with null-safe params (Thymeleaf omits null); JS inline vars `CAL_CLIENT_ID/CAL_LINK_VISIT/CAL_RETURN_TO`; click-to-create handler appends params to URL via `encodeURIComponent`
-- `appointments/form.html` — "Переглянути календар →" button shown when `linkVisitId != null or clientLocked eq true`; `updateCalendarBrowseLink()` builds URL from `startDate` input + clientId select/hidden + BROWSE_LINK_VISIT/BROWSE_RETURN_TO inline vars; called on page load, on date change, on client change
+- `appointments/form.html` — "Переглянути календар →" button always visible (inside time-block, `w-100`);
+  `updateCalendarBrowseLink()` builds URL from `startDate` input + clientId select/hidden + BROWSE_LINK_VISIT/BROWSE_RETURN_TO inline vars; called on page load, on date change, on client change
 
 ### Warehouse features
 - Low stock email notifications — daily digest when items drop below minStockLevel;

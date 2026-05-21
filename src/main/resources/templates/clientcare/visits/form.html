@@ -10,8 +10,32 @@
             overflow: hidden;
             min-height: 2.6rem;
         }
+        .time-block {
+            background: var(--accent-light);
+            border: 1px solid rgba(74,124,89,0.15);
+            border-radius: 0.5rem;
+        }
+        .form-section-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--accent);
+        }
+        .form-divider {
+            border: none;
+            border-top: 1px solid #e9ecef;
+            margin: 1rem 0;
+        }
+        .form-actions {
+            background: #f8fdf9;
+            border-top: 1px solid rgba(74,124,89,0.12);
+            border-radius: 0 0 0.375rem 0.375rem;
+            margin: 1rem -1rem -1rem;
+            padding: 0.75rem 1rem;
+        }
         #paid:checked { background-color: var(--accent); border-color: var(--accent); }
-        #paid:focus { box-shadow: 0 0 0 0.2rem rgba(74,124,89,.25); }
+        #paid:focus   { box-shadow: 0 0 0 0.2rem rgba(74,124,89,.25); }
     </style>
 
     <div class="page-header">
@@ -25,7 +49,7 @@
         <a th:href="${returnTo != null ? returnTo : '/clientcare/clients/' + visit.clientId}"
            class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>
-            <span th:text="#{btn.back}">Назад</span>
+            <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
         </a>
     </div>
 
@@ -40,9 +64,15 @@
                 <input type="hidden" th:field="*{id}"/>
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold" th:text="#{visit.form.visitDate}">Дата візиту</label>
-                    <input type="date" class="form-control" th:field="*{visitDate}"
+                <!-- ── Date + Protocol header ── -->
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="form-section-label d-flex align-items-center gap-1 flex-grow-1">
+                        <i class="bi bi-calendar-date"></i>
+                        <span th:text="#{visit.form.visitDate}">Дата</span>
+                    </div>
+                    <input type="date" class="form-control form-control-sm"
+                           style="width:9rem"
+                           th:field="*{visitDate}"
                            th:classappend="${#fields.hasErrors('visitDate')} ? 'is-invalid'"
                            th:max="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
                            onclick="this.showPicker&&this.showPicker()"/>
@@ -68,15 +98,19 @@
                               th:placeholder="#{visit.form.recommendations.hint}"></textarea>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <label class="form-label fw-semibold" th:text="#{visit.form.notes}">Нотатки</label>
                     <textarea class="form-control auto-resize" th:field="*{notes}"></textarea>
                 </div>
 
-                <!-- ── Billing section ── -->
-                <div class="card bg-light border-0 mb-4 p-3">
-                    <div class="fw-semibold small text-muted mb-2"
-                         th:text="#{visit.form.billing.section}">Послуга та оплата</div>
+                <hr class="form-divider"/>
+
+                <!-- ── Billing ── -->
+                <div class="time-block p-3 mb-3">
+                    <div class="form-section-label d-flex align-items-center gap-1 mb-3">
+                        <i class="bi bi-credit-card"></i>
+                        <span th:text="#{visit.form.billing.section}">Послуга та оплата</span>
+                    </div>
 
                     <div class="mb-3">
                         <label for="serviceId" class="form-label fw-semibold"
@@ -127,23 +161,22 @@
                                th:classappend="${#fields.hasErrors('certificateCode')} ? 'is-invalid'"
                                th:placeholder="#{visit.form.certificateCode.hint}"
                                maxlength="20"
-                               oninput="this.value=this.value.toUpperCase()"/>
+                               oninput="this.value=this.value.toUpperCase(); clearCertStatus()"
+                               onblur="checkCertificate(this.value)"/>
                         <div class="invalid-feedback" th:errors="*{certificateCode}"></div>
-                        <div class="form-text" th:text="#{visit.form.certificateCode.hint.text}">
-                            Введіть код — оплата підтвердиться автоматично
-                        </div>
+                        <div id="certStatus" class="mt-2" style="display:none"></div>
                     </div>
 
-                    <div class="form-check">
+                    <!-- Paid checkbox — hidden for CERTIFICATE -->
+                    <div id="paidSection" class="form-check mb-1">
                         <input class="form-check-input" type="checkbox" id="paid" th:field="*{paid}"/>
                         <label class="form-check-label" for="paid"
                                th:text="#{visit.form.paid}">Оплачено</label>
                     </div>
                 </div>
 
-                <!-- Next appointment section -->
-                <div class="mb-4">
-                    <!-- No appointment scheduled — only for latest visit and no active appointment -->
+                <!-- ── Next appointment ── -->
+                <div class="mb-3">
                     <div th:if="${visit.nextAppointmentId == null and isLatestVisit and !hasUpcomingAppointment}"
                          class="alert alert-warning d-flex align-items-center justify-content-between gap-2 flex-wrap mb-0 py-2">
                         <span class="small">
@@ -157,7 +190,6 @@
                             <span th:text="#{visit.nextAppointment.schedule}">Запланувати →</span>
                         </button>
                     </div>
-                    <!-- Appointment scheduled -->
                     <div th:if="${visit.nextAppointmentId != null}"
                          class="alert alert-success d-flex align-items-center justify-content-between gap-2 flex-wrap mb-0 py-2">
                         <span class="small">
@@ -174,9 +206,13 @@
                     </div>
                 </div>
 
-                <div class="d-flex gap-2 flex-wrap">
+                <!-- ── Actions ── -->
+                <div class="form-actions d-flex gap-2">
                     <button type="submit" name="action" value="save"
-                            class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
+                            class="btn btn-primary">
+                        <i class="bi bi-check2 me-1"></i>
+                        <span th:text="#{btn.save}">Зберегти</span>
+                    </button>
                     <a th:href="${returnTo != null ? returnTo : '/clientcare/clients/' + visit.clientId}"
                        class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
                 </div>
@@ -185,6 +221,14 @@
     </div>
 
     <script>
+        // ── i18n messages ─────────────────────────────────────────────────────
+        const MSG_CERT_VALID     = /*[[#{visit.cert.valid}]]*/ 'Сертифікат дійсний';
+        const MSG_CERT_INVALID   = /*[[#{visit.cert.invalid}]]*/ 'Сертифікат недійсний або вже використано';
+        const MSG_CERT_CHECK     = /*[[#{visit.cert.checking}]]*/ 'Перевіряємо...';
+        const MSG_CERT_REQUIRED  = /*[[#{visit.cert.required}]]*/ 'Введіть код сертифіката';
+        const MSG_CERT_RECIPIENT = /*[[#{visit.cert.recipient}]]*/ 'Отримувач:';
+
+        // ── Auto-resize textareas ─────────────────────────────────────────────
         function autoResize(el) {
             el.style.height = 'auto';
             el.style.height = el.scrollHeight + 'px';
@@ -194,7 +238,79 @@
             autoResize(ta);
         });
 
+        // ── Certificate AJAX validation ───────────────────────────────────────
+        function checkCertificate(code) {
+            code = (code || '').trim();
+            if (!code) { clearCertStatus(); return; }
+            showCertStatus('checking');
+            fetch('/clientcare/visits/check-certificate?code=' + encodeURIComponent(code))
+                .then(r => r.json())
+                .then(data => showCertStatus(data.valid ? 'valid' : 'invalid', data.recipientName))
+                .catch(() => clearCertStatus());
+        }
+
+        function showCertStatus(state, recipientName) {
+            const el = document.getElementById('certStatus');
+            el.style.display = '';
+            if (state === 'checking') {
+                el.innerHTML = '<span class="text-muted small">'
+                    + '<span class="spinner-border spinner-border-sm me-1" role="status"></span>'
+                    + MSG_CERT_CHECK + '</span>';
+            } else if (state === 'valid') {
+                let html = '<span class="badge px-2 py-1" '
+                    + 'style="background:#d1e7dd;color:#0a3622;font-size:0.8rem">'
+                    + '<i class="bi bi-check-circle-fill me-1"></i>'
+                    + '<span class="d-none d-sm-inline">' + MSG_CERT_VALID + '</span>';
+                if (recipientName) {
+                    html += '<span class="d-none d-sm-inline"> &nbsp;·&nbsp; ' + MSG_CERT_RECIPIENT + ' </span>'
+                        + '<strong>' + recipientName + '</strong>';
+                }
+                html += '</span>';
+                el.innerHTML = html;
+            } else {
+                el.innerHTML = '<span class="badge px-2 py-1" '
+                    + 'style="background:#f8d7da;color:#842029;font-size:0.8rem">'
+                    + '<i class="bi bi-x-circle-fill me-1"></i>' + MSG_CERT_INVALID + '</span>';
+            }
+        }
+
+        function clearCertStatus() {
+            const el = document.getElementById('certStatus');
+            if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+        }
+
+        // ── Payment method toggle ─────────────────────────────────────────────
+        function onPaymentMethodChange() {
+            const method = document.getElementById('paymentMethod').value;
+            const isCert = method === 'CERTIFICATE';
+            document.getElementById('priceSection').style.display        = isCert ? 'none' : '';
+            document.getElementById('certificateSection').style.display  = isCert ? ''     : 'none';
+            document.getElementById('paidSection').style.display         = isCert ? 'none' : '';
+            if (isCert) {
+                document.getElementById('priceAtTime').value = '';
+            } else {
+                document.getElementById('certificateCode').value = '';
+                clearCertStatus();
+            }
+        }
+        onPaymentMethodChange();
+
+        // ── Submit validation ─────────────────────────────────────────────────
         document.getElementById('visitForm').addEventListener('submit', function(e) {
+            const method = document.getElementById('paymentMethod').value;
+            const isCert = method === 'CERTIFICATE';
+
+            if (isCert) {
+                const codeEl = document.getElementById('certificateCode');
+                if (!codeEl.value.trim()) {
+                    codeEl.classList.add('is-invalid');
+                    document.getElementById('certStatus').style.display = 'none';
+                    e.preventDefault();
+                    return;
+                }
+                return;
+            }
+
             const price = parseFloat(document.getElementById('priceAtTime').value) || 0;
             const paid  = document.getElementById('paid').checked;
             if (price <= 0) {
@@ -207,19 +323,6 @@
                 }
             }
         });
-
-        function onPaymentMethodChange() {
-            const method = document.getElementById('paymentMethod').value;
-            const isCert = method === 'CERTIFICATE';
-            document.getElementById('priceSection').style.display       = isCert ? 'none' : '';
-            document.getElementById('certificateSection').style.display = isCert ? ''     : 'none';
-            if (isCert) {
-                document.getElementById('priceAtTime').value = '';
-            } else {
-                document.getElementById('certificateCode').value = '';
-            }
-        }
-        onPaymentMethodChange();
     </script>
 
 </div>

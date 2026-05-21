@@ -1,10 +1,10 @@
 package com.hairmony.warehouse.clientcare.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.AppointmentService;
+import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.clientcare.web.dto.AppointmentDto;
 import com.hairmony.warehouse.domain.appointment.AppointmentStatus;
-import com.hairmony.warehouse.domain.appointment.AppointmentType;
 import com.hairmony.warehouse.service.ClientService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
@@ -31,6 +31,7 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
     private final ClientService clientService;
     private final VisitService visitService;
+    private final SalonServiceService salonServiceService;
 
     @GetMapping
     public String calendarView(@RequestParam(required = false)
@@ -80,7 +81,7 @@ public class AppointmentController {
                           @RequestParam(required = false) String returnTo,
                           @RequestParam(required = false) Long linkVisitId,
                           @RequestParam(required = false) Long rebookedFromId,
-                          @RequestParam(required = false) AppointmentType appointmentType,
+                          @RequestParam(required = false) Long serviceId,
                           @RequestParam(required = false) String notes,
                           Model model) {
         LocalDate formDate = date != null ? date : LocalDate.now();
@@ -89,7 +90,7 @@ public class AppointmentController {
         dto.setStartAt(formDate.atTime(lt));
         dto.setEndAt(formDate.atTime(lt.plusHours(1)));
         dto.setStatus(AppointmentStatus.PLANNED);
-        if (appointmentType != null) dto.setAppointmentType(appointmentType);
+        if (serviceId != null) dto.setServiceId(serviceId);
         if (notes != null && !notes.isBlank()) dto.setNotes(notes);
         if (clientId != null) {
             dto.setClientId(clientId);
@@ -246,7 +247,7 @@ public class AppointmentController {
     private void populateFormModel(Model model) {
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("statuses", AppointmentStatus.values());
-        model.addAttribute("types", AppointmentType.values());
+        model.addAttribute("services", salonServiceService.findAllActive());
     }
 
     private String redirectToDay(LocalDate date) {

@@ -5,10 +5,10 @@
 <div th:fragment="content">
     <style>
         .table { min-width: 0; }
-        .table th { font-size: 0.72rem; vertical-align: middle; }
+        .table th { font-size: 0.78rem; vertical-align: middle; }
         @media (max-width: 767.98px) {
-            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
-            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+            .table th { font-size: 0.75rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.9rem; padding: 0.35rem 0.4rem; }
         }
     </style>
     <div class="page-header">
@@ -27,7 +27,7 @@
             <a th:href="${from == 'history'} ? '/movements/history' : (${from == 'reports'} ? '/reports' : (${from == 'product' and productId != null} ? '/products/' + ${productId} : '/suppliers'))"
                class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>
-                <span th:text="#{btn.back}">Назад</span>
+                <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
             </a>
         </div>
     </div>
@@ -101,7 +101,7 @@
                 <span th:text="#{supplier.detail.noHistory}">Операцій немає</span>
             </div>
             <table th:unless="${movements.empty}" class="table table-sm table-hover table-striped mb-0">
-                <thead class="table-light">
+                <thead style="--bs-table-bg: var(--accent-light)">
                 <tr>
                     <th th:text="#{product.detail.date}">Дата</th>
                     <th th:text="#{product.form.name}">Товар</th>

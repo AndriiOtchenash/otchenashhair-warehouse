@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.domain.appointment;
 
 import com.hairmony.warehouse.domain.client.Client;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -40,9 +41,8 @@ public class Appointment {
     @Column(name = "status", nullable = false, length = 20)
     private AppointmentStatus status;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "appointment_type", length = 30)
-    private AppointmentType appointmentType;
+    @Column(name = "service_id")
+    private Long serviceId;
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;

@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.clientcare.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.AppointmentService;
+import com.hairmony.warehouse.clientcare.service.GiftCertificateService;
 import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
@@ -16,7 +17,12 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import org.springframework.http.ResponseEntity;
+
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 @Controller
 @RequiredArgsConstructor
@@ -26,7 +32,20 @@ public class VisitController {
     private final AppointmentService appointmentService;
     private final SalonServiceService salonServiceService;
     private final ClientService clientService;
+    private final GiftCertificateService giftCertificateService;
     private final MessageSource messageSource;
+
+    /** AJAX endpoint — checks if a gift certificate code is valid (ACTIVE) for redemption.
+     *  Returns {@code {valid: true/false, recipientName: "..." | null}}. */
+    @GetMapping("/clientcare/visits/check-certificate")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> checkCertificate(@RequestParam String code) {
+        Optional<String> recipient = giftCertificateService.findRecipientIfValid(code);
+        Map<String, Object> body = new HashMap<>();
+        body.put("valid", recipient.isPresent());
+        body.put("recipientName", recipient.orElse(null));
+        return ResponseEntity.ok(body);
+    }
 
     @GetMapping("/clientcare/clients/{clientId}/visits")
     public String allVisits(@PathVariable Long clientId,

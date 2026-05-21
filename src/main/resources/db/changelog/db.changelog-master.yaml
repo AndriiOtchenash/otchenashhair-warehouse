@@ -62,3 +62,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/021-add-visit-billing.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/022-appointment-service-link.sql
+      relativeToChangelogFile: false
