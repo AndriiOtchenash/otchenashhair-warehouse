@@ -972,16 +972,15 @@ returnTo must start with `/` and NOT be protocol-relative (`//evil.com` blocked)
 - Open redirect: `safeRedirect(returnTo, fallback)` — accepts only `/[^/].*` regex
 
 ### Event architecture (future, after Wave 6)
-Domain events (published AFTER_COMMIT):
-- `SaleCompletedEvent` → `FollowupService.analyzeAfterSale()`
-- `PurchaseCompletedEvent`
-- `WriteOffCompletedEvent`
+**Decision (2026-05-21): NOT implementing event-driven for now.**
+Current scale = single user, single server, follow-up logic called synchronously in one place.
+Event-driven adds complexity (listeners, AFTER_COMMIT phase, ordering issues) with no practical benefit.
+Revisit if: multiple independent subscribers on one event, or async processing needed (queues, email digests).
 
-Rules:
+Original plan (kept for reference):
+- `SaleCompletedEvent` → `FollowupService.analyzeAfterSale()`
 - `@TransactionalEventListener(phase = AFTER_COMMIT)` — mandatory, prevents events on rolled-back txns
-- Expiry scanning via `@Scheduled(cron = "0 9 * * *")` — not a real-time event
 - `StockDepletedEvent` fires on threshold crossing only (`previousQty > min && newQty <= min`)
-- Thin listeners: listener calls service, logic lives in service
 
 ## TODO
 
@@ -1128,6 +1127,12 @@ HTML does not allow nested `<form>` elements — browsers silently ignore inner 
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
 ### Infrastructure
+- **Google Calendar sync** — wanted; sync ClientCare appointments ↔ Google Calendar;
+  requires OAuth2 (Google Calendar API); appointments created/updated/deleted in app reflect in Google Calendar and vice versa;
+  main complexity: OAuth token storage per user, conflict resolution on two-way sync
+- **PostgreSQL backup** — wanted; automated DB backup to external storage (Google Drive or S3);
+  options: pg_dump via `@Scheduled` cron + upload, or Neon built-in branching/snapshots (already on Neon in prod);
+  priority: Neon has point-in-time recovery on paid plan — check if sufficient before custom solution
 - Spring Session for multi-machine session sharing (if needed when scaling beyond 1 machine)
 - User management page (if multiple users needed)
 - Swagger/OpenAPI — intentionally skipped: app is server-rendered Thymeleaf MVC,

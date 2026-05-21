@@ -341,7 +341,7 @@
                 <tbody>
                 <tr th:each="row : ${report.topClients}">
                     <td>
-                        <a th:href="@{/clientcare/clients/{id}(id=${row.clientId})}"
+                        <a th:href="@{/clientcare/clients/{id}(id=${row.clientId},returnTo=${currentPageUrl})}"
                            th:text="${row.clientName}"
                            class="text-decoration-none text-dark"></a>
                     </td>
