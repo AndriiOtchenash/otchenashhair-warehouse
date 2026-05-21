@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -148,11 +149,20 @@ public class VisitService {
         return dto;
     }
 
+    private static final Set<PaymentMethod> AUTO_PAID_METHODS =
+            Set.of(PaymentMethod.BARTER, PaymentMethod.COMPLIMENTARY, PaymentMethod.PROMO);
+
     /**
-     * When payment method is CERTIFICATE: validates the code and auto-marks as paid.
-     * Redemption is NOT persisted until migration 021 removes @Transient from Visit fields.
+     * Auto-marks non-cash visits as paid:
+     * - CERTIFICATE: validates code, marks cert REDEEMED
+     * - BARTER/COMPLIMENTARY/PROMO: paid=true, priceAtTime cleared (no cash exchanged)
      */
     private void applyCertificatePayment(VisitDto dto) {
+        if (AUTO_PAID_METHODS.contains(dto.getPaymentMethod())) {
+            dto.setPaid(true);
+            dto.setPriceAtTime(null);
+            return;
+        }
         if (dto.getPaymentMethod() != PaymentMethod.CERTIFICATE) return;
         String code = trimOrNull(dto.getCertificateCode());
         if (code == null) return;

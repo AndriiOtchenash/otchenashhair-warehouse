@@ -276,10 +276,13 @@
                         <tbody>
                         <tr th:each="row : ${report.byPaymentMethod}">
                             <td th:switch="${row.method.name()}">
-                                <span th:case="'CASH'"        th:text="#{finance.method.CASH}">Готівка</span>
-                                <span th:case="'CARD'"        th:text="#{finance.method.CARD}">Картка</span>
-                                <span th:case="'CERTIFICATE'" th:text="#{finance.method.CERTIFICATE}">Сертифікат</span>
-                                <span th:case="*"             th:text="${row.method.name()}"></span>
+                                <span th:case="'CASH'"          th:text="#{finance.method.CASH}">Готівка</span>
+                                <span th:case="'CARD'"          th:text="#{finance.method.CARD}">Картка</span>
+                                <span th:case="'CERTIFICATE'"   th:text="#{finance.method.CERTIFICATE}">Сертифікат</span>
+                                <span th:case="'BARTER'"        th:text="#{finance.method.BARTER}">Бартер</span>
+                                <span th:case="'COMPLIMENTARY'" th:text="#{finance.method.COMPLIMENTARY}">Комплімент</span>
+                                <span th:case="'PROMO'"         th:text="#{finance.method.PROMO}">Промо</span>
+                                <span th:case="*"               th:text="${row.method.name()}"></span>
                             </td>
                             <td class="text-center" th:text="${row.visitCount}"></td>
                             <td class="text-end fw-semibold"

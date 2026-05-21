@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.clientcare.web.dto;
 
 import com.hairmony.warehouse.domain.appointment.PaymentMethod;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -53,6 +54,11 @@ public class VisitDto {
     private PaymentMethod paymentMethod;
 
     private boolean paid;
+
+    @AssertTrue(message = "{visit.paymentMethod.requiredWhenPaid}")
+    public boolean isPaymentMethodRequiredWhenPaid() {
+        return !paid || paymentMethod != null;
+    }
 
     @Size(max = 20, message = "{validation.size.max20}")
     private String certificateCode;
