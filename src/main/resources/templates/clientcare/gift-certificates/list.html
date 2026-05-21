@@ -119,7 +119,10 @@
                         <a th:if="${cert.purchaserClientId != null}"
                            th:href="@{/clientcare/clients/{id}(id=${cert.purchaserClientId})}"
                            th:text="${cert.purchaserName}"></a>
-                        <span th:unless="${cert.purchaserClientId != null}" th:text="${cert.purchaserName}"></span>
+                        <span th:if="${cert.purchaserClientId == null and cert.purchaserName != null}"
+                              th:text="${cert.purchaserName}"></span>
+                        <span th:if="${cert.purchaserClientId == null and cert.purchaserName == null}"
+                              class="text-muted fst-italic" th:text="#{gift.from.salon}"></span>
                     </td>
                     <td class="d-none d-md-table-cell">
                         <span th:if="${cert.recipientClientId != null}">

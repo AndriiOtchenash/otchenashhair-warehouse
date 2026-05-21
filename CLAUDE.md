@@ -24,7 +24,8 @@ web/controller/ — MVC controllers (thin):
 clientcare/web/controller/ — ClientCare controllers:
   ClientCareController, ClientCareFollowupController, FollowUpActionController,
   AppointmentController, ScalpPhotoController, DriveFolderController, VisitController,
-  GiftCertificateController (/clientcare/gift-certificates)
+  GiftCertificateController (/clientcare/gift-certificates),
+  ClientCareFinanceController (/clientcare/finance)
 web/dto/ — form objects and filter DTOs
 web/validator/ — custom Bean Validation annotations (ValidDateRange + DateRangeValidator)
 web/interceptor/ — CurrentUriInterceptor
@@ -569,6 +570,8 @@ Deleting NOTE → only reloads activity fragment (no position change).
 
 Thymeleaf 3.1 security: `th:onclick` with string concatenation blocked for event handlers.
 Fix: use `th:data-*` attributes + static `onclick="fn(this.dataset.field)"`.
+Thymeleaf 3.1 security also blocks dynamic message key lookups via `#{__{'prefix.' + var}__}` preprocessing.
+Fix: use `th:switch` / `th:case` with explicit static keys per enum value.
 
 `ClientCareDashboardDto` fields: `totalClients` (all in DB), `totalClientsInQueue` (with non-cancelled SALEs),
 plus 5 purchase KPI counts + `overdueVisitCount` + `upcomingVisitCount`.
@@ -769,9 +772,11 @@ Migration 021 adds to `visits`: `service_id BIGINT FK → services ON DELETE SET
 `VisitService.applyCertificatePayment()` — validates cert code, sets REDEEMED + redeemedAt in same transaction.
 `VisitService.getClientIdsWithUnpaidVisits()` — `Set<Long>` via `VisitRepository.findClientIdsWithUnpaidVisits()`.
 `VisitController` — `populateFormModel()` helper loads activeServices + paymentMethods; `rejectCertificateError()` helper.
-Visit form billing section: service select, payment method select, price input (hidden when CERTIFICATE),
-  certificate code input (hidden when not CERTIFICATE), paid checkbox (accent color via CSS var override).
-JS submit guard: price=0 → "Ціну не вказано. Зберегти?"; price>0 + !paid → "Оплату не підтверджено. Зберегти?".
+Visit form billing section: service select, payment method select, price input (hidden + cleared when CERTIFICATE —
+  price is irrelevant for cert redemptions, revenue already captured at cert sale), certificate code input
+  (hidden when not CERTIFICATE), paid checkbox (accent color via CSS var override, hidden when CERTIFICATE).
+JS submit guard (non-CERTIFICATE only): price=0 → "Ціну не вказано. Зберегти?"; price>0 + !paid → "Оплату не підтверджено. Зберегти?".
+CERTIFICATE visits: priceAtTime submitted as null — passes @DecimalMin (Jakarta BV: null is valid for min/max constraints).
 Payment badges in visit cards: "Очікує оплати" (red, shown when price/method set but !paid);
   "Оплачено" (green) — in both `fragments/client-detail.html` and `clientcare/clients/visits.html`.
 `AppointmentDto` — all financial fields removed. Appointment form billing section removed.
@@ -781,6 +786,52 @@ Dashboard KPI card "Очікує оплати" — in "ЗАПИСИ" section, hi
 Client list — `−$` icon (red, bold, 1rem) next to name when client has unpaid visits;
   `clientsWithUnpaidVisits` Set passed to model only in clientcare context.
 Font consistency — `body { font-family: var(--bs-body-font-family) }` added to both layouts.
+
+**Wave 9 — Finance Analytics — DONE (2026-05-21)**
+Financial analytics page for the ClientCare module, separate from warehouse `/reports`.
+
+**Revenue model (cash accounting, finalized):**
+  Revenue = CASH/CARD paid visits (isPaid=true, priceAtTime>0, paymentMethod≠CERTIFICATE)
+          + certificate SALES in period (GiftCertificate.issuedAt in range, price>0, status≠CANCELLED).
+  CERTIFICATE-paid visits are NOT counted in revenue — the money was already captured at cert sale.
+  Rationale: cash accounting — revenue recorded when cash is received, not when service is delivered.
+  Cross-period case: cert sold in April, redeemed in May → April revenue includes cert sale; May adds nothing. This is correct.
+  `avgTicket` = total revenue ÷ (cash/card paid visits + paid certs sold).
+  `unpaid` = visits where isPaid=false AND priceAtTime>0 (regardless of payment method).
+  `byService` and `byPaymentMethod` tables — based on CASH/CARD paid visits only (CERTIFICATE row excluded).
+  `byPaymentMethod` — CERTIFICATE method filtered out (shown separately in Сертифікати section).
+  Сертифікати section: sold count + total in period; active (unredeemed) count + total liability (snapshot).
+
+`ClientCareFinanceService` — `@Transactional(readOnly = true)`; all computation in-memory (small dataset).
+  `getEarliestVisitDate()` — for ALL_TIME preset; falls back to start of current month.
+  `buildReport(from, to)` → `Map<String, Object>` with keys:
+    `revenue`, `visitCount`, `avgTicket`, `unpaidAmount`, `unpaidCount`,
+    `certSoldCount`, `certSoldRevenue`, `certActiveCount`, `certLiability`,
+    `byService` (List<ServiceRevenueDto>), `byPaymentMethod` (List<PaymentBreakdownDto>),
+    `topClients` (List<TopClientFinanceDto>), `unpaidVisits` (List<UnpaidVisitRowDto>).
+  Uses `VisitRepository.findWithClientByPeriod()` (JOIN FETCH v.client — avoids lazy-load outside txn).
+  Uses `GiftCertificateRepository.findSoldInPeriod()`, `sumActiveCertPrice()`, `countByStatus()`.
+  Uses `SalonServiceService.findAll()` for service name lookup (includes inactive — old visits may reference them).
+`ClientCareFinanceController` at `/clientcare/finance`:
+  Period selector: THIS_MONTH (default) / LAST_MONTH / ALL_TIME / CUSTOM.
+  Previous-period deltas for revenue, visitCount, avgTicket (same `resolvePeriod`/`previousPeriod`/`delta` helpers as `ReportController`).
+4 DTOs in `clientcare/web/dto/`:
+  `ServiceRevenueDto` (serviceName, visitCount, revenue, sharePct),
+  `PaymentBreakdownDto` (method: PaymentMethod, visitCount, revenue, sharePct),
+  `TopClientFinanceDto` (clientId, clientName, visitCount, totalSpent),
+  `UnpaidVisitRowDto` (visitId, clientId, clientName, visitDate, serviceName, amount).
+`ClientCareFinanceService.buildTrends(from, to)` — monthly revenue = visit revenue + cert sales per month;
+  visit count = cash/card paid visits only; pre-fills all months in range with zeros (no chart gaps).
+`clientcare/finance.html` — period selector, 4 KPI cards (revenue/visits/avg ticket/unpaid),
+  Сертифікати section (sold in period + active liability), inline revenue trend chart (hidden when ≤ 1 month),
+  by-service table, payment method table (CASH/CARD only), top-7 clients, unpaid visits list with edit links.
+  Chart: Chart.js 4 from CDN; combo bar+line — bars = visit count (right axis), line = revenue (left axis).
+  Payment method names via `th:switch` (not dynamic `#{}` preprocessing — blocked by Thymeleaf 3.1 security).
+  `returnTo=${currentPageUrl}` on pencil links — Back in visit edit returns to finance page with preset preserved.
+`ClientCareFinanceController` — builds `currentPageUrl` from `request.getQueryString()` for `returnTo` support.
+Sidebar nav link: `bi-bar-chart-line` icon, key `nav.clientcare.finance`, under "Аналітика" section.
+`VisitRepository` — added `findWithClientByPeriod(from, to)` and `findEarliestVisitDate()`.
+`GiftCertificateRepository` — added `findSoldInPeriod(from, to)`, `sumActiveCertPrice()`, `countByStatus(status)`.
 
 ---
 
@@ -926,6 +977,7 @@ Rules:
 - Wave 6 — Appointment completion flow — DONE (2026-05-18)
 - Wave 7 — Gift Certificates — DONE (2026-05-20) — migration 020, JPA entity, service, controller, client detail block, list with status+client filter
 - Wave 8 — Visit Billing Fields — DONE (2026-05-21) — migration 021, financial fields on Visit, certificate redemption via visit, unpaid KPI card + client list icon
+- Wave 9 — Finance Analytics — DONE (2026-05-21) — `/clientcare/finance` page, sidebar nav link, ClientCareFinanceService + Controller + 4 DTOs + inline revenue trend chart (Chart.js)
 
 **Note:** Wave 5 spec was moved to main "What's done" section. TODO reflects only remaining work.
 

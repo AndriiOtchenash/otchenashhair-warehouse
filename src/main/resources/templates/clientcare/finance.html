@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{finance.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <style>
+        .table { min-width: 0; }
+        .table th { font-size: 0.78rem; vertical-align: middle; }
+        @media (max-width: 767.98px) {
+            .table th { font-size: 0.75rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.9rem; padding: 0.35rem 0.4rem; }
+        }
+        .kpi-card { cursor: default; }
+        .kpi-value { font-size: 1.7rem; font-weight: 700; color: #1e2d24; line-height: 1.1; }
+        .kpi-label { font-size: 0.8rem; color: #6c757d; }
+        .delta-badge { font-size: 0.75rem; font-weight: 600; }
+        .share-bar { height: 6px; border-radius: 3px; background: var(--accent); }
+        .unpaid-row td { background: #fff9f0; }
+    </style>
+
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{finance.title}">Фінанси</h1>
+    </div>
+
+    <!-- Period selector -->
+    <div class="card mb-3">
+        <div class="card-header fw-semibold text-center" th:text="#{report.period.title}">Період</div>
+        <div class="card-body">
+            <div class="d-flex flex-column align-items-center gap-2">
+                <div class="btn-group btn-group-sm">
+                    <a th:href="@{/clientcare/finance(preset='THIS_MONTH')}"
+                       th:classappend="${period.preset == 'THIS_MONTH'} ? 'active'"
+                       class="btn btn-outline-secondary"
+                       th:text="#{report.thisMonth}">Цей місяць</a>
+                    <a th:href="@{/clientcare/finance(preset='LAST_MONTH')}"
+                       th:classappend="${period.preset == 'LAST_MONTH'} ? 'active'"
+                       class="btn btn-outline-secondary"
+                       th:text="#{report.lastMonth}">Минулий місяць</a>
+                    <a th:href="@{/clientcare/finance(preset='ALL_TIME')}"
+                       th:classappend="${period.preset == 'ALL_TIME'} ? 'active'"
+                       class="btn btn-outline-secondary"
+                       th:text="#{report.allTime}">Весь час</a>
+                </div>
+                <form th:action="@{/clientcare/finance}" method="get"
+                      class="d-flex gap-2 align-items-center w-100" style="max-width:480px">
+                    <input type="hidden" name="preset" value="CUSTOM"/>
+                    <input type="date" class="form-control form-control-sm"
+                           style="flex: 0.85 1 0; min-width: 0;"
+                           name="from"
+                           th:value="${#temporals.format(period.from, 'yyyy-MM-dd')}"/>
+                    <input type="date" class="form-control form-control-sm"
+                           style="flex: 0.85 1 0; min-width: 0;"
+                           name="to"
+                           th:value="${#temporals.format(period.to, 'yyyy-MM-dd')}"/>
+                    <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"
+                            th:text="#{report.apply}">Застосувати</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Period label -->
+    <div class="text-center text-muted small mb-2">
+        <i class="bi bi-calendar3 me-1"></i>
+        <span th:if="${period.preset == 'THIS_MONTH'}" th:text="#{report.thisMonth}"></span>
+        <span th:if="${period.preset == 'LAST_MONTH'}" th:text="#{report.lastMonth}"></span>
+        <span th:if="${period.preset == 'ALL_TIME'}" th:text="#{report.allTime}"></span>
+        <span th:if="${period.preset == 'CUSTOM'}"
+              th:text="${#temporals.format(period.from, 'dd.MM.yyyy')} + ' – ' + ${#temporals.format(period.to, 'dd.MM.yyyy')}"></span>
+    </div>
+
+    <!-- KPI Banner -->
+    <div class="row g-3 mb-4">
+        <!-- Виручка -->
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body text-center py-3">
+                    <div class="kpi-label mb-1" th:text="#{finance.kpi.revenue}">Виручка</div>
+                    <div class="kpi-value"
+                         th:text="${#numbers.formatDecimal(report.revenue, 1, 2)} + ' zł'">0.00 zł</div>
+                    <div class="mt-1" th:if="${revenueDelta != null}">
+                        <span class="delta-badge"
+                              th:classappend="${revenueDelta >= 0} ? 'text-success' : 'text-danger'"
+                              th:text="${(revenueDelta >= 0 ? '▲+' : '▼') + revenueDelta + '%'}"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Кількість візитів -->
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body text-center py-3">
+                    <div class="kpi-label mb-1" th:text="#{finance.kpi.visitCount}">Візитів</div>
+                    <div class="kpi-value" th:text="${report.visitCount}">0</div>
+                    <div class="mt-1" th:if="${visitCountDelta != null}">
+                        <span class="delta-badge"
+                              th:classappend="${visitCountDelta >= 0} ? 'text-success' : 'text-danger'"
+                              th:text="${(visitCountDelta >= 0 ? '▲+' : '▼') + visitCountDelta + '%'}"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Середній чек -->
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body text-center py-3">
+                    <div class="kpi-label mb-1" th:text="#{finance.kpi.avgTicket}">Середній чек</div>
+                    <div class="kpi-value"
+                         th:text="${#numbers.formatDecimal(report.avgTicket, 1, 2)} + ' zł'">0.00 zł</div>
+                    <div class="mt-1" th:if="${avgTicketDelta != null}">
+                        <span class="delta-badge"
+                              th:classappend="${avgTicketDelta >= 0} ? 'text-success' : 'text-danger'"
+                              th:text="${(avgTicketDelta >= 0 ? '▲+' : '▼') + avgTicketDelta + '%'}"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Борги -->
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card h-100">
+                <div class="card-body text-center py-3">
+                    <div class="kpi-label mb-1" th:text="#{finance.kpi.unpaid}">Не оплачено</div>
+                    <div class="kpi-value"
+                         th:classappend="${report.unpaidCount > 0} ? 'text-danger'"
+                         th:text="${#numbers.formatDecimal(report.unpaidAmount, 1, 2)} + ' zł'">0.00 zł</div>
+                    <div class="text-muted small mt-1">
+                        <span th:text="${report.unpaidCount}">0</span>
+                        <span th:text="#{finance.kpi.unpaid.visits}"> візитів</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Revenue trend chart (hidden when only 1 month) ── -->
+    <script th:if="${#lists.size(trendLabels) > 1}"
+            src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <div class="card mb-3" th:if="${#lists.size(trendLabels) > 1}">
+        <div class="card-header" th:text="#{finance.section.trends}">Динаміка виручки</div>
+        <div class="card-body">
+            <canvas id="revenueChart" style="max-height:260px;"></canvas>
+        </div>
+    </div>
+    <script th:inline="javascript" th:if="${#lists.size(trendLabels) > 1}">
+    /*<![CDATA[*/
+    (function() {
+        var labels      = /*[[${trendLabels}]]*/ [];
+        var revenueData = /*[[${trendRevenue}]]*/ [];
+        var visitData   = /*[[${trendVisitCount}]]*/ [];
+        var lang        = /*[[${#locale.language}]]*/ 'uk';
+
+        // Format "yyyy-MM" labels to locale month names
+        var formatted = labels.map(function(ym) {
+            var parts = ym.split('-');
+            var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+            return new Intl.DateTimeFormat(lang, {month: 'short', year: '2-digit'}).format(d);
+        });
+
+        var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4a7c59';
+
+        var ctx = document.getElementById('revenueChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: formatted,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: /*[[#{finance.chart.revenue}]]*/ 'Виручка',
+                        data: revenueData,
+                        borderColor: accent,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        tension: 0.3,
+                        yAxisID: 'yRevenue'
+                    },
+                    {
+                        type: 'bar',
+                        label: /*[[#{finance.chart.visits}]]*/ 'Візити',
+                        data: visitData,
+                        backgroundColor: accent + '33',
+                        borderColor: accent + '66',
+                        borderWidth: 1,
+                        yAxisID: 'yVisits'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                if (ctx.datasetIndex === 0) {
+                                    return ctx.dataset.label + ': ' + ctx.raw + ' zł';
+                                }
+                                return ctx.dataset.label + ': ' + ctx.raw;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    yRevenue: {
+                        type: 'linear',
+                        position: 'left',
+                        ticks: { font: { size: 11 }, callback: function(v) { return v + ' zł'; } },
+                        grid: { color: '#e9ecef' }
+                    },
+                    yVisits: {
+                        type: 'linear',
+                        position: 'right',
+                        ticks: { font: { size: 11 }, stepSize: 1 },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: { ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+    })();
+    /*]]>*/
+    </script>
+
+    <!-- ── By Service ── -->
+    <div class="row g-3 mb-3" th:if="${not #lists.isEmpty(report.byService)}">
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-header" th:text="#{finance.section.byService}">Виручка по послугах</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-auto mb-0">
+                        <thead style="--bs-table-bg: var(--accent-light)">
+                        <tr>
+                            <th th:text="#{finance.col.service}">Послуга</th>
+                            <th class="text-end" style="width:3rem" th:text="#{finance.col.visits}">Візити</th>
+                            <th class="text-end" style="width:25%" th:text="#{finance.col.revenue}">Виручка</th>
+                            <th class="text-end" style="width:4rem" th:text="#{finance.col.share}">%</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="row : ${report.byService}">
+                            <td>
+                                <span th:if="${row.serviceName != null}" th:text="${row.serviceName}"></span>
+                                <span th:unless="${row.serviceName != null}" class="text-muted fst-italic"
+                                      th:text="#{finance.noService}">—</span>
+                            </td>
+                            <td class="text-center" th:text="${row.visitCount}"></td>
+                            <td class="text-end fw-semibold"
+                                th:text="${#numbers.formatDecimal(row.revenue, 1, 2)}"></td>
+                            <td class="text-end text-muted" th:text="${row.sharePct} + '%'"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── By Payment Method ── -->
+        <div class="col-12 col-md-6" th:if="${not #lists.isEmpty(report.byPaymentMethod)}">
+            <div class="card h-100">
+                <div class="card-header" th:text="#{finance.section.byPaymentMethod}">Спосіб оплати</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-auto mb-0">
+                        <thead style="--bs-table-bg: var(--accent-light)">
+                        <tr>
+                            <th th:text="#{finance.col.method}">Метод</th>
+                            <th class="text-end" style="width:3rem" th:text="#{finance.col.visits}">Візити</th>
+                            <th class="text-end" style="width:25%" th:text="#{finance.col.revenue}">Виручка</th>
+                            <th class="text-end" style="width:4rem" th:text="#{finance.col.share}">%</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="row : ${report.byPaymentMethod}">
+                            <td th:switch="${row.method.name()}">
+                                <span th:case="'CASH'"        th:text="#{finance.method.CASH}">Готівка</span>
+                                <span th:case="'CARD'"        th:text="#{finance.method.CARD}">Картка</span>
+                                <span th:case="'CERTIFICATE'" th:text="#{finance.method.CERTIFICATE}">Сертифікат</span>
+                                <span th:case="*"             th:text="${row.method.name()}"></span>
+                            </td>
+                            <td class="text-center" th:text="${row.visitCount}"></td>
+                            <td class="text-end fw-semibold"
+                                th:text="${#numbers.formatDecimal(row.revenue, 1, 2)}"></td>
+                            <td class="text-end text-muted" th:text="${row.sharePct} + '%'"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Gift Certificates ── -->
+    <div class="card mb-3" th:if="${report.certSoldCount > 0 or report.certActiveCount > 0}">
+        <div class="card-header" th:text="#{finance.section.certs}">Сертифікати</div>
+        <div class="card-body p-0">
+            <table class="table table-auto mb-0">
+                <tbody>
+                <tr th:if="${report.certSoldCount > 0}">
+                    <td th:text="#{finance.cert.sold}">Продано в цьому période</td>
+                    <td class="text-end fw-semibold">
+                        <span th:text="${report.certSoldCount}"></span>
+                        <span class="text-muted"> × </span>
+                        <span th:text="${#numbers.formatDecimal(report.certSoldRevenue, 1, 2)} + ' zł'"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td th:text="#{finance.cert.liability}">Активних (не погашено)</td>
+                    <td class="text-end">
+                        <span th:text="${report.certActiveCount}"></span>
+                        <span th:if="${report.certLiability.signum() > 0}"
+                              class="text-muted">
+                            <span> × </span>
+                            <span th:text="${#numbers.formatDecimal(report.certLiability, 1, 2)} + ' zł'"></span>
+                        </span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Top Clients ── -->
+    <div class="card mb-3" th:if="${not #lists.isEmpty(report.topClients)}">
+        <div class="card-header" th:text="#{finance.section.topClients}">Топ клієнти</div>
+        <div class="card-body p-0">
+            <table class="table table-striped table-auto mb-0">
+                <thead style="--bs-table-bg: var(--accent-light)">
+                <tr>
+                    <th th:text="#{finance.col.client}">Клієнт</th>
+                    <th class="text-center" th:text="#{finance.col.visits}">Візити</th>
+                    <th class="text-end" th:text="#{finance.col.total}">Сума</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${report.topClients}">
+                    <td>
+                        <a th:href="@{/clientcare/clients/{id}(id=${row.clientId})}"
+                           th:text="${row.clientName}"
+                           class="text-decoration-none text-dark"></a>
+                    </td>
+                    <td class="text-center" th:text="${row.visitCount}"></td>
+                    <td class="text-end fw-semibold"
+                        th:text="${#numbers.formatDecimal(row.totalSpent, 1, 2)}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Unpaid Visits ── -->
+    <div class="card mb-3" th:if="${not #lists.isEmpty(report.unpaidVisits)}">
+        <div class="card-header d-flex align-items-center gap-2">
+            <span th:text="#{finance.section.unpaidVisits}">Не оплачені візити</span>
+            <span class="badge bg-warning text-dark" th:text="${report.unpaidCount}"></span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-auto mb-0">
+                <thead style="--bs-table-bg: var(--accent-light)">
+                <tr>
+                    <th th:text="#{finance.col.date}">Дата</th>
+                    <th th:text="#{finance.col.client}">Клієнт</th>
+                    <th th:text="#{finance.col.service}">Послуга</th>
+                    <th class="text-end" th:text="#{finance.col.amount}">Сума</th>
+                    <th class="d-none d-md-table-cell"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${report.unpaidVisits}" class="unpaid-row">
+                    <td class="text-nowrap" style="font-size:0.78rem"
+                        th:text="${#temporals.format(row.visitDate, 'dd.MM.yyyy')}"></td>
+                    <td>
+                        <a th:href="@{/clientcare/clients/{id}(id=${row.clientId})}"
+                           th:text="${row.clientName}"
+                           class="text-decoration-none fw-semibold text-dark"></a>
+                    </td>
+                    <td>
+                        <span th:if="${row.serviceName != null}" th:text="${row.serviceName}"></span>
+                        <span th:unless="${row.serviceName != null}" class="text-muted">—</span>
+                    </td>
+                    <td class="text-end fw-semibold">
+                        <a th:href="@{/clientcare/visits/{id}/edit(id=${row.visitId},returnTo=${currentPageUrl})}"
+                           class="text-decoration-none text-danger"
+                           th:text="${#numbers.formatDecimal(row.amount, 1, 2)}"></a>
+                    </td>
+                    <td class="text-end d-none d-md-table-cell">
+                        <a th:href="@{/clientcare/visits/{id}/edit(id=${row.visitId},returnTo=${currentPageUrl})}"
+                           class="btn btn-outline-secondary btn-sm py-0">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty state -->
+    <div th:if="${report.visitCount == 0}" class="text-center text-muted py-5">
+        <i class="bi bi-graph-up" style="font-size:2.5rem;opacity:0.3;"></i>
+        <p class="mt-2" th:text="#{finance.empty}">Немає даних за вибраний період</p>
+    </div>
+
+</div>
+</body>
+</html>

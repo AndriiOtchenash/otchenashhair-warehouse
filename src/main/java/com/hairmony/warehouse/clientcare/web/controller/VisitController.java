@@ -4,7 +4,9 @@ import com.hairmony.warehouse.clientcare.service.AppointmentService;
 import com.hairmony.warehouse.clientcare.service.GiftCertificateService;
 import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
+import com.hairmony.warehouse.clientcare.web.dto.SalonServiceDto;
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
+import com.hairmony.warehouse.domain.appointment.AppointmentStatus;
 import com.hairmony.warehouse.domain.appointment.PaymentMethod;
 import com.hairmony.warehouse.service.ClientService;
 import jakarta.validation.Valid;
@@ -23,6 +25,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
@@ -36,14 +39,15 @@ public class VisitController {
     private final MessageSource messageSource;
 
     /** AJAX endpoint — checks if a gift certificate code is valid (ACTIVE) for redemption.
-     *  Returns {@code {valid: true/false, recipientName: "..." | null}}. */
+     *  Returns {@code {valid: true/false, recipientName: "..." | null, serviceName: "..." | null}}. */
     @GetMapping("/clientcare/visits/check-certificate")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> checkCertificate(@RequestParam String code) {
-        Optional<String> recipient = giftCertificateService.findRecipientIfValid(code);
+        var cert = giftCertificateService.findIfValid(code);
         Map<String, Object> body = new HashMap<>();
-        body.put("valid", recipient.isPresent());
-        body.put("recipientName", recipient.orElse(null));
+        body.put("valid", cert.isPresent());
+        body.put("recipientName", cert.map(c -> c.getRecipientName()).orElse(null));
+        body.put("serviceName",   cert.map(c -> c.getServiceName()).orElse(null));
         return ResponseEntity.ok(body);
     }
 
@@ -55,6 +59,9 @@ public class VisitController {
         model.addAttribute("visits", visitService.findByClientId(clientId));
         model.addAttribute("hasUpcomingAppointment",
                 appointmentService.getNextUpcomingForClient(clientId).isPresent());
+        model.addAttribute("serviceNames",
+                salonServiceService.findAll().stream()
+                        .collect(Collectors.toMap(SalonServiceDto::getId, SalonServiceDto::getName)));
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "clientcare/clients/visits";
     }
@@ -62,6 +69,7 @@ public class VisitController {
     @GetMapping("/clientcare/visits/new")
     public String newForm(@RequestParam Long clientId,
                           @RequestParam(required = false) String returnTo,
+                          @RequestParam(required = false) Long completeAppointmentId,
                           Model model) {
         VisitDto dto = new VisitDto();
         dto.setClientId(clientId);
@@ -73,6 +81,7 @@ public class VisitController {
                 appointmentService.getNextUpcomingForClient(clientId).isPresent());
         populateFormModel(model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
+        if (completeAppointmentId != null) model.addAttribute("completeAppointmentId", completeAppointmentId);
         return "clientcare/visits/form";
     }
 
@@ -81,6 +90,7 @@ public class VisitController {
                        BindingResult result,
                        @RequestParam(required = false) String action,
                        @RequestParam(required = false) String returnTo,
+                       @RequestParam(required = false) Long completeAppointmentId,
                        Model model,
                        RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
@@ -89,6 +99,7 @@ public class VisitController {
                     appointmentService.getNextUpcomingForClient(dto.getClientId()).isPresent());
             populateFormModel(model);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
+            if (completeAppointmentId != null) model.addAttribute("completeAppointmentId", completeAppointmentId);
             return "clientcare/visits/form";
         }
         Long visitId;
@@ -101,7 +112,13 @@ public class VisitController {
                     appointmentService.getNextUpcomingForClient(dto.getClientId()).isPresent());
             populateFormModel(model);
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
+            if (completeAppointmentId != null) model.addAttribute("completeAppointmentId", completeAppointmentId);
             return "clientcare/visits/form";
+        }
+        // Mark the source appointment as COMPLETED only after the visit is successfully saved.
+        if (completeAppointmentId != null && !"schedule".equals(action)) {
+            appointmentService.changeStatus(completeAppointmentId, AppointmentStatus.COMPLETED);
+            visitService.unlinkCompletedAppointment(completeAppointmentId);
         }
         if ("schedule".equals(action)) {
             return "redirect:/clientcare/appointments?clientId=" + dto.getClientId()

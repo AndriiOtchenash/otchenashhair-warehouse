@@ -207,6 +207,11 @@
                                     <div class="d-flex align-items-center gap-2 flex-wrap">
                                         <span class="fw-semibold"
                                               th:text="${#temporals.format(visit.visitDate, 'dd.MM.yyyy')}"></span>
+                                        <span th:if="${visit.serviceId != null and serviceNames != null and serviceNames[visit.serviceId] != null}"
+                                              class="text-muted small">
+                                            <i class="bi bi-scissors me-1"></i>
+                                            <span th:text="${serviceNames[visit.serviceId]}"></span>
+                                        </span>
                                         <span th:if="${!visit.paid and (visit.priceAtTime != null or visit.paymentMethod != null)}"
                                               class="badge"
                                               style="background:#f8d7da;color:#842029">

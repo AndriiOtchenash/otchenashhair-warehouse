@@ -9,7 +9,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +25,17 @@ public interface GiftCertificateRepository extends JpaRepository<GiftCertificate
 
     @Query("SELECT g FROM GiftCertificate g WHERE g.purchaserClientId = :clientId OR g.recipientClientId = :clientId ORDER BY g.issuedAt DESC")
     List<GiftCertificate> findForClient(@Param("clientId") Long clientId);
+
+    /** Certificates issued within a period (excluding CANCELLED — refunded/void). */
+    @Query("SELECT g FROM GiftCertificate g WHERE g.issuedAt >= :from AND g.issuedAt < :to AND g.status <> com.hairmony.warehouse.domain.gift.GiftCertificateStatus.CANCELLED")
+    List<GiftCertificate> findSoldInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /** Total price of all currently ACTIVE (unredeemed) certificates with price > 0. */
+    @Query("SELECT COALESCE(SUM(g.price), 0) FROM GiftCertificate g WHERE g.status = com.hairmony.warehouse.domain.gift.GiftCertificateStatus.ACTIVE AND g.price > 0")
+    BigDecimal sumActiveCertPrice();
+
+    /** Count of currently ACTIVE (unredeemed) certificates. */
+    long countByStatus(GiftCertificateStatus status);
 
     /** Marks all ACTIVE certificates past their expiry date as EXPIRED. */
     /** Marks all ACTIVE certificates past their expiry date as EXPIRED.
