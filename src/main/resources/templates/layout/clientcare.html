@@ -27,7 +27,7 @@
             --sidebar-active: #4a7c59;
             --topbar-height: 52px;
         }
-        body { background: #f4f6f4; }
+        body { background: #f4f6f4; font-family: var(--bs-body-font-family); }
 
         /* ── Sidebar ── */
         .sidebar {
@@ -125,7 +125,7 @@
         .card-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table { min-width: 500px; }
         .table-auto { min-width: 0 !important; }
-        .table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6c757d; font-weight: 600; }
+        .table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6c757d; font-weight: 600; vertical-align: middle; }
         .table td { vertical-align: middle; }
         .table tbody tr:hover { background: var(--accent-light); }
         .card-header { background-color: var(--accent-light) !important; }
@@ -188,6 +188,10 @@
                 padding-top: calc(var(--topbar-height) + 1rem);
             }
             .page-header .btn { white-space: nowrap; }
+
+            /* table readability on mobile */
+            .table th { font-size: 0.76rem; letter-spacing: 0.03em; }
+            .table td { font-size: 0.9rem; }
         }
         /* ── Global badges (shared with main layout) ── */
         .badge-writeoff { background-color: #f5a3b0 !important; color: #7d2535 !important; }

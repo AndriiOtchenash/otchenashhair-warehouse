@@ -11,10 +11,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface GiftCertificateRepository extends JpaRepository<GiftCertificate, Long> {
 
     List<GiftCertificate> findAllByOrderByIssuedAtDesc();
+
+    Optional<GiftCertificate> findByCode(String code);
 
     List<GiftCertificate> findByStatusOrderByIssuedAtDesc(GiftCertificateStatus status);
 

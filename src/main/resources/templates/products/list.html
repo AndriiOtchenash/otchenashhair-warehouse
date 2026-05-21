@@ -18,7 +18,7 @@
         .product-table .col-status { width: 7rem; }
         .product-table .col-actions { width: 5.5rem; }
         @media (max-width: 767.98px) {
-            .product-table th { font-size: 0.72rem; text-align: center; }
+            .product-table th { font-size: 0.75rem; text-align: center; }
             .product-table .col-cat { width: 5.7rem; }
             .product-table .col-actions { width: 5.3rem; }
             /* Category: fixed narrow, truncate with ellipsis */
@@ -84,7 +84,7 @@
                     <col class="d-none d-md-table-cell"/>
                     <col class="col-actions"/>
                 </colgroup>
-                <thead class="table-light">
+                <thead style="--bs-table-bg: var(--accent-light)">
                 <tr>
                     <th th:text="#{product.form.name}">Назва</th>
                     <th class="d-none d-md-table-cell" th:text="#{product.active}">Статус</th>

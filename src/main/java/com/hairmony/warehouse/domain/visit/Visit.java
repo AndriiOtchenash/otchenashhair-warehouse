@@ -1,10 +1,12 @@
 package com.hairmony.warehouse.domain.visit;
 
 import com.hairmony.warehouse.domain.appointment.Appointment;
+import com.hairmony.warehouse.domain.appointment.PaymentMethod;
 import com.hairmony.warehouse.domain.client.Client;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -47,6 +49,24 @@ public class Visit {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "next_appointment_id")
     private Appointment nextAppointment;
+
+    // --- Financial fields (migration 021) ---
+
+    @Column(name = "service_id")
+    private Long serviceId;
+
+    @Column(name = "price_at_time", precision = 10, scale = 2)
+    private BigDecimal priceAtTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", length = 20)
+    private PaymentMethod paymentMethod;
+
+    @Column(name = "is_paid", nullable = false)
+    private boolean paid;
+
+    @Column(name = "certificate_code", length = 20)
+    private String certificateCode;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

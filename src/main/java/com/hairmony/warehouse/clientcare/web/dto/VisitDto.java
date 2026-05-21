@@ -1,11 +1,14 @@
 package com.hairmony.warehouse.clientcare.web.dto;
 
+import com.hairmony.warehouse.domain.appointment.PaymentMethod;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -39,4 +42,18 @@ public class VisitDto {
     // Populated from Visit.nextAppointment (read-only in form)
     private Long nextAppointmentId;
     private LocalDateTime nextAppointmentStartAt;
+
+    // --- Financial fields (draft: backed by migration 021) ---
+
+    private Long serviceId;
+
+    @DecimalMin(value = "0.01", message = "{visit.price.min}")
+    private BigDecimal priceAtTime;
+
+    private PaymentMethod paymentMethod;
+
+    private boolean paid;
+
+    @Size(max = 20, message = "{validation.size.max20}")
+    private String certificateCode;
 }

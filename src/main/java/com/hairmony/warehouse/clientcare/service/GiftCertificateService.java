@@ -128,15 +128,29 @@ public class GiftCertificateService {
         return cert;
     }
 
+    /** Restores a CANCELLED certificate back to ACTIVE. */
     @Transactional
     public GiftCertificate restore(Long id) {
         GiftCertificate cert = findById(id);
-        if (cert.getStatus() != GiftCertificateStatus.REDEEMED) {
-            throw new IllegalStateException("Only redeemed certificates can be restored");
+        if (cert.getStatus() != GiftCertificateStatus.CANCELLED) {
+            throw new IllegalStateException("Only cancelled certificates can be restored");
         }
         cert.setStatus(GiftCertificateStatus.ACTIVE);
-        cert.setRedeemedAt(null);
+        cert.setCancelledAt(null);
         return cert;
+    }
+
+    /**
+     * Hard-deletes a certificate. Blocked for REDEEMED certificates
+     * because the visit payment record references the certificate code.
+     */
+    @Transactional
+    public void delete(Long id) {
+        GiftCertificate cert = findById(id);
+        if (cert.getStatus() == GiftCertificateStatus.REDEEMED) {
+            throw new IllegalStateException("gift.delete.error.redeemed");
+        }
+        repository.delete(cert);
     }
 
     @Transactional
@@ -148,6 +162,20 @@ public class GiftCertificateService {
         cert.setStatus(GiftCertificateStatus.CANCELLED);
         cert.setCancelledAt(LocalDateTime.now());
         return cert;
+    }
+
+    // ── Certificate validity check (used by AJAX endpoint) ───────────────────
+
+    /**
+     * Returns the recipient name if the certificate code is ACTIVE, empty if not valid.
+     * Use {@code .isPresent()} to check validity, {@code .orElse(null)} to get the name.
+     */
+    @Transactional
+    public java.util.Optional<String> findRecipientIfValid(String code) {
+        syncExpired();
+        return repository.findByCode(code.trim().toUpperCase())
+                .filter(c -> c.getStatus() == GiftCertificateStatus.ACTIVE)
+                .map(GiftCertificate::getRecipientName);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

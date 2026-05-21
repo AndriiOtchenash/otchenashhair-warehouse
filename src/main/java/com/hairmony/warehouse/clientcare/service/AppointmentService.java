@@ -73,7 +73,7 @@ public class AppointmentService {
         a.setStartAt(dto.getStartAt());
         a.setEndAt(dto.getEndAt());
         a.setStatus(dto.getStatus() != null ? dto.getStatus() : AppointmentStatus.PLANNED);
-        a.setAppointmentType(dto.getAppointmentType());
+        a.setServiceId(dto.getServiceId());
         a.setNotes(trimOrNull(dto.getNotes()));
         // updatedAt handled by @PreUpdate
     }
@@ -169,7 +169,7 @@ public class AppointmentService {
                 .startAt(a.getStartAt())
                 .endAt(a.getEndAt())
                 .status(a.getStatus())
-                .appointmentType(a.getAppointmentType())
+                .serviceId(a.getServiceId())
                 .notes(a.getNotes())
                 .build();
     }
@@ -182,7 +182,7 @@ public class AppointmentService {
                 .startAt(dto.getStartAt())
                 .endAt(dto.getEndAt())
                 .status(dto.getStatus() != null ? dto.getStatus() : AppointmentStatus.PLANNED)
-                .appointmentType(dto.getAppointmentType())
+                .serviceId(dto.getServiceId())
                 .notes(trimOrNull(dto.getNotes()))
                 .build();
     }

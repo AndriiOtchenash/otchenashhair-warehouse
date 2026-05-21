@@ -6,10 +6,10 @@
     <style>
         .card { border: 1px solid rgba(0,0,0,0.1) !important; }
         .table { min-width: 0; }
-        .table th { font-size: 0.72rem; vertical-align: middle; }
+        .table th { font-size: 0.78rem; vertical-align: middle; }
         @media (max-width: 767.98px) {
-            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
-            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+            .table th { font-size: 0.75rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.9rem; padding: 0.35rem 0.4rem; }
         }
         .page-header { flex-direction: row !important; align-items: center !important; }
         .page-header .btn { flex: 0 !important; white-space: nowrap; }
@@ -167,7 +167,7 @@
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
                     <table th:unless="${marginAnalysis.empty}" class="table table-hover table-striped mb-0">
-                        <thead class="table-light">
+                        <thead style="--bs-table-bg: var(--accent-light)">
                         <tr>
                             <th th:text="#{product.form.name}">Товар</th>
                             <th class="text-center" th:text="#{report.col.purchase}">Закупка, zł</th>
@@ -217,7 +217,7 @@
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
                     <table th:unless="${writeOffsSummary.count == 0}" class="table table-hover table-striped mb-0">
-                        <thead class="table-light">
+                        <thead style="--bs-table-bg: var(--accent-light)">
                         <tr>
                             <th th:text="#{product.form.name}">Товар</th>
                             <th class="text-center" th:text="#{movements.filter.writeOffReason}">Причина</th>
@@ -272,7 +272,7 @@
                     </div>
                     <div th:unless="${purchasesSummary.empty or purchasesSummary[0].count == 0}">
                         <table class="table table-hover table-striped mb-0">
-                            <thead class="table-light">
+                            <thead style="--bs-table-bg: var(--accent-light)">
                             <tr>
                                 <th th:text="#{supplier.form.name}">Постачальник</th>
                                 <th class="text-center" th:text="#{report.purchases.ops}">Операцій</th>
@@ -308,7 +308,7 @@
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
                     <table th:unless="${topSales.empty}" class="table table-hover table-striped mb-0">
-                        <thead class="table-light">
+                        <thead style="--bs-table-bg: var(--accent-light)">
                         <tr>
                             <th th:text="#{product.form.name}">Товар</th>
                             <th class="text-center d-none d-md-table-cell" th:text="#{stock.form.quantity}">К-сть</th>
@@ -349,7 +349,7 @@
                         <span th:text="#{report.noData}">Немає даних за період</span>
                     </div>
                     <table th:unless="${topClients.empty}" class="table table-hover table-striped mb-0">
-                        <thead class="table-light">
+                        <thead style="--bs-table-bg: var(--accent-light)">
                         <tr>
                             <th th:text="#{client.form.name}">Клієнт</th>
                             <th class="text-center" th:text="#{report.sales.count}">Продажів</th>
@@ -388,7 +388,7 @@
                     <div th:unless="${slowMovers.empty}">
                         <div class="text-muted small px-3 pt-2 pb-1" th:text="#{report.slowMovers.hint}"></div>
                         <table class="table table-hover table-striped mb-0">
-                            <thead class="table-light">
+                            <thead style="--bs-table-bg: var(--accent-light)">
                             <tr>
                                 <th th:text="#{product.form.name}">Товар</th>
                                 <th class="text-center" th:text="#{report.col.stock}">На складі</th>

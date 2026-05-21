@@ -74,7 +74,7 @@
                         <span th:text="#{client.list.empty}">Клієнти не знайдено</span>
                     </div>
                     <table th:unless="${clients.empty}" class="table table-hover mb-0 table-auto">
-                        <thead class="table-light">
+                        <thead style="--bs-table-bg: var(--accent-light)">
                         <tr>
                             <th th:text="#{client.form.name}">Ім'я</th>
                             <th class="d-none d-md-table-cell" th:text="#{client.form.phone}">Телефон</th>

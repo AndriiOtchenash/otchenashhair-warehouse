@@ -3,10 +3,10 @@
 <body>
 <th:block th:fragment="body">
     <style>
-        .table th { font-size: 0.72rem; vertical-align: middle; }
+        .table th { font-size: 0.78rem; vertical-align: middle; }
         @media (max-width: 767.98px) {
-            .table th { font-size: 0.68rem; padding: 0.35rem 0.4rem; }
-            .table td { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+            .table th { font-size: 0.75rem; padding: 0.35rem 0.4rem; }
+            .table td { font-size: 0.9rem; padding: 0.35rem 0.4rem; }
             .page-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
             .page-header .d-flex { width: 100%; }
             .page-header .d-flex .btn { flex: 1; text-align: center; white-space: nowrap; }
@@ -111,7 +111,7 @@
             </a>
             <a th:href="${backUrl}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>
-                <span th:text="#{btn.back}">Назад</span>
+                <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
             </a>
         </div>
     </div>
@@ -155,10 +155,6 @@
                 <div class="card-header" th:text="#{client.detail.info}">Інформація</div>
                 <div class="card-body py-2">
                     <div class="d-flex flex-wrap gap-4">
-                        <div>
-                            <span class="text-muted small" th:text="#{client.detail.totalOps}">Операцій</span>:
-                            <strong th:text="${movements.size()}"></strong>
-                        </div>
                         <div th:if="${client.notes != null and !client.notes.isEmpty()}">
                             <span class="text-muted small" th:text="#{client.form.notes}">Примітки</span>:
                             <span th:text="${client.notes}"></span>
@@ -194,9 +190,6 @@
                     <div>
                         <i class="bi bi-calendar-check me-2" style="color: var(--accent)"></i>
                         <span th:text="#{visit.section.title}">Візити</span>
-                        <span class="badge bg-secondary ms-1"
-                              th:unless="${visits.isEmpty()}"
-                              th:text="${visits.size()}"></span>
                     </div>
                     <a th:href="@{/clientcare/visits/new(clientId=${client.id},returnTo=${currentPageUrl})}"
                        class="btn btn-outline-primary btn-sm">
@@ -211,8 +204,22 @@
                         <div class="px-3 py-2">
                             <div class="d-flex justify-content-between align-items-start gap-3">
                                 <div style="min-width:0; flex:1">
-                                    <div class="fw-semibold"
-                                         th:text="${#temporals.format(visit.visitDate, 'dd.MM.yyyy')}"></div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="fw-semibold"
+                                              th:text="${#temporals.format(visit.visitDate, 'dd.MM.yyyy')}"></span>
+                                        <span th:if="${!visit.paid and (visit.priceAtTime != null or visit.paymentMethod != null)}"
+                                              class="badge"
+                                              style="background:#f8d7da;color:#842029">
+                                            <i class="bi bi-clock me-1"></i>
+                                            <span th:text="#{visit.badge.unpaid}">Очікує оплати</span>
+                                        </span>
+                                        <span th:if="${visit.paid}"
+                                              class="badge"
+                                              style="background:#d1e7dd;color:#0a3622">
+                                            <i class="bi bi-check2 me-1"></i>
+                                            <span th:text="#{visit.badge.paid}">Оплачено</span>
+                                        </span>
+                                    </div>
                                     <div th:if="${visit.complaint != null and !visit.complaint.isEmpty()}"
                                          class="text-muted small mt-1">
                                         <span class="fw-semibold" th:text="#{visit.form.complaint}">Скарга</span>:
@@ -224,14 +231,23 @@
                                         <span th:text="${visit.scalpCondition}"></span>
                                     </div>
                                     <div th:if="${visit.recommendations != null and !visit.recommendations.isEmpty()}"
-                                         class="text-muted small mt-1">
+                                         class="small mt-1">
                                         <span class="fw-semibold" th:text="#{visit.form.recommendations}">Рекомендації</span>:
                                         <span th:text="${visit.recommendations}"></span>
                                     </div>
                                     <div th:if="${visit.notes != null and !visit.notes.isEmpty()}"
-                                         class="text-muted small mt-1">
-                                        <span class="fw-semibold" th:text="#{visit.form.notes}">Нотатки</span>:
+                                         class="text-muted small mt-1 fst-italic">
+                                        <span class="fw-semibold fst-normal" th:text="#{visit.form.notes}">Нотатки</span>:
                                         <span th:text="${visit.notes}"></span>
+                                    </div>
+                                    <div th:if="${visit.nextAppointmentId != null}" class="small mt-1 text-success">
+                                        <i class="bi bi-calendar-check-fill me-1"></i>
+                                        <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
+                                        <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
+                                    </div>
+                                    <div th:if="${visit.nextAppointmentId == null and nextAppointment == null}" class="small mt-1 text-warning">
+                                        <i class="bi bi-calendar-x me-1"></i>
+                                        <span th:text="#{visit.nextAppointment.notScheduled}">Не запланований</span>
                                     </div>
                                 </div>
                                 <div class="d-flex gap-1 flex-shrink-0">
@@ -250,16 +266,6 @@
                                         </button>
                                     </form>
                                 </div>
-                            </div>
-                            <!-- Next appointment indicator -->
-                            <div th:if="${visit.nextAppointmentId != null}" class="mt-2 small text-success">
-                                <i class="bi bi-calendar-check-fill me-1"></i>
-                                <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
-                                <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
-                            </div>
-                            <div th:if="${visit.nextAppointmentId == null and nextAppointment == null}" class="mt-2 small text-warning">
-                                <i class="bi bi-calendar-x me-1"></i>
-                                <span th:text="#{visit.nextAppointment.notScheduled}">Не запланований</span>
                             </div>
                         </div>
                         <div class="px-3 pb-2 mt-1 d-flex align-items-center gap-2">
@@ -291,65 +297,52 @@
                 <div class="card-body p-0">
                     <div th:if="${giftCertificates.empty}" class="text-muted small px-3 py-2"
                          th:text="#{gift.client.empty}">Сертифікатів поки немає</div>
-                    <div th:each="cert, iterStat : ${giftCertificates}"
-                         th:if="${iterStat.index < 2}"
-                         class="px-3 py-2 border-bottom">
-                        <div class="d-flex justify-content-between align-items-start gap-2">
-                            <div>
-                                <a th:href="@{/clientcare/gift-certificates/{id}(id=${cert.id},returnTo=${currentPageUrl})}"
-                                   class="fw-semibold text-decoration-none"
-                                   style="font-family:monospace; font-size:0.9rem;"
-                                   th:text="${cert.code}">GIFT-2026-0001</a>
-                                <!-- Role badges on new line -->
-                                <div class="mt-1">
-                                    <span th:if="${cert.purchaserClientId == client.id}"
-                                          class="badge bg-secondary me-1" style="font-size:0.65rem;"
-                                          th:text="#{gift.role.purchaser}">Покупець</span>
-                                    <span th:if="${cert.recipientClientId == client.id}"
-                                          class="badge bg-info text-dark me-1" style="font-size:0.65rem;"
-                                          th:text="#{gift.role.recipient}">Отримувач</span>
+                    <th:block th:unless="${giftCertificates.empty}" th:with="cert=${giftCertificates[0]}">
+                        <div class="px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                    <a th:href="@{/clientcare/gift-certificates/{id}(id=${cert.id},returnTo=${currentPageUrl})}"
+                                       class="fw-semibold text-decoration-none"
+                                       style="font-family:monospace; font-size:0.9rem;"
+                                       th:text="${cert.code}">GIFT-2026-0001</a>
+                                    <div class="mt-1">
+                                        <span th:if="${cert.purchaserClientId == client.id}"
+                                              class="badge bg-secondary me-1" style="font-size:0.65rem;"
+                                              th:text="#{gift.role.purchaser}">Покупець</span>
+                                        <span th:if="${cert.recipientClientId == client.id}"
+                                              class="badge bg-info text-dark me-1" style="font-size:0.65rem;"
+                                              th:text="#{gift.role.recipient}">Отримувач</span>
+                                    </div>
+                                    <div class="small text-muted mt-1">
+                                        <span th:text="${cert.serviceName}"></span>
+                                        <span class="mx-1">·</span>
+                                        <span th:text="#{gift.col.expires}">до</span>
+                                        <span th:text="${#temporals.format(cert.expiresAt, 'dd.MM.yyyy')}"></span>
+                                        <span th:if="${cert.active and cert.daysRemaining() <= 30}"
+                                              class="badge bg-warning text-dark ms-1"
+                                              style="font-size:0.65rem;"
+                                              th:text="${cert.daysRemaining() + ' д'}"></span>
+                                    </div>
                                 </div>
-                                <div class="small text-muted mt-1">
-                                    <span th:text="${cert.serviceName}"></span>
-                                    <span class="mx-1">·</span>
-                                    <span th:text="#{gift.col.expires}">до</span>
-                                    <span th:text="${#temporals.format(cert.expiresAt, 'dd.MM.yyyy')}"></span>
-                                    <!-- Days remaining warning -->
-                                    <span th:if="${cert.active and cert.daysRemaining() <= 30}"
-                                          class="badge bg-warning text-dark ms-1"
-                                          style="font-size:0.65rem;"
-                                          th:text="${cert.daysRemaining() + ' д'}"></span>
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                    <span th:switch="${cert.status.name()}">
+                                        <span th:case="'ACTIVE'"    class="badge bg-success"   th:text="#{gift.status.ACTIVE}"></span>
+                                        <span th:case="'REDEEMED'"  class="badge bg-primary"   th:text="#{gift.status.REDEEMED}"></span>
+                                        <span th:case="'EXPIRED'"   class="badge bg-warning text-dark" th:text="#{gift.status.EXPIRED}"></span>
+                                        <span th:case="'CANCELLED'" class="badge bg-secondary" th:text="#{gift.status.CANCELLED}"></span>
+                                    </span>
                                 </div>
-                            </div>
-                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                                <span th:switch="${cert.status.name()}">
-                                    <span th:case="'ACTIVE'"    class="badge bg-success"   th:text="#{gift.status.ACTIVE}"></span>
-                                    <span th:case="'REDEEMED'"  class="badge bg-primary"   th:text="#{gift.status.REDEEMED}"></span>
-                                    <span th:case="'EXPIRED'"   class="badge bg-warning text-dark" th:text="#{gift.status.EXPIRED}"></span>
-                                    <span th:case="'CANCELLED'" class="badge bg-secondary" th:text="#{gift.status.CANCELLED}"></span>
-                                </span>
-                                <form th:if="${cert.active}"
-                                      th:action="@{/clientcare/gift-certificates/{id}/redeem(id=${cert.id})}"
-                                      method="post" class="d-inline">
-                                    <input type="hidden" name="returnTo" th:value="${currentPageUrl}"/>
-                                    <button type="submit" class="btn btn-sm btn-outline-primary"
-                                            th:data-confirm="#{gift.redeem.confirm}"
-                                            onclick="return confirm(this.dataset.confirm)">
-                                        <i class="bi bi-check2-circle me-1"></i>
-                                        <span class="d-none d-md-inline" th:text="#{gift.btn.redeem}">Погасити</span>
-                                    </button>
-                                </form>
                             </div>
                         </div>
-                    </div>
-                    <div th:if="${giftCertificates.size() > 2}" class="px-3 pb-2 mt-1">
-                        <a th:href="@{/clientcare/gift-certificates(clientId=${client.id})}"
-                           class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-gift me-1"></i>
-                            <span th:text="#{gift.viewAll}">Всі сертифікати</span>
-                            <span class="badge bg-secondary ms-1" th:text="${giftCertificates.size()}"></span>
-                        </a>
-                    </div>
+                        <div th:if="${giftCertificates.size() > 1}" class="px-3 pb-2 mt-1">
+                            <a th:href="@{/clientcare/gift-certificates(clientId=${client.id})}"
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-gift me-1"></i>
+                                <span th:text="#{gift.viewAll}">Всі сертифікати</span>
+                                <span class="badge bg-secondary ms-1" th:text="${giftCertificates.size()}"></span>
+                            </a>
+                        </div>
+                    </th:block>
                 </div>
             </div>
 
@@ -425,7 +418,7 @@
                         <span th:text="#{client.detail.noHistory}">Операцій немає</span>
                     </div>
                     <table th:unless="${movements.empty}" class="table table-sm table-hover table-striped mb-0">
-                        <thead class="table-light">
+                        <thead style="--bs-table-bg: var(--accent-light)">
                         <tr>
                             <th th:text="#{product.detail.date}">Дата</th>
                             <th th:text="#{product.form.name}">Товар</th>

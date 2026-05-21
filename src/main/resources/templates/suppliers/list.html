@@ -78,7 +78,7 @@
                         <span th:text="#{supplier.list.empty}">Постачальники не знайдено</span>
                     </div>
                     <table th:unless="${suppliers.empty}" class="table table-hover mb-0 table-auto">
-                        <thead class="table-light">
+                        <thead style="--bs-table-bg: var(--accent-light)">
                         <tr>
                             <th th:text="#{supplier.form.name}">Назва</th>
                             <th class="d-none d-md-table-cell" th:text="#{supplier.form.contactInfo}">Контакт</th>

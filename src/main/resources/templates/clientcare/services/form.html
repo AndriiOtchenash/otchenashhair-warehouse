@@ -27,7 +27,8 @@
 
                 <div class="mb-4">
                     <label class="form-label" th:text="#{service.form.description}">Опис</label>
-                    <textarea class="form-control" th:field="*{description}" rows="3"></textarea>
+                    <textarea class="form-control" th:field="*{description}" rows="3"
+                              th:placeholder="#{service.form.description.hint}"></textarea>
                 </div>
 
                 <div class="d-flex gap-2">
