@@ -44,4 +44,12 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
         ORDER BY v.nextVisitDate ASC
     """)
     List<Visit> findAllLatestWithNextVisitDate();
+
+    /** All visits in a date range with client eagerly fetched — used for finance reporting. */
+    @Query("SELECT v FROM Visit v JOIN FETCH v.client WHERE v.visitDate BETWEEN :from AND :to ORDER BY v.visitDate DESC")
+    List<Visit> findWithClientByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** Earliest visit date — used for ALL_TIME period preset. */
+    @Query("SELECT MIN(v.visitDate) FROM Visit v")
+    Optional<LocalDate> findEarliestVisitDate();
 }

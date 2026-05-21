@@ -65,3 +65,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/022-appointment-service-link.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/023-add-gift-certificate-price.sql
+      relativeToChangelogFile: false

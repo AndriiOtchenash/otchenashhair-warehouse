@@ -77,6 +77,16 @@
                     <td th:text="${cert.serviceName}"></td>
                 </tr>
                 <tr>
+                    <th class="text-muted fw-normal small" th:text="#{gift.form.price}">Вартість</th>
+                    <td>
+                        <span th:if="${cert.price != null and cert.price.signum() > 0}"
+                              class="fw-semibold"
+                              th:text="${#numbers.formatDecimal(cert.price, 1, 2)} + ' zł'"></span>
+                        <em th:unless="${cert.price != null and cert.price.signum() > 0}"
+                            class="text-muted" th:text="#{gift.from.salon}">від салону</em>
+                    </td>
+                </tr>
+                <tr>
                     <th class="text-muted fw-normal small" th:text="#{gift.form.expiresAt}">Дійсний до</th>
                     <td th:text="${#temporals.format(cert.expiresAt, 'dd.MM.yyyy')}"></td>
                 </tr>

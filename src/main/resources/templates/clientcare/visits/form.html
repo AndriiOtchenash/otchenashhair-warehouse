@@ -63,6 +63,8 @@
                 <input type="hidden" th:field="*{clientId}"/>
                 <input type="hidden" th:field="*{id}"/>
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
+                <input th:if="${completeAppointmentId != null}" type="hidden"
+                       name="completeAppointmentId" th:value="${completeAppointmentId}"/>
 
                 <!-- ── Date + Protocol header ── -->
                 <div class="d-flex align-items-center gap-2 mb-3">
@@ -124,20 +126,6 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="paymentMethod" class="form-label fw-semibold"
-                               th:text="#{visit.form.paymentMethod}">Спосіб оплати</label>
-                        <select id="paymentMethod" class="form-select" th:field="*{paymentMethod}"
-                                onchange="onPaymentMethodChange()">
-                            <option value="" th:text="#{visit.form.paymentMethod.placeholder}">— не вказано —</option>
-                            <option th:each="pm : ${paymentMethods}"
-                                    th:value="${pm.name()}"
-                                    th:text="#{payment.method.__${pm}__}">
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Price — hidden when CERTIFICATE -->
                     <div id="priceSection" class="mb-3">
                         <label for="priceAtTime" class="form-label fw-semibold"
                                th:text="#{visit.form.price}">Ціна</label>
@@ -150,6 +138,19 @@
                             <span class="input-group-text">zł</span>
                             <div class="invalid-feedback" th:errors="*{priceAtTime}"></div>
                         </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label fw-semibold"
+                               th:text="#{visit.form.paymentMethod}">Спосіб оплати</label>
+                        <select id="paymentMethod" class="form-select" th:field="*{paymentMethod}"
+                                onchange="onPaymentMethodChange()">
+                            <option value="" th:text="#{visit.form.paymentMethod.placeholder}">— не вказано —</option>
+                            <option th:each="pm : ${paymentMethods}"
+                                    th:value="${pm.name()}"
+                                    th:text="#{payment.method.__${pm}__}">
+                            </option>
+                        </select>
                     </div>
 
                     <!-- Certificate code — shown only when CERTIFICATE -->
@@ -167,7 +168,7 @@
                         <div id="certStatus" class="mt-2" style="display:none"></div>
                     </div>
 
-                    <!-- Paid checkbox — hidden for CERTIFICATE -->
+                    <!-- Paid checkbox — hidden for CERTIFICATE (auto-marked paid) -->
                     <div id="paidSection" class="form-check mb-1">
                         <input class="form-check-input" type="checkbox" id="paid" th:field="*{paid}"/>
                         <label class="form-check-label" for="paid"
@@ -245,11 +246,11 @@
             showCertStatus('checking');
             fetch('/clientcare/visits/check-certificate?code=' + encodeURIComponent(code))
                 .then(r => r.json())
-                .then(data => showCertStatus(data.valid ? 'valid' : 'invalid', data.recipientName))
+                .then(data => showCertStatus(data.valid ? 'valid' : 'invalid', data.recipientName, data.serviceName))
                 .catch(() => clearCertStatus());
         }
 
-        function showCertStatus(state, recipientName) {
+        function showCertStatus(state, recipientName, serviceName) {
             const el = document.getElementById('certStatus');
             el.style.display = '';
             if (state === 'checking') {
@@ -264,6 +265,9 @@
                 if (recipientName) {
                     html += '<span class="d-none d-sm-inline"> &nbsp;·&nbsp; ' + MSG_CERT_RECIPIENT + ' </span>'
                         + '<strong>' + recipientName + '</strong>';
+                }
+                if (serviceName) {
+                    html += '<span> &nbsp;·&nbsp; ' + serviceName + '</span>';
                 }
                 html += '</span>';
                 el.innerHTML = html;
@@ -283,9 +287,9 @@
         function onPaymentMethodChange() {
             const method = document.getElementById('paymentMethod').value;
             const isCert = method === 'CERTIFICATE';
-            document.getElementById('priceSection').style.display        = isCert ? 'none' : '';
-            document.getElementById('certificateSection').style.display  = isCert ? ''     : 'none';
-            document.getElementById('paidSection').style.display         = isCert ? 'none' : '';
+            document.getElementById('certificateSection').style.display = isCert ? '' : 'none';
+            document.getElementById('paidSection').style.display        = isCert ? 'none' : '';
+            document.getElementById('priceSection').style.display       = isCert ? 'none' : '';
             if (isCert) {
                 document.getElementById('priceAtTime').value = '';
             } else {
@@ -306,18 +310,19 @@
                     codeEl.classList.add('is-invalid');
                     document.getElementById('certStatus').style.display = 'none';
                     e.preventDefault();
-                    return;
                 }
                 return;
             }
 
             const price = parseFloat(document.getElementById('priceAtTime').value) || 0;
-            const paid  = document.getElementById('paid').checked;
             if (price <= 0) {
                 if (!confirm(/*[[#{visit.noprice.confirm}]]*/ 'Ціну не вказано. Зберегти?')) {
                     e.preventDefault();
+                    return;
                 }
-            } else if (!paid) {
+            }
+
+            if (price > 0 && !document.getElementById('paid').checked) {
                 if (!confirm(/*[[#{visit.unpaid.confirm}]]*/ 'Оплату не підтверджено. Зберегти?')) {
                     e.preventDefault();
                 }

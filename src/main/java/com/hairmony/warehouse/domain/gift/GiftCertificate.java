@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -46,6 +47,10 @@ public class GiftCertificate {
 
     @Column(name = "service_name", nullable = false, length = 200)
     private String serviceName;
+
+    /** Price paid by the purchaser. 0 = complimentary (from salon). */
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal price = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

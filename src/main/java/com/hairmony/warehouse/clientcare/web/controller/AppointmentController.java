@@ -178,12 +178,13 @@ public class AppointmentController {
     public String complete(@PathVariable Long id) {
         AppointmentDto dto = appointmentService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));
-        appointmentService.changeStatus(id, AppointmentStatus.COMPLETED);
-        visitService.unlinkCompletedAppointment(id);
+        // Status change happens only after the visit is saved (completeAppointmentId param).
+        // This prevents the appointment from being stuck as COMPLETED when the user cancels the visit form.
         LocalDate date = dto.getStartAt() != null ? dto.getStartAt().toLocalDate() : LocalDate.now();
         if (dto.getClientId() != null) {
             String returnTo = "/clientcare/appointments?date=" + date;
             return "redirect:/clientcare/visits/new?clientId=" + dto.getClientId()
+                    + "&completeAppointmentId=" + id
                     + "&returnTo=" + returnTo;
         }
         return redirectToDay(date);

@@ -37,6 +37,7 @@ public class GiftCertificateService {
         cert.setExpiresAt(form.getExpiresAt());
         cert.setStatus(GiftCertificateStatus.ACTIVE);
         cert.setNotes(form.getNotes());
+        cert.setPrice(form.getPrice() != null ? form.getPrice() : java.math.BigDecimal.ZERO);
 
         // Resolve recipient display name first — needed for purchaser auto-create note
         String recipientDisplay = form.getRecipientClientId() != null
@@ -171,11 +172,10 @@ public class GiftCertificateService {
      * Use {@code .isPresent()} to check validity, {@code .orElse(null)} to get the name.
      */
     @Transactional
-    public java.util.Optional<String> findRecipientIfValid(String code) {
+    public java.util.Optional<GiftCertificate> findIfValid(String code) {
         syncExpired();
         return repository.findByCode(code.trim().toUpperCase())
-                .filter(c -> c.getStatus() == GiftCertificateStatus.ACTIVE)
-                .map(GiftCertificate::getRecipientName);
+                .filter(c -> c.getStatus() == GiftCertificateStatus.ACTIVE);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

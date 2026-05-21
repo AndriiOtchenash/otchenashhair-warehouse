@@ -2,8 +2,10 @@ package com.hairmony.warehouse.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.AppointmentService;
 import com.hairmony.warehouse.clientcare.service.GiftCertificateService;
+import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.ScalpPhotoService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
+import com.hairmony.warehouse.clientcare.web.dto.SalonServiceDto;
 import com.hairmony.warehouse.domain.stock.StockMovement;
 import com.hairmony.warehouse.service.ClientService;
 import com.hairmony.warehouse.service.StockService;
@@ -34,6 +36,7 @@ public class ClientController {
     private final VisitService visitService;
     private final AppointmentService appointmentService;
     private final GiftCertificateService giftCertificateService;
+    private final SalonServiceService salonServiceService;
     private final MessageSource messageSource;
 
     private boolean isClientCare(HttpServletRequest request) {
@@ -80,6 +83,9 @@ public class ClientController {
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("scalpPhotos", scalpPhotoService.findByClientId(id));
         model.addAttribute("visits", visitService.findByClientId(id));
+        model.addAttribute("serviceNames",
+                salonServiceService.findAll().stream()
+                        .collect(Collectors.toMap(SalonServiceDto::getId, SalonServiceDto::getName)));
         model.addAttribute("giftCertificates", giftCertificateService.findForClient(id));
         if (from != null) model.addAttribute("from", from);
         if (productId != null) model.addAttribute("productId", productId);

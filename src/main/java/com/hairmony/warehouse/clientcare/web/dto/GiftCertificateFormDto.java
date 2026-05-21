@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.clientcare.web.dto;
 
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -44,6 +46,9 @@ public class GiftCertificateFormDto {
 
     @NotNull(message = "{gift.service.required}")
     private Long serviceId;
+
+    @DecimalMin(value = "0", message = "{gift.price.min}")
+    private BigDecimal price = BigDecimal.ZERO;
 
     @NotNull(message = "{gift.expiresAt.required}")
     @Future(message = "{gift.expiresAt.future}")

@@ -143,6 +143,19 @@
                     </div>
                 </div>
 
+                <!-- Price — hidden for salon gifts -->
+                <div id="priceSection" class="mb-3">
+                    <label class="form-label fw-semibold" th:text="#{gift.form.price}">Вартість</label>
+                    <div class="input-group">
+                        <input type="number" id="price" class="form-control" th:field="*{price}"
+                               th:classappend="${#fields.hasErrors('price')} ? 'is-invalid'"
+                               step="0.01" min="0"
+                               th:placeholder="#{gift.form.price.hint}"/>
+                        <span class="input-group-text">zł</span>
+                        <div class="invalid-feedback" th:errors="*{price}"></div>
+                    </div>
+                </div>
+
                 <!-- Expiry date -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold" th:text="#{gift.form.expiresAt}">Дійсний до</label>
@@ -194,15 +207,17 @@
             document.getElementById('sectionPurchaserExisting').classList.toggle('active', isExisting);
             document.getElementById('sectionPurchaserNew').classList.toggle('active', isNew);
             document.getElementById('fromSalon').value = isSalon ? 'true' : 'false';
-            if (isExisting) {
+            document.getElementById('priceSection').style.display = isSalon ? 'none' : '';
+            if (isSalon) {
+                document.getElementById('price').value = '0';
+                tsClear('purchaserClientId');
                 document.getElementById('purchaserName').value  = '';
                 document.getElementById('purchaserPhone').value = '';
-            } else if (isNew) {
-                tsClear('purchaserClientId');
+            } else if (isExisting) {
+                document.getElementById('purchaserName').value  = '';
+                document.getElementById('purchaserPhone').value = '';
             } else {
                 tsClear('purchaserClientId');
-                document.getElementById('purchaserName').value  = '';
-                document.getElementById('purchaserPhone').value = '';
             }
         }
 
