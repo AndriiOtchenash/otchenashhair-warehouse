@@ -70,9 +70,23 @@ public class VisitService {
 
     @Transactional
     public void update(Long id, VisitDto dto) {
-        applyCertificatePayment(dto);
         Visit visit = visitRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("visit.notFound"));
+
+        // If the same certificate code is already applied to this visit — skip re-redemption.
+        // The cert was redeemed on first save; editing the visit protocol should not touch it again.
+        String existingCertCode = visit.getCertificateCode();
+        String incomingCertCode = trimOrNull(dto.getCertificateCode());
+        boolean sameCertAlreadyApplied = dto.getPaymentMethod() == PaymentMethod.CERTIFICATE
+                && incomingCertCode != null
+                && incomingCertCode.equals(existingCertCode);
+
+        if (sameCertAlreadyApplied) {
+            dto.setPaid(true); // keep paid=true, cert stays REDEEMED
+        } else {
+            applyCertificatePayment(dto); // new cert code or payment method change
+        }
+
         visit.setVisitDate(dto.getVisitDate());
         visit.setComplaint(dto.getComplaint());
         visit.setScalpCondition(dto.getScalpCondition());
@@ -82,7 +96,7 @@ public class VisitService {
         visit.setPriceAtTime(dto.getPriceAtTime());
         visit.setPaymentMethod(dto.getPaymentMethod());
         visit.setPaid(dto.isPaid());
-        visit.setCertificateCode(trimOrNull(dto.getCertificateCode()));
+        visit.setCertificateCode(incomingCertCode);
         // nextAppointment is managed separately via linkAppointment() — do not clear here
     }
 
