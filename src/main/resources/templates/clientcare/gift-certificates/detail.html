@@ -12,7 +12,7 @@
             </h1>
             <span th:switch="${cert.status.name()}">
                 <span th:case="'ACTIVE'"    class="badge bg-success"   th:text="#{gift.status.ACTIVE}"></span>
-                <span th:case="'REDEEMED'"  class="badge bg-primary"   th:text="#{gift.status.REDEEMED}"></span>
+                <span th:case="'REDEEMED'"  class="badge bg-secondary" th:text="#{gift.status.REDEEMED}"></span>
                 <span th:case="'EXPIRED'"   class="badge bg-warning text-dark" th:text="#{gift.status.EXPIRED}"></span>
                 <span th:case="'CANCELLED'" class="badge bg-secondary" th:text="#{gift.status.CANCELLED}"></span>
             </span>

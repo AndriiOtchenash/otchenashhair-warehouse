@@ -860,6 +860,10 @@ Sidebar nav link: `bi-bar-chart-line` icon, key `nav.clientcare.finance`, under 
 - `delete()` hard-deletes; guards against deleting REDEEMED certs (permanent records)
 - Detail page: status badge sits in page-header inline with cert code (left side), "Назад" on right
 - Client detail fragment: shows only latest cert; "Переглянути всі →" appears only when >1 cert
+- Client detail fragment cert card: cert code link + role badges (Покупець/Отримувач) on the **same row** via `d-flex align-items-center gap-2 flex-wrap`; service + expiry date on separate muted row below; `·` separator between service and expiry is conditional (`th:if="${cert.serviceName != null}"`) — not shown when service is absent
+- Cert code link color: `color:var(--accent)` — both in client-detail fragment (inline style) and list page (`.cert-code-link` class); NOT applied to the `<td>` to prevent recipient name inheriting monospace font
+- **Status badge colors** (consistent across `list.html`, `detail.html`, `client-detail.html`): ACTIVE=`bg-success`, REDEEMED=`bg-secondary` (grey — neutral "used"), EXPIRED=`bg-warning text-dark`, CANCELLED=`bg-secondary`; REDEEMED intentionally NOT `bg-primary` (Bootstrap blue is off-palette)
+- **Role badge colors** (client-detail fragment): Покупець=secondary-subtle (`#e2e3e5`/`#41464b`); Отримувач=success-subtle (`#d1e7dd`/`#0a3622`) — matches project palette, NOT Bootstrap `bg-info`
 - **`price` field (migration 023):** `BigDecimal price NOT NULL DEFAULT 0` — amount paid by purchaser; 0 = complimentary (salon gift)
 - Gift cert form: `id="priceSection"` wrapper; hidden and auto-set to 0 when purchaser = "від салону" via `syncPurchaserMode('salon')` JS; shown otherwise
 - Detail page: price row shows formatted amount + "zł" when `price.signum() > 0`; shows "від салону" (`gift.from.salon`) otherwise
@@ -892,7 +896,7 @@ Sidebar nav link: `bi-bar-chart-line` icon, key `nav.clientcare.finance`, under 
 - `getClientIdsWithUnpaidVisits()` → `Set<Long>`; used by ClientCareService (dashboard KPI) and ClientController (list icons)
 - Visit form: `id="visitForm"` required — JS `getElementById` targets correct form (layout logout form is also a `<form>`)
 - Payment warning JS: price=0 → confirm "Ціну не вказано"; price>0 + !paid → confirm "Оплату не підтверджено"
-- **Visit card layout (`visits.html`):** header row (`d-flex justify-content-between align-items-start`) with date/service/badges left + action buttons right (`flex-shrink-0`); separate full-width `<div>` block below for all description fields (complaint, scalp condition, recommendations, notes, next appointment) — descriptions use full card width, not constrained to a left column alongside the buttons
+- **Visit card layout** (both `visits.html` and `fragments/client-detail.html`): header row (`d-flex justify-content-between align-items-start`) with date/service/badges left + action buttons right (`flex-shrink-0`); separate descriptions block below — `d-flex flex-column gap-2 mt-2 small` on the wrapper, `small` not repeated on each child. Descriptions use full card width, not constrained alongside buttons.
 - **Service name in visit cards:** shown in header row with `bi-scissors` icon when `serviceId != null and serviceNames[serviceId] != null`; `serviceNames` map (`Map<Long, String>`) loaded in `VisitController.allVisits()` via `salonServiceService.findAll()` and also in `ClientController.detail()` for the client-detail fragment; fragment guards with `serviceNames != null` (warehouse context has no serviceNames in model)
 - **Visit form design (2026-05-21):** same design language as appointment form — `form-section-label` (uppercase
   green label with icon), `time-block` (accent-light bg block for billing section), `form-divider` (`<hr>`),
