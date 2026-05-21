@@ -223,6 +223,16 @@
                                               style="background:#d1e7dd;color:#0a3622">
                                             <i class="bi bi-check2 me-1"></i>
                                             <span th:text="#{visit.badge.paid}">Оплачено</span>
+                                            <span th:if="${visit.paymentMethod != null}"> &middot;
+                                                <span th:switch="${visit.paymentMethod.name()}">
+                                                    <span th:case="'CASH'"          th:text="#{payment.method.CASH}"></span>
+                                                    <span th:case="'CARD'"          th:text="#{payment.method.CARD}"></span>
+                                                    <span th:case="'CERTIFICATE'"   th:text="#{payment.method.CERTIFICATE}"></span>
+                                                    <span th:case="'BARTER'"        th:text="#{payment.method.BARTER}"></span>
+                                                    <span th:case="'COMPLIMENTARY'" th:text="#{payment.method.COMPLIMENTARY}"></span>
+                                                    <span th:case="'PROMO'"         th:text="#{payment.method.PROMO}"></span>
+                                                </span>
+                                            </span>
                                         </span>
                                     </div>
                                     <div th:if="${visit.complaint != null and !visit.complaint.isEmpty()}"
@@ -306,16 +316,16 @@
                         <div class="px-3 py-2">
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <div>
-                                    <a th:href="@{/clientcare/gift-certificates/{id}(id=${cert.id},returnTo=${currentPageUrl})}"
-                                       class="fw-semibold text-decoration-none"
-                                       style="font-family:monospace; font-size:0.9rem;"
-                                       th:text="${cert.code}">GIFT-2026-0001</a>
-                                    <div class="mt-1">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <a th:href="@{/clientcare/gift-certificates/{id}(id=${cert.id},returnTo=${currentPageUrl})}"
+                                           class="fw-semibold text-decoration-none"
+                                           style="font-family:monospace; font-size:0.9rem;"
+                                           th:text="${cert.code}">GIFT-2026-0001</a>
                                         <span th:if="${cert.purchaserClientId == client.id}"
-                                              class="badge bg-secondary me-1" style="font-size:0.65rem;"
+                                              class="badge bg-secondary" style="font-size:0.65rem;"
                                               th:text="#{gift.role.purchaser}">Покупець</span>
                                         <span th:if="${cert.recipientClientId == client.id}"
-                                              class="badge bg-info text-dark me-1" style="font-size:0.65rem;"
+                                              class="badge bg-info text-dark" style="font-size:0.65rem;"
                                               th:text="#{gift.role.recipient}">Отримувач</span>
                                     </div>
                                     <div class="small text-muted mt-1">

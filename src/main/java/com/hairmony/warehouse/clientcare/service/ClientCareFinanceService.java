@@ -24,6 +24,10 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ClientCareFinanceService {
 
+    /** Payment methods that represent actual cash revenue. */
+    private static final Set<PaymentMethod> REVENUE_METHODS =
+            Set.of(PaymentMethod.CASH, PaymentMethod.CARD);
+
     private final VisitRepository visitRepository;
     private final SalonServiceService salonServiceService;
     private final GiftCertificateRepository certRepository;
@@ -40,12 +44,12 @@ public class ClientCareFinanceService {
         Map<Long, String> serviceNames = salonServiceService.findAll().stream()
                 .collect(Collectors.toMap(SalonServiceDto::getId, SalonServiceDto::getName));
 
-        // Paid visits with cash or card (positive price) — certificate-paid visits not counted here
+        // Paid visits with real money (CASH/CARD) — cert/barter/complimentary/promo excluded
         List<Visit> paidVisits = all.stream()
                 .filter(v -> v.isPaid()
                         && v.getPriceAtTime() != null
                         && v.getPriceAtTime().compareTo(BigDecimal.ZERO) > 0
-                        && v.getPaymentMethod() != PaymentMethod.CERTIFICATE)
+                        && REVENUE_METHODS.contains(v.getPaymentMethod()))
                 .toList();
 
         // Unpaid visits with a positive price (real debt)
@@ -103,7 +107,7 @@ public class ClientCareFinanceService {
                 .filter(v -> v.isPaid()
                         && v.getPriceAtTime() != null
                         && v.getPriceAtTime().compareTo(BigDecimal.ZERO) > 0
-                        && v.getPaymentMethod() != PaymentMethod.CERTIFICATE)
+                        && REVENUE_METHODS.contains(v.getPaymentMethod()))
                 .toList();
 
         LocalDateTime fromDt = from.atStartOfDay();
@@ -189,7 +193,7 @@ public class ClientCareFinanceService {
                         Collectors.toList()));
 
         return Arrays.stream(PaymentMethod.values())
-                .filter(pm -> pm != PaymentMethod.CERTIFICATE) // cert revenue shown separately
+                .filter(REVENUE_METHODS::contains) // only cash revenue methods
                 .filter(grouped::containsKey)
                 .map(pm -> {
                     List<Visit> group = grouped.get(pm);

@@ -144,6 +144,7 @@
                         <label for="paymentMethod" class="form-label fw-semibold"
                                th:text="#{visit.form.paymentMethod}">Спосіб оплати</label>
                         <select id="paymentMethod" class="form-select" th:field="*{paymentMethod}"
+                                th:classappend="${#fields.hasErrors('paymentMethodRequiredWhenPaid')} ? 'is-invalid'"
                                 onchange="onPaymentMethodChange()">
                             <option value="" th:text="#{visit.form.paymentMethod.placeholder}">— не вказано —</option>
                             <option th:each="pm : ${paymentMethods}"
@@ -151,6 +152,7 @@
                                     th:text="#{payment.method.__${pm}__}">
                             </option>
                         </select>
+                        <div class="invalid-feedback" th:errors="*{paymentMethodRequiredWhenPaid}"></div>
                     </div>
 
                     <!-- Certificate code — shown only when CERTIFICATE -->
@@ -284,15 +286,27 @@
         }
 
         // ── Payment method toggle ─────────────────────────────────────────────
+        // CASH/CARD  — show price + isPaid checkbox
+        // CERTIFICATE — hide price + isPaid, show cert code field
+        // BARTER      — show price (barter value), hide isPaid (auto true)
+        // COMPLIMENTARY/PROMO — hide price + isPaid (auto true, price = null)
         function onPaymentMethodChange() {
+            document.getElementById('paymentMethod').classList.remove('is-invalid');
             const method = document.getElementById('paymentMethod').value;
-            const isCert = method === 'CERTIFICATE';
-            document.getElementById('certificateSection').style.display = isCert ? '' : 'none';
-            document.getElementById('paidSection').style.display        = isCert ? 'none' : '';
-            document.getElementById('priceSection').style.display       = isCert ? 'none' : '';
-            if (isCert) {
+            const isCert  = method === 'CERTIFICATE';
+            const isFree  = method === 'COMPLIMENTARY' || method === 'PROMO';
+            const isBarter = method === 'BARTER';
+            const hidePaid  = isCert || isFree || isBarter;
+            const hidePrice = isCert || isFree;
+
+            document.getElementById('certificateSection').style.display = isCert  ? '' : 'none';
+            document.getElementById('paidSection').style.display        = hidePaid ? 'none' : '';
+            document.getElementById('priceSection').style.display       = hidePrice ? 'none' : '';
+
+            if (isCert || isFree) {
                 document.getElementById('priceAtTime').value = '';
-            } else {
+            }
+            if (!isCert) {
                 document.getElementById('certificateCode').value = '';
                 clearCertStatus();
             }
@@ -301,8 +315,10 @@
 
         // ── Submit validation ─────────────────────────────────────────────────
         document.getElementById('visitForm').addEventListener('submit', function(e) {
-            const method = document.getElementById('paymentMethod').value;
-            const isCert = method === 'CERTIFICATE';
+            const method  = document.getElementById('paymentMethod').value;
+            const isCert  = method === 'CERTIFICATE';
+            const isFree  = method === 'COMPLIMENTARY' || method === 'PROMO';
+            const isBarter = method === 'BARTER';
 
             if (isCert) {
                 const codeEl = document.getElementById('certificateCode');
@@ -311,6 +327,16 @@
                     document.getElementById('certStatus').style.display = 'none';
                     e.preventDefault();
                 }
+                return;
+            }
+
+            // Free/barter visits — no price or paid warnings needed
+            if (isFree || isBarter) return;
+
+            // Payment method required when paid checkbox is checked
+            if (!method && document.getElementById('paid').checked) {
+                document.getElementById('paymentMethod').classList.add('is-invalid');
+                e.preventDefault();
                 return;
             }
 

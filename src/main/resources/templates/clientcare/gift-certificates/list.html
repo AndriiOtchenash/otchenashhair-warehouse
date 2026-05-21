@@ -4,7 +4,7 @@
 <body>
 <div th:fragment="content">
     <style>
-        .cert-code { font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.05em; }
+        .cert-code-link { font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.05em; color: var(--accent); }
         .days-badge { font-size: 0.72rem; }
         @media (max-width: 767.98px) {
             .table th { font-size: 0.75rem; padding: 0.35rem 0.4rem; }
@@ -109,11 +109,11 @@
                 <tr th:each="cert : ${certificates}"
                     th:classappend="${cert.redeemed} ? 'table-secondary' : (${cert.expired} ? 'table-warning' : (${cert.cancelled} ? 'table-secondary' : ''))"
                     th:attr="data-purchaser=${cert.purchaserName ?: ''},data-recipient=${cert.recipientName ?: ''}">
-                    <td class="cert-code">
+                    <td>
                         <a th:href="@{/clientcare/gift-certificates/{id}(id=${cert.id})}"
-                           th:text="${cert.code}" class="text-decoration-none">GIFT-2026-0001</a>
+                           th:text="${cert.code}" class="text-decoration-none cert-code-link">GIFT-2026-0001</a>
                         <span th:if="${cert.recipientName != null}"
-                              class="d-block d-md-none text-muted" style="font-size:1.05em" th:text="${cert.recipientName}"></span>
+                              class="d-block d-md-none text-muted small" th:text="${cert.recipientName}"></span>
                     </td>
                     <td class="d-none d-md-table-cell">
                         <a th:if="${cert.purchaserClientId != null}"

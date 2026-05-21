@@ -109,7 +109,8 @@ Migrations: 001-users, 002-suppliers, 003-clients, 004-products,
             019-create-services (services table for salon services),
             020-create-gift-certificates (gift_certificates table + indexes on purchaser/recipient/status),
             021-add-visit-billing (service_id, price_at_time, payment_method, is_paid, certificate_code on visits),
-            022-appointment-service-link (drops appointment_type; adds service_id BIGINT FK → services ON DELETE SET NULL on appointments)
+            022-appointment-service-link (drops appointment_type; adds service_id BIGINT FK → services ON DELETE SET NULL on appointments),
+            023-add-gift-certificate-price (adds price NUMERIC(10,2) NOT NULL DEFAULT 0 to gift_certificates)
 
 ## What's done
 - Dashboard (/) with 4 KPI filter cards (All/In stock/Attention/Out), server-side
@@ -737,10 +738,11 @@ Overdue: amber banner + "Прийшов" / "Не прийшов" buttons.
 NO_SHOW: redirect to edit page with action panel ("Черга follow-up" / "Записати повторно").
 See full spec in TODO → Wave 6 section.
 
-**Wave 7 — Gift Certificates — DONE (2026-05-20, migration 020)**
+**Wave 7 — Gift Certificates — DONE (2026-05-20, migrations 020 + 023)**
 Full gift certificate lifecycle: issue, cancel, restore, delete. Redemption happens via visit payment only.
+Migration 023 adds `price NUMERIC(10,2) NOT NULL DEFAULT 0` to `gift_certificates` — amount paid by purchaser; 0 = complimentary salon gift.
 `domain/gift/GiftCertificate.java` — JPA entity (id, code, purchaser_client_id, purchaser_name, purchaser_phone,
-  recipient_client_id, recipient_name, recipient_phone, service_id, service_name, status, notes, expires_at,
+  recipient_client_id, recipient_name, recipient_phone, service_id, service_name, price, status, notes, expires_at,
   issued_at, redeemed_at, cancelled_at). FK refs to clients/services stored as plain Long columns (not @ManyToOne).
 `domain/gift/GiftCertificateStatus.java` — enum: ACTIVE / REDEEMED / EXPIRED / CANCELLED.
 `repository/GiftCertificateRepository.java` — `findAllByOrderByIssuedAtDesc()`, `findByStatusOrderByIssuedAtDesc()`,
@@ -768,17 +770,22 @@ Migration 021 adds to `visits`: `service_id BIGINT FK → services ON DELETE SET
   `price_at_time NUMERIC(10,2)`, `payment_method VARCHAR(20)`,
   `is_paid BOOLEAN NOT NULL DEFAULT FALSE`, `certificate_code VARCHAR(20)`.
 `Visit.java` — real JPA `@Column` fields (was `@Transient` in draft).
-`VisitDto` — added: `serviceId`, `priceAtTime` (@DecimalMin), `paymentMethod`, `paid`, `certificateCode` (@Size max=20).
-`VisitService.applyCertificatePayment()` — validates cert code, sets REDEEMED + redeemedAt in same transaction.
+`VisitDto` — added: `serviceId`, `priceAtTime` (@DecimalMin), `paymentMethod`, `paid`, `certificateCode` (@Size max=20);
+  `@AssertTrue isPaymentMethodRequiredWhenPaid()` — if `paid=true` then `paymentMethod` must not be null.
+`VisitService.applyCertificatePayment()` — validates cert code, sets REDEEMED + redeemedAt in same transaction;
+  also handles `AUTO_PAID_METHODS` (BARTER/COMPLIMENTARY/PROMO): sets `paid=true`, clears `priceAtTime`.
 `VisitService.getClientIdsWithUnpaidVisits()` — `Set<Long>` via `VisitRepository.findClientIdsWithUnpaidVisits()`.
 `VisitController` — `populateFormModel()` helper loads activeServices + paymentMethods; `rejectCertificateError()` helper.
-Visit form billing section: service select, payment method select, price input (hidden + cleared when CERTIFICATE —
-  price is irrelevant for cert redemptions, revenue already captured at cert sale), certificate code input
-  (hidden when not CERTIFICATE), paid checkbox (accent color via CSS var override, hidden when CERTIFICATE).
-JS submit guard (non-CERTIFICATE only): price=0 → "Ціну не вказано. Зберегти?"; price>0 + !paid → "Оплату не підтверджено. Зберегти?".
+**Payment method UX in visit form (billing section):**
+  CASH/CARD → show price + isPaid checkbox;
+  CERTIFICATE → hide price + isPaid, show cert code field;
+  BARTER → show price (barter value recorded for internal tracking), hide isPaid (auto true);
+  COMPLIMENTARY/PROMO → hide price + isPaid (auto true, price = null — no cash exchanged).
+JS submit guard: CERTIFICATE → cert code required; BARTER/COMPLIMENTARY/PROMO → no warnings; CASH/CARD → price=0 warn, !paid warn.
+JS submit guard also: if `paid` checked but no method selected → select goes `is-invalid`, submit blocked.
 CERTIFICATE visits: priceAtTime submitted as null — passes @DecimalMin (Jakarta BV: null is valid for min/max constraints).
 Payment badges in visit cards: "Очікує оплати" (red, shown when price/method set but !paid);
-  "Оплачено" (green) — in both `fragments/client-detail.html` and `clientcare/clients/visits.html`.
+  "Оплачено · <метод>" (green, `th:switch` for method name) — in both `fragments/client-detail.html` and `clientcare/clients/visits.html`.
 `AppointmentDto` — all financial fields removed. Appointment form billing section removed.
 `ClientCareDashboardDto` — added `unpaidVisitCount` field.
 `ClientCareService` — computes `unpaidVisitCount` via `visitService.getClientIdsWithUnpaidVisits().size()`.
@@ -791,15 +798,17 @@ Font consistency — `body { font-family: var(--bs-body-font-family) }` added to
 Financial analytics page for the ClientCare module, separate from warehouse `/reports`.
 
 **Revenue model (cash accounting, finalized):**
-  Revenue = CASH/CARD paid visits (isPaid=true, priceAtTime>0, paymentMethod≠CERTIFICATE)
+  Revenue = CASH/CARD paid visits (isPaid=true, priceAtTime>0, paymentMethod ∈ REVENUE_METHODS)
           + certificate SALES in period (GiftCertificate.issuedAt in range, price>0, status≠CANCELLED).
-  CERTIFICATE-paid visits are NOT counted in revenue — the money was already captured at cert sale.
+  REVENUE_METHODS = {CASH, CARD} — defined as constant in `ClientCareFinanceService`.
+  BARTER/COMPLIMENTARY/PROMO visits: NOT counted in revenue (no cash exchanged); tracked in visit count only.
+  CERTIFICATE-paid visits: NOT counted in revenue — money already captured at cert sale.
   Rationale: cash accounting — revenue recorded when cash is received, not when service is delivered.
   Cross-period case: cert sold in April, redeemed in May → April revenue includes cert sale; May adds nothing. This is correct.
   `avgTicket` = total revenue ÷ (cash/card paid visits + paid certs sold).
   `unpaid` = visits where isPaid=false AND priceAtTime>0 (regardless of payment method).
-  `byService` and `byPaymentMethod` tables — based on CASH/CARD paid visits only (CERTIFICATE row excluded).
-  `byPaymentMethod` — CERTIFICATE method filtered out (shown separately in Сертифікати section).
+  `byService` and `byPaymentMethod` tables — based on CASH/CARD paid visits only.
+  `byPaymentMethod` — only REVENUE_METHODS rows shown (cert/barter/complimentary/promo excluded; cert shown separately).
   Сертифікати section: sold count + total in period; active (unredeemed) count + total liability (snapshot).
 
 `ClientCareFinanceService` — `@Transactional(readOnly = true)`; all computation in-memory (small dataset).
@@ -851,6 +860,11 @@ Sidebar nav link: `bi-bar-chart-line` icon, key `nav.clientcare.finance`, under 
 - `delete()` hard-deletes; guards against deleting REDEEMED certs (permanent records)
 - Detail page: status badge sits in page-header inline with cert code (left side), "Назад" on right
 - Client detail fragment: shows only latest cert; "Переглянути всі →" appears only when >1 cert
+- **`price` field (migration 023):** `BigDecimal price NOT NULL DEFAULT 0` — amount paid by purchaser; 0 = complimentary (salon gift)
+- Gift cert form: `id="priceSection"` wrapper; hidden and auto-set to 0 when purchaser = "від салону" via `syncPurchaserMode('salon')` JS; shown otherwise
+- Detail page: price row shows formatted amount + "zł" when `price.signum() > 0`; shows "від салону" (`gift.from.salon`) otherwise
+- `GiftCertificateFormDto.price` — `@DecimalMin("0")`; `GiftCertificateService.issue()` copies it to entity (null-safe, defaults to ZERO)
+- Purchaser client select uses `class="ts-client"` — TomSelect search enabled (same as all client selects in the project)
 
 ### Scalp Photos (Wave 2a — DONE)
 - `driveUrl` is the source of truth; `driveFileId` nullable (best-effort regex extract)
@@ -878,7 +892,8 @@ Sidebar nav link: `bi-bar-chart-line` icon, key `nav.clientcare.finance`, under 
 - `getClientIdsWithUnpaidVisits()` → `Set<Long>`; used by ClientCareService (dashboard KPI) and ClientController (list icons)
 - Visit form: `id="visitForm"` required — JS `getElementById` targets correct form (layout logout form is also a `<form>`)
 - Payment warning JS: price=0 → confirm "Ціну не вказано"; price>0 + !paid → confirm "Оплату не підтверджено"
-- Visit card layout: next-appointment indicators live inside `flex:1` column (same as visits.html); recommendations not text-muted; notes fst-italic
+- **Visit card layout (`visits.html`):** header row (`d-flex justify-content-between align-items-start`) with date/service/badges left + action buttons right (`flex-shrink-0`); separate full-width `<div>` block below for all description fields (complaint, scalp condition, recommendations, notes, next appointment) — descriptions use full card width, not constrained to a left column alongside the buttons
+- **Service name in visit cards:** shown in header row with `bi-scissors` icon when `serviceId != null and serviceNames[serviceId] != null`; `serviceNames` map (`Map<Long, String>`) loaded in `VisitController.allVisits()` via `salonServiceService.findAll()` and also in `ClientController.detail()` for the client-detail fragment; fragment guards with `serviceNames != null` (warehouse context has no serviceNames in model)
 - **Visit form design (2026-05-21):** same design language as appointment form — `form-section-label` (uppercase
   green label with icon), `time-block` (accent-light bg block for billing section), `form-divider` (`<hr>`),
   `form-actions` (bottom action bar with #f8fdf9 bg). Date input is inline in the section-label row
@@ -887,6 +902,8 @@ Sidebar nav link: `bi-bar-chart-line` icon, key `nav.clientcare.finance`, under 
 - **Certificate AJAX check** returns `{valid, recipientName}` — valid badge shows recipient name inline
   (`· Отримувач: Name`); on mobile (`< sm`) only checkmark + name visible, label text hidden via `d-none d-sm-inline`
 - `GiftCertificateService.findRecipientIfValid(code)` → `Optional<String>` (recipient name when ACTIVE, empty if not valid)
+- **`completeAppointmentId` pattern (deferred appointment completion):** "Завершити прийом" in `AppointmentController.complete()` does NOT immediately set status=COMPLETED; instead redirects to `/clientcare/visits/new?clientId=X&completeAppointmentId={id}&returnTo=...`; visit form passes `completeAppointmentId` as hidden field; `VisitController.save()` calls `appointmentService.changeStatus(COMPLETED)` + `visitService.unlinkCompletedAppointment()` ONLY after visit is successfully saved — prevents appointment stuck as COMPLETED when user cancels or abandons the visit form
+- **Same-cert guard in `update()`:** `VisitService.update()` compares `existingCertCode` (from loaded visit) with `incomingCertCode` (from DTO); if same code + CERTIFICATE method → skip `applyCertificatePayment()` and set `paid=true` directly; prevents "certificate already redeemed" error when editing non-payment fields of a cert-paid visit
 
 **Visit → Appointment link (migration 018, 2026-05-17):**
 `visits.next_appointment_id BIGINT FK → appointments(id) ON DELETE SET NULL` — links a visit to its planned next appointment.
@@ -1011,7 +1028,7 @@ When a client arrives and the appointment is completed, the user has no guided p
 - "Завершити прийом і записати протокол →" button on appointment edit page (shown when status = PLANNED or CONFIRMED and client is linked, not a guest)
 - `canComplete` boolean set in `AppointmentController.editForm()`, passed to model
 - Button is a separate `<form>` with `POST /{id}/complete` action (outside the main appointment form)
-- `AppointmentController.complete()`: changes status → COMPLETED, calls `visitService.unlinkCompletedAppointment(id)` to clear stale nextAppointment on old visit, redirects to `/clientcare/visits/new?clientId=X&returnTo=/clientcare/appointments?date=YYYY-MM-DD`
+- `AppointmentController.complete()`: does NOT set status immediately; redirects to `/clientcare/visits/new?clientId=X&completeAppointmentId={id}&returnTo=/clientcare/appointments?date=YYYY-MM-DD` — status change deferred to visit save (see `completeAppointmentId` pattern in Visits technical notes)
 - Visit form pre-fills clientId and visitDate=today (existing behavior)
 - After saving the visit → return to calendar day (via returnTo)
 - Variant B (appointment_id FK on visits) — NOT needed given current requirements
