@@ -367,6 +367,14 @@
         <!-- ── ПОКУПКИ TAB ─────────────────────────────────────────────── -->
         <div class="tab-pane fade" id="tab-purchases" role="tabpanel">
             <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-semibold small text-muted" th:text="#{tab.purchases}">Покупки</span>
+                    <a th:href="@{/movements/expense(clientId=${client.id},movementType='SALE',returnTo=${currentPageUrl})}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus-lg me-1"></i>
+                        <span th:text="#{client.addPurchase}">Додати покупку</span>
+                    </a>
+                </div>
                 <div th:unless="${movements.empty}" class="p-2 border-bottom">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <div class="input-group input-group-sm" id="dateFromWrap" style="flex:1;min-width:0">

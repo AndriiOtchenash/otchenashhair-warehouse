@@ -4,7 +4,9 @@ import com.hairmony.warehouse.domain.stock.MovementType;
 import com.hairmony.warehouse.domain.stock.WriteOffReason;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.springframework.format.annotation.DateTimeFormat;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -26,6 +28,11 @@ public class StockExpenseDto {
     private BigDecimal unitPrice;          // only for SALE
     private Long clientId;                 // only for SALE / WRITE_OFF+GIFT
     private WriteOffReason writeOffReason; // only for WRITE_OFF
+
+    @NotNull
+    @PastOrPresent(message = "{stock.expense.saleDateFuture}")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate saleDate;
 
     @Size(max = 1000, message = "{validation.size.max1000}")
     private String notes;

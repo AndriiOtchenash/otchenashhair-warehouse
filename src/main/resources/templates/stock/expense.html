@@ -5,9 +5,17 @@
 <div th:fragment="content">
     <style>
         .card-body { overflow-x: visible !important; }
+        .compact-fields .form-control { text-align: right; }
+        .field-locked { cursor: not-allowed; }
+        .filter-select-wrap > .ts-wrapper { flex: 1; min-width: 0; }
+        .filter-select-wrap .ts-wrapper.has-items .ts-control > input { width: 0 !important; min-width: 0 !important; }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{stock.expense.title}">Витрата товару</h1>
+        <a th:if="${returnTo != null}" th:href="${returnTo}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
+        </a>
     </div>
 
     <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-3">
@@ -21,115 +29,338 @@
 
     <div class="card">
         <div class="card-body">
-            <form th:action="@{/movements/expense}" th:object="${dto}" method="post" data-autosave-key="expense_form">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
-                        <select class="form-select ts-client" th:field="*{productId}"
-                                th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
-                                th:disabled="${dto.productId != null}"
-                                id="productSelect"
-                                onchange="updateStockHint(this)">
-                            <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
-                            <option th:each="p : ${products}"
-                                    th:value="${p.id}"
-                                    th:text="${p.name}"
-                                    th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''}">
-                            </option>
-                        </select>
-                        <input th:if="${dto.productId != null}" type="hidden" name="productId" th:value="${dto.productId}"/>
-                        <div id="stockHint" class="form-text text-muted mt-1"></div>
-                        <div class="invalid-feedback" th:errors="*{productId}"></div>
-                        <div th:if="${dto.productId == null}">
-                            <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                                <input type="text" id="barcodeInput" class="form-control"
-                                       th:placeholder="#{scan.barcode.placeholder}"
-                                       autocomplete="off"/>
+            <form th:action="@{/movements/expense}" th:object="${dto}" method="post">
+                <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
+
+                <!-- ======== COMPACT LOCKED LAYOUT (from client page) ======== -->
+                <th:block th:if="${clientLocked}">
+                    <input type="hidden" name="clientId" th:value="${dto.clientId}"/>
+                    <input type="hidden" name="movementType" value="SALE"/>
+                    <div class="row g-3">
+                        <!-- Product (full width, unchanged) -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
+                            <div class="filter-select-wrap">
+                                <select class="form-select ts-client" th:field="*{productId}"
+                                        th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
+                                        th:disabled="${dto.productId != null}"
+                                        id="productSelect"
+                                        onchange="updateStockHint(this)">
+                                    <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
+                                    <option th:each="p : ${products}"
+                                            th:value="${p.id}"
+                                            th:text="${p.name}"
+                                            th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''}">
+                                    </option>
+                                </select>
+                                <button th:if="${dto.productId == null}" type="button" id="clearProductBtn"
+                                        class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                        onclick="clearProduct()" tabindex="-1" style="display:none">
+                                    <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                </button>
                             </div>
-                            <div id="barcodeError" class="form-text mt-1" style="display:none"></div>
+                            <input th:if="${dto.productId != null}" id="productIdHidden" type="hidden" name="productId" th:value="${dto.productId}"/>
+                            <div id="stockHint" class="form-text text-muted mt-1"></div>
+                            <div class="invalid-feedback" th:errors="*{productId}"></div>
+                            <div id="barcodeBlock" th:if="${dto.productId == null}">
+                                <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                                    <input type="text" id="barcodeInput" class="form-control"
+                                           th:placeholder="#{scan.barcode.placeholder}"
+                                           autocomplete="off"/>
+                                </div>
+                                <div id="barcodeError" class="form-text mt-1" style="display:none"></div>
+                            </div>
+                        </div>
+
+                        <!-- Compact label | input pairs -->
+                        <div class="col-12">
+                            <div class="row gy-2 gx-0 align-items-center compact-fields">
+
+                                <!-- Quantity -->
+                                <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
+                                <div class="col-8" id="qtyWrapper">
+                                    <div class="input-group">
+                                        <input type="number" step="1" class="form-control"
+                                               id="quantity"
+                                               th:field="*{quantity}"
+                                               th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"
+                                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"
+                                               onblur="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"/>
+                                        <button type="button" id="clearQtyBtn"
+                                                class="btn btn-outline-secondary d-md-none px-1"
+                                                onclick="document.getElementById('quantity').value=''; updateTotal(); syncClearBtns();"
+                                                tabindex="-1" style="display:none">
+                                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback" th:errors="*{quantity}"></div>
+                                </div>
+
+                                <!-- Price -->
+                                <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.salePrice}">Ціна продажу</label>
+                                <div class="col-8" id="priceField">
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0.01" max="99999.99" id="unitPriceInput"
+                                               class="form-control"
+                                               th:field="*{unitPrice}"
+                                               th:classappend="${#fields.hasErrors('unitPrice')} ? 'is-invalid'"/>
+                                        <span class="input-group-text">zł</span>
+                                        <button type="button" id="clearPriceBtn"
+                                                class="btn btn-outline-secondary d-md-none px-1"
+                                                onclick="document.getElementById('unitPriceInput').value=''; checkPriceWarning(); updateTotal(); syncClearBtns();"
+                                                tabindex="-1" style="display:none">
+                                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback" th:errors="*{unitPrice}"></div>
+                                </div>
+                                <div class="col-12" id="priceWarning" style="display:none">
+                                    <div class="alert alert-warning py-1 px-2 mb-0 small text-center">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="priceWarningText"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Client (locked) -->
+                                <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
+                                <div class="col-8" id="saleFields">
+                                    <div class="form-control text-center" style="background:#e9ecef; color:#6c757d; cursor:default;"
+                                         th:text="${lockedClientName}"></div>
+                                </div>
+
+                                <!-- Date -->
+                                <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.saleDate}">Дата</label>
+                                <div class="col-8">
+                                    <input type="date" class="form-control text-center"
+                                           th:field="*{saleDate}"
+                                           th:max="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
+                                           th:classappend="${#fields.hasErrors('saleDate')} ? 'is-invalid'"
+                                           onclick="this.showPicker&&this.showPicker()"/>
+                                    <div class="invalid-feedback" th:errors="*{saleDate}"></div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Price below cost warning (full width, outside compact row) -->
+                        <div class="col-12">
+                            <div id="priceWarning" class="alert alert-warning py-1 px-2 mb-0 small" style="display:none">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="priceWarningText"></span>
+                            </div>
+                        </div>
+
+                        <!-- Total -->
+                        <div class="col-12" id="saleTotalBox" style="display:none">
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 rounded fw-semibold"
+                                 style="background:var(--accent-light)">
+                                <span class="text-muted small" th:text="#{stock.form.total}">До сплати</span>
+                                <span class="fs-5" id="saleTotalAmount" style="color:var(--accent)"></span>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
+                            <textarea class="form-control" rows="2" th:field="*{notes}"></textarea>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="col-12 d-flex flex-column flex-sm-row-reverse gap-2 justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-arrow-up-circle me-1"></i>
+                                <span th:text="#{stock.expense.submit}">Зареєструвати витрату</span>
+                            </button>
+                            <a th:href="${returnTo != null ? returnTo : '/'}" class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
                         </div>
                     </div>
+                </th:block>
 
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.movementType}">Тип операції</label>
-                        <select class="form-select" th:field="*{movementType}"
-                                th:classappend="${#fields.hasErrors('movementType')} ? 'is-invalid'">
-                            <option value="" th:text="#{stock.form.selectType}">-- Тип --</option>
-                            <option th:each="t : ${expenseTypes}"
-                                    th:value="${t}"
-                                    th:text="#{movementType.__${t}__}">
-                            </option>
-                        </select>
-                        <div class="invalid-feedback" th:errors="*{movementType}"></div>
-                    </div>
+                <!-- ======== STANDARD UNLOCKED LAYOUT ======== -->
+                <th:block th:unless="${clientLocked}">
+                    <div class="row g-3">
 
-                    <div class="col-md-3" id="writeOffReasonField">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.writeOffReason}">Причина списання</label>
-                        <select class="form-select" id="writeOffReasonSelect" th:field="*{writeOffReason}">
-                            <option value="" th:text="#{stock.form.selectType}">-- Причина --</option>
-                            <option th:each="r : ${writeOffReasons}"
-                                    th:value="${r}"
-                                    th:text="#{writeOffReason.__${r}__}">
-                            </option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
-                        <input type="number" step="1" class="form-control"
-                               id="quantity"
-                               th:field="*{quantity}"
-                               th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"
-                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"
-                               onblur="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"/>
-                        <div class="invalid-feedback" th:errors="*{quantity}"></div>
-                    </div>
-
-                    <div class="col-md-6" id="saleFields">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.client}">Клієнт</label>
-                        <select class="form-select ts-client" th:field="*{clientId}">
-                            <option value="" th:text="#{stock.form.selectClient}">-- Оберіть клієнта --</option>
-                            <option th:each="c : ${clients}"
-                                    th:value="${c.id}"
-                                    th:text="${c.name}">
-                            </option>
-                        </select>
-                        <div class="mt-1">
-                            <span class="text-muted small" th:text="#{common.or}">або</span>
-                            <a id="newClientLink" href="/clients/new?returnTo=expense"
-                               class="small fw-semibold text-decoration-none ms-1"
-                               style="color:var(--accent)"
-                               th:text="#{client.createNew}">Створити нового клієнта →</a>
+                        <!-- Product (full width) -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
+                            <div class="filter-select-wrap">
+                                <select class="form-select ts-client" th:field="*{productId}"
+                                        th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
+                                        th:disabled="${dto.productId != null}"
+                                        id="productSelect"
+                                        onchange="updateStockHint(this)">
+                                    <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
+                                    <option th:each="p : ${products}"
+                                            th:value="${p.id}"
+                                            th:text="${p.name}"
+                                            th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''}">
+                                    </option>
+                                </select>
+                                <button th:if="${dto.productId == null}" type="button" id="clearProductBtn"
+                                        class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                        onclick="clearProduct()" tabindex="-1" style="display:none">
+                                    <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                </button>
+                            </div>
+                            <input th:if="${dto.productId != null}" id="productIdHidden" type="hidden" name="productId" th:value="${dto.productId}"/>
+                            <div id="stockHint" class="form-text text-muted mt-1"></div>
+                            <div class="invalid-feedback" th:errors="*{productId}"></div>
+                            <div id="barcodeBlock" th:if="${dto.productId == null}">
+                                <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                                    <input type="text" id="barcodeInput" class="form-control"
+                                           th:placeholder="#{scan.barcode.placeholder}"
+                                           autocomplete="off"/>
+                                </div>
+                                <div id="barcodeError" class="form-text mt-1" style="display:none"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="col-md-3" id="priceField">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.salePrice}">Ціна продажу</label>
-                        <input type="number" step="0.01" min="0.01" id="unitPriceInput"
-                               class="form-control"
-                               th:field="*{unitPrice}"
-                               th:classappend="${#fields.hasErrors('unitPrice')} ? 'is-invalid'"/>
-                        <div class="invalid-feedback" th:errors="*{unitPrice}"></div>
-                        <div id="priceWarning" class="alert alert-warning py-1 px-2 mt-1 mb-0 small" style="display:none">
-                            <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="priceWarningText"></span>
+                        <!-- Compact label | input pairs -->
+                        <div class="col-12">
+                            <div class="row gy-2 gx-0 align-items-center compact-fields">
+
+                                <!-- Movement type -->
+                                <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.movementType}">Тип операції</label>
+                                <div class="col-8">
+                                    <select class="form-select" th:field="*{movementType}"
+                                            th:classappend="${#fields.hasErrors('movementType')} ? 'is-invalid'">
+                                        <option value="" th:text="#{stock.form.selectType}">-- Тип --</option>
+                                        <option th:each="t : ${expenseTypes}"
+                                                th:value="${t}"
+                                                th:text="#{movementType.__${t}__}">
+                                        </option>
+                                    </select>
+                                    <div class="invalid-feedback" th:errors="*{movementType}"></div>
+                                </div>
+
+                                <!-- Write-off reason (hidden until WRITE_OFF selected) -->
+                                <label class="col-4 col-form-label fw-semibold" id="writeOffReasonLabel"
+                                       style="display:none" th:text="#{stock.form.writeOffReason}">Причина списання</label>
+                                <div class="col-8" id="writeOffReasonField" style="display:none">
+                                    <select class="form-select" id="writeOffReasonSelect" th:field="*{writeOffReason}">
+                                        <option value="" th:text="#{stock.form.selectReason}">-- Причина --</option>
+                                        <option th:each="r : ${writeOffReasons}"
+                                                th:value="${r}"
+                                                th:text="#{writeOffReason.__${r}__}">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- Quantity -->
+                                <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
+                                <div class="col-8" id="qtyWrapper">
+                                    <div class="input-group">
+                                        <input type="number" step="1" class="form-control"
+                                               id="quantity"
+                                               th:field="*{quantity}"
+                                               th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"
+                                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"
+                                               onblur="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"/>
+                                        <button type="button" id="clearQtyBtn"
+                                                class="btn btn-outline-secondary d-md-none px-1"
+                                                onclick="document.getElementById('quantity').value=''; updateTotal(); syncClearBtns();"
+                                                tabindex="-1" style="display:none">
+                                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback" th:errors="*{quantity}"></div>
+                                </div>
+
+                                <!-- Price (hidden until SALE selected) -->
+                                <label class="col-4 col-form-label fw-semibold" id="priceFieldLabel"
+                                       style="display:none" th:text="#{stock.form.salePrice}">Ціна продажу</label>
+                                <div class="col-8" id="priceField" style="display:none">
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0.01" max="99999.99" id="unitPriceInput"
+                                               class="form-control"
+                                               th:field="*{unitPrice}"
+                                               th:classappend="${#fields.hasErrors('unitPrice')} ? 'is-invalid'"/>
+                                        <span class="input-group-text">zł</span>
+                                        <button type="button" id="clearPriceBtn"
+                                                class="btn btn-outline-secondary d-md-none px-1"
+                                                onclick="document.getElementById('unitPriceInput').value=''; checkPriceWarning(); updateTotal(); syncClearBtns();"
+                                                tabindex="-1" style="display:none">
+                                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback" th:errors="*{unitPrice}"></div>
+                                </div>
+                                <div class="col-12" id="priceWarning" style="display:none">
+                                    <div class="alert alert-warning py-1 px-2 mb-0 small text-center">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="priceWarningText"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Client (hidden until SALE or GIFT selected) -->
+                                <label class="col-4 col-form-label fw-semibold" id="saleFieldsLabel"
+                                       style="display:none" th:text="#{stock.form.client}">Клієнт</label>
+                                <div class="col-8" id="saleFields" style="display:none">
+                                    <div class="filter-select-wrap">
+                                        <select class="form-select ts-client" th:field="*{clientId}">
+                                            <option value="" th:text="#{stock.form.selectClient}">-- Оберіть клієнта --</option>
+                                            <option th:each="c : ${clients}"
+                                                    th:value="${c.id}"
+                                                    th:text="${c.name}">
+                                            </option>
+                                        </select>
+                                        <button type="button" id="clearClientBtn"
+                                                class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                                onclick="clearClientSelect()" tabindex="-1" style="display:none">
+                                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mt-1" id="createClientRow">
+                                        <span class="text-muted small" th:text="#{common.or}">або</span>
+                                        <a id="newClientLink" href="/clients/new?returnTo=expense"
+                                           class="small fw-semibold text-decoration-none ms-1"
+                                           style="color:var(--accent)"
+                                           th:text="#{client.createNew}">Створити нового клієнта →</a>
+                                    </div>
+                                </div>
+
+                                <!-- Date -->
+                                <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.saleDate}">Дата</label>
+                                <div class="col-8">
+                                    <input type="date" class="form-control text-center"
+                                           th:field="*{saleDate}"
+                                           th:max="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
+                                           th:classappend="${#fields.hasErrors('saleDate')} ? 'is-invalid'"
+                                           onclick="this.showPicker&&this.showPicker()"/>
+                                    <div class="invalid-feedback" th:errors="*{saleDate}"></div>
+                                </div>
+
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="col-12">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
-                        <textarea class="form-control" rows="2" th:field="*{notes}"></textarea>
-                    </div>
+                        <!-- Total -->
+                        <div class="col-12" id="saleTotalBox" style="display:none">
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 rounded fw-semibold"
+                                 style="background:var(--accent-light)">
+                                <span class="text-muted small" th:text="#{stock.form.total}">До сплати</span>
+                                <span class="fs-5" id="saleTotalAmount" style="color:var(--accent)"></span>
+                            </div>
+                        </div>
 
-                    <div class="col-12 d-flex flex-column flex-sm-row-reverse gap-2 justify-content-end">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-arrow-up-circle me-1"></i>
-                            <span th:text="#{stock.expense.submit}">Зареєструвати витрату</span>
-                        </button>
-                        <a th:href="@{/}" class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
+                            <textarea class="form-control" rows="2" th:field="*{notes}"></textarea>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="col-12 d-flex flex-column flex-sm-row-reverse gap-2 justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-arrow-up-circle me-1"></i>
+                                <span th:text="#{stock.expense.submit}">Зареєструвати витрату</span>
+                            </button>
+                            <a th:href="${returnTo != null ? returnTo : '/'}" class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                        </div>
+
                     </div>
-                </div>
+                </th:block>
+
             </form>
         </div>
     </div>
@@ -145,6 +376,8 @@
             const option = select.options[select.selectedIndex];
             const hint = document.getElementById('stockHint');
             const quantityInput = document.getElementById('quantity');
+            const barcodeBlock = document.getElementById('barcodeBlock');
+            const clearProductBtn = document.getElementById('clearProductBtn');
             if (option && option.dataset.qty) {
                 const qty = option.dataset.qty;
                 const unit = option.dataset.unit;
@@ -157,14 +390,69 @@
                         quantityInput.value = Math.floor(parseFloat(quantityInput.value));
                     }
                 }
+                if (barcodeBlock) barcodeBlock.style.display = 'none';
+                if (clearProductBtn) clearProductBtn.style.display = '';
             } else {
                 hint.textContent = '';
                 if (quantityInput) {
                     quantityInput.removeAttribute('max');
                     quantityInput.step = '1';
                 }
+                if (barcodeBlock) barcodeBlock.style.display = '';
+                if (clearProductBtn) clearProductBtn.style.display = 'none';
             }
             checkPriceWarning();
+            syncFieldsLock();
+        }
+
+        function clearProduct() {
+            const productSelect = document.getElementById('productSelect');
+            if (!productSelect) return;
+            if (productSelect.tomselect) productSelect.tomselect.clear();
+            else productSelect.value = '';
+            productSelect.disabled = false;
+            const hidden = document.getElementById('productIdHidden');
+            if (hidden) hidden.disabled = true;
+            updateStockHint(productSelect);
+        }
+
+        const selectProductFirst = /*[[#{stock.expense.selectProductFirst}]]*/ 'Для початку операції оберіть товар';
+
+        function updateTotal() {
+            const qty = parseFloat(document.getElementById('quantity')?.value);
+            const price = parseFloat(document.getElementById('unitPriceInput')?.value);
+            const box = document.getElementById('saleTotalBox');
+            const amountEl = document.getElementById('saleTotalAmount');
+            if (!box || !amountEl) return;
+            const typeSelect = document.querySelector('[name="movementType"]');
+            const isSale = !typeSelect || typeSelect.value === 'SALE';
+            if (isSale && qty > 0 && price > 0) {
+                amountEl.textContent = (qty * price).toFixed(2);
+                box.style.display = '';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function syncFieldsLock() {
+            const productSelect = document.getElementById('productSelect');
+            const hasProduct = !!(productSelect && productSelect.value);
+            const qty = document.getElementById('quantity');
+            const price = document.getElementById('unitPriceInput');
+            if (qty) qty.disabled = !hasProduct;
+            if (price) price.disabled = !hasProduct;
+
+            // Show/create hint above compact fields when no product selected
+            let hint = document.getElementById('noProductHint');
+            if (!hint) {
+                hint = document.createElement('div');
+                hint.id = 'noProductHint';
+                hint.className = 'alert alert-warning py-2 px-3 mb-2 small text-center';
+                hint.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>' + selectProductFirst;
+                const compactRow = document.querySelector('.compact-fields');
+                if (compactRow) compactRow.closest('.col-12').insertBefore(hint, compactRow);
+            }
+            hint.style.display = hasProduct ? 'none' : '';
         }
 
         const saleNoClientMsg = /*[[#{stock.expense.confirm.noClient}]]*/ 'Продаж без клієнта. Продовжити?';
@@ -210,7 +498,11 @@
             const writeOffReasonField = document.getElementById('writeOffReasonField');
 
             if (saleFields) saleFields.style.display = showClient ? '' : 'none';
+            const saleFieldsLabel = document.getElementById('saleFieldsLabel');
+            if (saleFieldsLabel) saleFieldsLabel.style.display = showClient ? '' : 'none';
             if (priceField) priceField.style.display = isSale ? '' : 'none';
+            const priceFieldLabel = document.getElementById('priceFieldLabel');
+            if (priceFieldLabel) priceFieldLabel.style.display = isSale ? '' : 'none';
             if (priceInput) {
                 priceInput.required = isSale;
                 if (!isSale) {
@@ -220,7 +512,7 @@
                     if (warningDiv) warningDiv.style.display = 'none';
                 }
             }
-            if (!showClient) {
+            if (!showClient && !CLIENT_LOCKED) {
                 const clientSelect = document.querySelector('[name="clientId"]');
                 if (clientSelect) {
                     if (clientSelect.tomselect) clientSelect.tomselect.clear();
@@ -229,18 +521,16 @@
             }
 
             if (writeOffReasonField) writeOffReasonField.style.display = isWriteOff ? '' : 'none';
+            const writeOffReasonLabel = document.getElementById('writeOffReasonLabel');
+            if (writeOffReasonLabel) writeOffReasonLabel.style.display = isWriteOff ? '' : 'none';
             if (writeOffReasonSelect && !isWriteOff) writeOffReasonSelect.value = '';
+            updateTotal();
         }
 
         const PRESELECTED_CLIENT_ID = /*[[${dto.clientId}]]*/ null;
+        const CLIENT_LOCKED = /*[[${clientLocked == true}]]*/ false;
 
-        // Clear stale autosave synchronously (before DOMContentLoaded callbacks run)
-        // so the restore banner never appears when we're returning from client creation.
-        if (PRESELECTED_CLIENT_ID) {
-            try { localStorage.removeItem('form_autosave_expense_form'); } catch (e) {}
-        }
-
-        function updateNewClientLink() {
+function updateNewClientLink() {
             const link = document.getElementById('newClientLink');
             if (!link) return;
             const typeSelect = document.querySelector('[name="movementType"]');
@@ -253,9 +543,36 @@
             link.href = href;
         }
 
+        function syncClearBtns() {
+            const qty = document.getElementById('quantity');
+            const price = document.getElementById('unitPriceInput');
+            const clearQty = document.getElementById('clearQtyBtn');
+            const clearPrice = document.getElementById('clearPriceBtn');
+            if (clearQty) clearQty.style.display = (qty && qty.value) ? '' : 'none';
+            if (clearPrice) clearPrice.style.display = (price && price.value) ? '' : 'none';
+        }
+
+        function clearClientSelect() {
+            const clientSel = document.querySelector('[name="clientId"]');
+            if (!clientSel) return;
+            if (clientSel.tomselect) clientSel.tomselect.clear();
+            else clientSel.value = '';
+            syncCreateClientLink();
+        }
+
+        function syncCreateClientLink() {
+            const clientSel = document.querySelector('[name="clientId"]');
+            const createRow = document.getElementById('createClientRow');
+            const clearBtn = document.getElementById('clearClientBtn');
+            const hasClient = !!(clientSel && clientSel.value);
+            if (createRow) createRow.style.display = hasClient ? 'none' : '';
+            if (clearBtn) clearBtn.style.display = hasClient ? '' : 'none';
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const productSelect = document.getElementById('productSelect');
             if (productSelect && productSelect.value) updateStockHint(productSelect);
+            syncFieldsLock();
 
             const typeSelect = document.querySelector('[name="movementType"]');
             if (typeSelect) {
@@ -282,12 +599,26 @@
             }
 
             const priceInput = document.getElementById('unitPriceInput');
-            if (priceInput) priceInput.addEventListener('input', checkPriceWarning);
+            if (priceInput) {
+                priceInput.addEventListener('input', checkPriceWarning);
+                priceInput.addEventListener('input', updateTotal);
+                priceInput.addEventListener('input', syncClearBtns);
+            }
 
             const quantityInput = document.getElementById('quantity');
-            if (quantityInput) quantityInput.addEventListener('input', updateNewClientLink);
+            if (quantityInput) {
+                quantityInput.addEventListener('input', updateNewClientLink);
+                quantityInput.addEventListener('input', updateTotal);
+                quantityInput.addEventListener('input', syncClearBtns);
+            }
+            updateTotal();
+            syncClearBtns();
 
-            const form = document.querySelector('form[data-autosave-key="expense_form"]');
+            const clientSelectEl = document.querySelector('[name="clientId"]');
+            if (clientSelectEl) clientSelectEl.addEventListener('change', syncCreateClientLink);
+            syncCreateClientLink();
+
+            const form = document.querySelector('form');
             if (form) {
                 form.addEventListener('submit', function(e) {
                     const type = document.querySelector('[name="movementType"]');

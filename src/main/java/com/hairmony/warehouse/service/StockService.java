@@ -121,6 +121,10 @@ public class StockService {
             movement.setClient(clientRepository.findById(dto.getClientId()).orElse(null));
         }
 
+        if (dto.getSaleDate() != null && !dto.getSaleDate().equals(java.time.LocalDate.now())) {
+            movement.setCreatedAt(dto.getSaleDate().atTime(java.time.LocalTime.now()));
+        }
+
         stockMovementRepository.save(movement);
     }
 

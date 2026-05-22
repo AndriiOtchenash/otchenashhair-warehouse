@@ -5,9 +5,17 @@
 <div th:fragment="content">
     <style>
         .card-body { overflow-x: visible !important; }
+        .compact-fields .form-control { text-align: right; }
+        .compact-fields input[type="date"] { text-align: center; }
+        .filter-select-wrap > .ts-wrapper { flex: 1; min-width: 0; }
+        .filter-select-wrap .ts-wrapper.has-items .ts-control > input { width: 0 !important; min-width: 0 !important; }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{stock.income.title}">Прихід товару</h1>
+        <a th:if="${returnTo != null}" th:href="${returnTo}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
+        </a>
     </div>
 
     <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-3">
@@ -21,24 +29,34 @@
 
     <div class="card">
         <div class="card-body">
-            <form th:action="@{/movements/income}" th:object="${dto}" method="post" data-autosave-key="income_form">
+            <form th:action="@{/movements/income}" th:object="${dto}" method="post">
+                <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <div class="row g-3">
-                    <div class="col-md-6">
+
+                    <!-- Product (full width) -->
+                    <div class="col-12">
                         <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
-                        <select class="form-select ts-client" id="productSelect" th:field="*{productId}"
-                                th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
-                                th:disabled="${dto.productId != null}"
-                                onchange="updateQuantityStep(this)">
-                            <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
-                            <option th:each="p : ${products}"
-                                    th:value="${p.id}"
-                                    th:text="${p.name} + ' (' + #{unit.__${p.unit}__} + ')'"
-                                    th:attr="data-unit=${p.unit}">
-                            </option>
-                        </select>
-                        <input th:if="${dto.productId != null}" type="hidden" name="productId" th:value="${dto.productId}"/>
+                        <div class="filter-select-wrap">
+                            <select class="form-select ts-client" id="productSelect" th:field="*{productId}"
+                                    th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
+                                    th:disabled="${dto.productId != null}"
+                                    onchange="onProductChange(this)">
+                                <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
+                                <option th:each="p : ${products}"
+                                        th:value="${p.id}"
+                                        th:text="${p.name} + ' (' + #{unit.__${p.unit}__} + ')'"
+                                        th:attr="data-unit=${p.unit}">
+                                </option>
+                            </select>
+                            <button th:if="${dto.productId == null}" type="button" id="clearProductBtn"
+                                    class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                    onclick="clearProduct()" tabindex="-1" style="display:none">
+                                <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                            </button>
+                        </div>
+                        <input th:if="${dto.productId != null}" id="productIdHidden" type="hidden" name="productId" th:value="${dto.productId}"/>
                         <div class="invalid-feedback" th:errors="*{productId}"></div>
-                        <div th:if="${dto.productId == null}">
+                        <div id="barcodeBlock" th:if="${dto.productId == null}">
                             <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
@@ -50,89 +68,238 @@
                         </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.supplier}">Постачальник</label>
-                        <select class="form-select ts-client" th:field="*{supplierId}"
-                                th:classappend="${#fields.hasErrors('supplierId')} ? 'is-invalid'">
-                            <option value="" th:text="#{stock.form.selectSupplier}">-- Оберіть постачальника --</option>
-                            <option th:each="s : ${suppliers}"
-                                    th:value="${s.id}"
-                                    th:text="${s.name}">
-                            </option>
-                        </select>
-                        <div class="invalid-feedback" th:errors="*{supplierId}"></div>
-                        <div class="mt-1">
-                            <span class="text-muted small" th:text="#{common.or}">або</span>
-                            <a th:href="@{/suppliers/new(returnTo='income')}"
-                               class="small fw-semibold text-decoration-none ms-1"
-                               style="color:var(--accent)"
-                               th:text="#{supplier.createNew}">Створити нового постачальника →</a>
+                    <!-- Compact label | input pairs -->
+                    <div class="col-12">
+                        <div class="row gy-2 gx-0 align-items-center compact-fields">
+
+                            <!-- Supplier -->
+                            <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.supplier}">Постачальник</label>
+                            <div class="col-8">
+                                <div class="filter-select-wrap">
+                                    <select class="form-select ts-client" th:field="*{supplierId}"
+                                            th:classappend="${#fields.hasErrors('supplierId')} ? 'is-invalid'">
+                                        <option value="" th:text="#{stock.form.selectSupplier}">-- Оберіть постачальника --</option>
+                                        <option th:each="s : ${suppliers}"
+                                                th:value="${s.id}"
+                                                th:text="${s.name}">
+                                        </option>
+                                    </select>
+                                    <button type="button" id="clearSupplierBtn"
+                                            class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                            onclick="clearSupplierSelect()" tabindex="-1" style="display:none">
+                                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback" th:errors="*{supplierId}"></div>
+                                <div class="mt-1" id="createSupplierRow">
+                                    <span class="text-muted small" th:text="#{common.or}">або</span>
+                                    <a th:href="@{/suppliers/new(returnTo='income')}"
+                                       class="small fw-semibold text-decoration-none ms-1"
+                                       style="color:var(--accent)"
+                                       th:text="#{supplier.createNew}">Створити нового постачальника →</a>
+                                </div>
+                            </div>
+
+                            <!-- Quantity -->
+                            <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
+                            <div class="col-8">
+                                <div class="input-group">
+                                    <input type="number" step="1" class="form-control"
+                                           id="quantity"
+                                           th:field="*{quantity}"
+                                           th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"/>
+                                    <button type="button" id="clearQtyBtn"
+                                            class="btn btn-outline-secondary d-md-none px-1"
+                                            onclick="document.getElementById('quantity').value=''; syncClearBtns();"
+                                            tabindex="-1" style="display:none">
+                                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback" th:errors="*{quantity}"></div>
+                            </div>
+
+                            <!-- Purchase price -->
+                            <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.purchasePrice}">Ціна закупки</label>
+                            <div class="col-8">
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0.01" max="99999.99" class="form-control"
+                                           id="purchasePriceInput"
+                                           th:field="*{purchasePrice}"
+                                           th:classappend="${#fields.hasErrors('purchasePrice')} ? 'is-invalid'"/>
+                                    <span class="input-group-text">zł</span>
+                                    <button type="button" id="clearPriceBtn"
+                                            class="btn btn-outline-secondary d-md-none px-1"
+                                            onclick="document.getElementById('purchasePriceInput').value=''; syncClearBtns();"
+                                            tabindex="-1" style="display:none">
+                                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback" th:errors="*{purchasePrice}"></div>
+                            </div>
+
+                            <!-- Expiry date -->
+                            <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.expiryDate}">Термін придатності</label>
+                            <div class="col-8">
+                                <div class="input-group">
+                                    <input type="date" class="form-control" id="expiryDateInput"
+                                           th:field="*{expiryDate}"
+                                           onclick="this.showPicker&&this.showPicker()"/>
+                                    <button type="button" id="clearExpiryBtn"
+                                            class="btn btn-outline-secondary d-md-none px-1"
+                                            onclick="document.getElementById('expiryDateInput').value=''; syncClearBtns();"
+                                            tabindex="-1" style="display:none">
+                                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Batch number -->
+                            <label class="col-4 col-form-label fw-semibold">
+                                <span th:text="#{stock.form.batchNumber}">Номер партії</span>
+                                <span class="text-muted fw-normal"> *</span>
+                            </label>
+                            <div class="col-8">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="batchNumberInput"
+                                           th:field="*{batchNumber}"/>
+                                    <button type="button" id="clearBatchBtn"
+                                            class="btn btn-outline-secondary d-md-none px-1"
+                                            onclick="document.getElementById('batchNumberInput').value=''; syncClearBtns();"
+                                            tabindex="-1" style="display:none">
+                                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-12 text-center">
+                                <span class="form-text text-muted">* <span th:text="#{stock.form.batchNumber.hint}"></span></span>
+                            </div>
+
                         </div>
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
-                        <input type="number" step="1" class="form-control"
-                               id="quantity"
-                               th:field="*{quantity}"
-                               th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"/>
-                        <div class="invalid-feedback" th:errors="*{quantity}"></div>
+                    <!-- Total -->
+                    <div class="col-12" id="incomeTotalBox" style="display:none">
+                        <div class="d-flex justify-content-between align-items-center px-3 py-2 rounded fw-semibold"
+                             style="background:var(--accent-light)">
+                            <span class="text-muted small" th:text="#{stock.income.total}">Сума закупки</span>
+                            <span class="fs-5" id="incomeTotalAmount" style="color:var(--accent)"></span>
+                        </div>
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.purchasePrice}">Ціна закупки</label>
-                        <input type="number" step="0.01" class="form-control"
-                               th:field="*{purchasePrice}"
-                               th:classappend="${#fields.hasErrors('purchasePrice')} ? 'is-invalid'"/>
-                        <div class="invalid-feedback" th:errors="*{purchasePrice}"></div>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.expiryDate}">Термін придатності</label>
-                        <input type="date" class="form-control" th:field="*{expiryDate}"/>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold" th:text="#{stock.form.batchNumber}">Номер партії</label>
-                        <input type="text" class="form-control" th:field="*{batchNumber}"/>
-                        <div class="form-text text-muted" th:text="#{stock.form.batchNumber.hint}"></div>
-                    </div>
-
+                    <!-- Notes -->
                     <div class="col-12">
                         <label class="form-label fw-semibold" th:text="#{stock.form.notes}">Примітки</label>
                         <textarea class="form-control" rows="2" th:field="*{notes}"></textarea>
                     </div>
 
+                    <!-- Buttons -->
                     <div class="col-12 d-flex flex-column flex-sm-row-reverse gap-2 justify-content-end">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-arrow-down-circle me-1"></i>
                             <span th:text="#{stock.income.submit}">Зареєструвати прихід</span>
                         </button>
-                        <a th:href="@{/}" class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                        <a th:href="${returnTo != null ? returnTo : '/'}" class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
                     </div>
+
                 </div>
             </form>
         </div>
     </div>
     <script th:inline="javascript">
-        function updateQuantityStep(select) {
+        function onProductChange(select) {
             var option = select.options[select.selectedIndex];
             var quantityInput = document.getElementById('quantity');
-            if (!quantityInput) return;
+            var barcodeBlock = document.getElementById('barcodeBlock');
+            var clearProductBtn = document.getElementById('clearProductBtn');
             if (option && option.dataset.unit) {
                 var unit = option.dataset.unit;
-                quantityInput.step = unit === 'PCS' ? '1' : '0.001';
-                if (unit === 'PCS' && quantityInput.value) {
-                    quantityInput.value = Math.floor(parseFloat(quantityInput.value));
+                if (quantityInput) {
+                    quantityInput.step = unit === 'PCS' ? '1' : '0.001';
+                    if (unit === 'PCS' && quantityInput.value) {
+                        quantityInput.value = Math.floor(parseFloat(quantityInput.value));
+                    }
                 }
+                if (barcodeBlock) barcodeBlock.style.display = 'none';
+                if (clearProductBtn) clearProductBtn.style.display = '';
             } else {
-                quantityInput.step = '1';
+                if (quantityInput) quantityInput.step = '1';
+                if (barcodeBlock) barcodeBlock.style.display = '';
+                if (clearProductBtn) clearProductBtn.style.display = 'none';
+            }
+        }
+
+        function clearProduct() {
+            var productSelect = document.getElementById('productSelect');
+            if (!productSelect) return;
+            if (productSelect.tomselect) productSelect.tomselect.clear();
+            else productSelect.value = '';
+            productSelect.disabled = false;
+            var hidden = document.getElementById('productIdHidden');
+            if (hidden) hidden.disabled = true;
+            onProductChange(productSelect);
+        }
+
+        function syncCreateSupplierLink() {
+            var supplierSel = document.querySelector('[name="supplierId"]');
+            var createRow = document.getElementById('createSupplierRow');
+            var clearBtn = document.getElementById('clearSupplierBtn');
+            var hasSupplier = !!(supplierSel && supplierSel.value);
+            if (createRow) createRow.style.display = hasSupplier ? 'none' : '';
+            if (clearBtn) clearBtn.style.display = hasSupplier ? '' : 'none';
+        }
+
+        function clearSupplierSelect() {
+            var supplierSel = document.querySelector('[name="supplierId"]');
+            if (!supplierSel) return;
+            if (supplierSel.tomselect) supplierSel.tomselect.clear();
+            else supplierSel.value = '';
+            syncCreateSupplierLink();
+        }
+
+        function syncClearBtns() {
+            var qty = document.getElementById('quantity');
+            var price = document.getElementById('purchasePriceInput');
+            var expiry = document.getElementById('expiryDateInput');
+            var batch = document.getElementById('batchNumberInput');
+            var clearQty = document.getElementById('clearQtyBtn');
+            var clearPrice = document.getElementById('clearPriceBtn');
+            var clearExpiry = document.getElementById('clearExpiryBtn');
+            var clearBatch = document.getElementById('clearBatchBtn');
+            if (clearQty) clearQty.style.display = (qty && qty.value) ? '' : 'none';
+            if (clearPrice) clearPrice.style.display = (price && price.value) ? '' : 'none';
+            if (clearExpiry) clearExpiry.style.display = (expiry && expiry.value) ? '' : 'none';
+            if (clearBatch) clearBatch.style.display = (batch && batch.value) ? '' : 'none';
+            updateTotal();
+        }
+
+        function updateTotal() {
+            var qty = parseFloat(document.getElementById('quantity')?.value);
+            var price = parseFloat(document.getElementById('purchasePriceInput')?.value);
+            var box = document.getElementById('incomeTotalBox');
+            var amountEl = document.getElementById('incomeTotalAmount');
+            if (!box || !amountEl) return;
+            if (qty > 0 && price > 0) {
+                amountEl.textContent = (qty * price).toFixed(2) + ' zł';
+                box.style.display = '';
+            } else {
+                box.style.display = 'none';
             }
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            var select = document.getElementById('productSelect');
-            if (select && select.value) updateQuantityStep(select);
+            var productSelect = document.getElementById('productSelect');
+            if (productSelect && productSelect.value) onProductChange(productSelect);
+
+            var supplierSel = document.querySelector('[name="supplierId"]');
+            if (supplierSel) supplierSel.addEventListener('change', syncCreateSupplierLink);
+            syncCreateSupplierLink();
+
+            ['quantity', 'purchasePriceInput', 'expiryDateInput', 'batchNumberInput'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.addEventListener('input', syncClearBtns);
+            });
+            syncClearBtns();
+            updateTotal();
         });
 
         (function () {
@@ -178,7 +345,7 @@
                                 if (productSelect.tomselect) productSelect.tomselect.setValue(String(p.id));
                                 else productSelect.value = p.id;
                                 barcodeError.style.display = 'none';
-                                updateQuantityStep(productSelect);
+                                onProductChange(productSelect);
                             });
                         } else {
                             showBarcodeNotFound(code);
