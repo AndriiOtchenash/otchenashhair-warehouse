@@ -69,7 +69,7 @@ All DTOs use Jakarta Bean Validation. Rules:
 - `@Validated` + `@Min(1) @Max(365)` on snooze `days` param in FollowUpActionController
 - `safeRedirect(returnTo, fallback)` applied in:
   - FollowUpActionController — all POST methods (addNote, snooze, markDone, undoDone, returnToQueue)
-  - StockController.editMovement — after editing stock batch
+  - StockController — POST income, POST expense, editMovement
   - ClientController — after create/edit from context (returnTo=detail or returnTo=followups)
   - Pattern: `^/[^/].*` — blocks `//evil.com`, `https://...`, relative `../`
 
@@ -115,9 +115,9 @@ Migrations:
 - **Categories** — CRUD, guarded delete (disabled with tooltip if has products assigned)
 - **Suppliers** — CRUD + detail page with purchase history; guarded delete
 - **Clients** — CRUD + detail page with transaction history; guarded delete
-- **Stock income** (/movements/income) — FIFO batches, barcode AJAX, create-supplier round-trip
-- **Stock expense** (/movements/expense) — SALE/WRITE_OFF/ADJUSTMENT; below-cost JS warning + confirm(); create-client round-trip; WriteOffReason: GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER
-- **Barcode scanner** (/scan) — camera + manual, income/expense mode
+- **Stock income** (/movements/income) — FIFO batches, barcode AJAX, create-supplier round-trip; compact mobile form with purchase total (qty × price); `returnTo` support (back to dashboard or product detail); all fields locked until product selected (`syncFieldsLock()`)
+- **Stock expense** (/movements/expense) — SALE/WRITE_OFF/ADJUSTMENT; below-cost JS warning + confirm(); create-client round-trip; WriteOffReason: GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER; locked layout when productId/clientId pre-selected; `returnTo` support; all fields + movement type locked until product selected; barcode scanner icon (`<a id="scannerLink">`) navigates to `/scan?mode=expense` with clientId/returnTo context
+- **Barcode scanner** (/scan) — camera + manual, income/expense mode; accepts `clientId` + `returnTo` URL params, appended to expense redirect after scan (`getStockUrl()`, `updateManualLink()`)
 - **Movement journal** (/movements/history) — JPA Spec server-side filtering + pagination (100/page); debounced auto-submit; clickable product/client/supplier links (`from=history` pattern)
 - **Movement cancellation** — reverses PURCHASE/SALE/WRITE_OFF/ADJUSTMENT; guards: double-cancel, partially used batch
 - **Reports** (/reports) — period presets, KPI banner with previous-period deltas, top sales/clients, margin analysis, slow movers; Trends chart at /reports/trends (Chart.js 4)
@@ -285,6 +285,20 @@ Migrations:
   (e.g. `/movements/expense?clientId=X`), render a separate `th:if="${locked}"` block with pre-filled
   read-only fields (gray `div.form-control`) and hidden inputs for fixed values; omit redundant rows
   (e.g. movement type is always SALE — no need to show it).
+- **Fields lock until product selected** (`syncFieldsLock()`): on income and expense forms, all inputs
+  (qty, price, type, supplier/client selects, notes, etc.) are disabled until a product is chosen;
+  an `alert-warning` hint is injected above `.compact-fields` via JS (created once, shown/hidden);
+  `syncFieldsLock()` called from `onProductChange()` and `DOMContentLoaded`; for TomSelect selects
+  use `el.tomselect.enable()` / `el.tomselect.disable()`; dependent links (e.g. createSupplierRow)
+  also hidden while locked — `syncCreateSupplierLink()` checks `hasProduct` before showing.
+- **Barcode input inline layout**: "або" label + barcode `input-group` on same row via
+  `<div class="d-flex align-items-center gap-2 mt-2">` with `flex-shrink-0` on the label and
+  `flex-grow-1` on the `input-group`.
+- **Clickable scanner icon**: in expense form, the barcode `input-group-text` is an `<a id="scannerLink">`
+  styled with `color:var(--accent); background:var(--accent-light)` + hover to full accent;
+  `syncScannerLink()` builds href as `/scan?mode=expense` + `clientId`/`returnTo` from hidden inputs —
+  called on `DOMContentLoaded`; scan.html reads these params via `URLSearchParams` and appends them
+  to the post-scan redirect (`getStockUrl()`) and manual link (`updateManualLink()`).
 
 ## Stock expense validation
 - unitPrice required and > 0 for SALE — validated in StockExpenseDto via @AssertTrue isUnitPriceValidForSale()

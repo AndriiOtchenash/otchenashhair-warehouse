@@ -181,6 +181,10 @@
         const csrfToken  = document.querySelector('meta[name="_csrf"]')?.content;
         const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
 
+        const _urlParams = new URLSearchParams(window.location.search);
+        const contextClientId = _urlParams.get('clientId');
+        const contextReturnTo = _urlParams.get('returnTo');
+
         // Mode toggle
         document.querySelectorAll('.btn-mode').forEach(btn => {
             btn.addEventListener('click', function () {
@@ -193,12 +197,22 @@
 
         function getStockUrl(productId) {
             const base = selectedMode === 'income' ? incomeUrl : expenseUrl;
-            return base + '?productId=' + productId;
+            let url = base + '?productId=' + productId;
+            if (selectedMode === 'expense') {
+                if (contextClientId) url += '&clientId=' + encodeURIComponent(contextClientId);
+                if (contextReturnTo) url += '&returnTo=' + encodeURIComponent(contextReturnTo);
+            }
+            return url;
         }
 
         function updateManualLink() {
             const base = selectedMode === 'income' ? incomeUrl : expenseUrl;
-            document.getElementById('manualLink').href = base;
+            let url = base;
+            if (selectedMode === 'expense') {
+                if (contextClientId) url += '?clientId=' + encodeURIComponent(contextClientId) + (contextReturnTo ? '&returnTo=' + encodeURIComponent(contextReturnTo) : '');
+                else if (contextReturnTo) url += '?returnTo=' + encodeURIComponent(contextReturnTo);
+            }
+            document.getElementById('manualLink').href = url;
         }
 
         // Barcode scan success handler

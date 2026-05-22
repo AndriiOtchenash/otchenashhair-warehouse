@@ -57,12 +57,20 @@
                         <input th:if="${dto.productId != null}" id="productIdHidden" type="hidden" name="productId" th:value="${dto.productId}"/>
                         <div class="invalid-feedback" th:errors="*{productId}"></div>
                         <div id="barcodeBlock" th:if="${dto.productId == null}">
-                            <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                                <input type="text" id="barcodeInput" class="form-control"
-                                       th:placeholder="#{scan.barcode.placeholder}"
-                                       autocomplete="off"/>
+                            <div class="d-flex align-items-center gap-2 mt-2">
+                                <span class="text-muted small flex-shrink-0" th:text="#{common.or}">або</span>
+                                <div class="input-group input-group-sm flex-grow-1">
+                                    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                                    <input type="text" id="barcodeInput" class="form-control"
+                                           th:placeholder="#{scan.barcode.placeholder}"
+                                           autocomplete="off"/>
+                                    <button type="button" id="clearBarcodeBtn"
+                                            class="btn btn-outline-secondary d-md-none px-1"
+                                            onclick="document.getElementById('barcodeInput').value=''; document.getElementById('clearBarcodeBtn').style.display='none'; document.getElementById('barcodeError').style.display='none';"
+                                            tabindex="-1" style="display:none">
+                                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div id="barcodeError" class="form-text mt-1" style="display:none"></div>
                         </div>
@@ -206,6 +214,42 @@
         </div>
     </div>
     <script th:inline="javascript">
+        const selectProductFirst = /*[[#{stock.expense.selectProductFirst}]]*/ 'Для початку операції оберіть товар';
+
+        function syncFieldsLock() {
+            var productSelect = document.getElementById('productSelect');
+            var hasProduct = !!(productSelect && productSelect.value);
+
+            ['quantity', 'purchasePriceInput', 'expiryDateInput', 'batchNumberInput'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.disabled = !hasProduct;
+            });
+            var notes = document.querySelector('textarea[name="notes"]');
+            if (notes) notes.disabled = !hasProduct;
+
+            var supplierSel = document.querySelector('[name="supplierId"]');
+            if (supplierSel) {
+                if (supplierSel.tomselect) {
+                    hasProduct ? supplierSel.tomselect.enable() : supplierSel.tomselect.disable();
+                } else {
+                    supplierSel.disabled = !hasProduct;
+                }
+            }
+            var createSupplierRow = document.getElementById('createSupplierRow');
+            if (createSupplierRow) createSupplierRow.style.display = hasProduct ? '' : 'none';
+
+            var hint = document.getElementById('noProductHint');
+            if (!hint) {
+                hint = document.createElement('div');
+                hint.id = 'noProductHint';
+                hint.className = 'alert alert-warning py-2 px-3 mb-2 small text-center';
+                hint.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>' + selectProductFirst;
+                var compactRow = document.querySelector('.compact-fields');
+                if (compactRow) compactRow.closest('.col-12').insertBefore(hint, compactRow);
+            }
+            hint.style.display = hasProduct ? 'none' : '';
+        }
+
         function onProductChange(select) {
             var option = select.options[select.selectedIndex];
             var quantityInput = document.getElementById('quantity');
@@ -226,6 +270,7 @@
                 if (barcodeBlock) barcodeBlock.style.display = '';
                 if (clearProductBtn) clearProductBtn.style.display = 'none';
             }
+            syncFieldsLock();
         }
 
         function clearProduct() {
@@ -240,11 +285,13 @@
         }
 
         function syncCreateSupplierLink() {
+            var productSelect = document.getElementById('productSelect');
+            var hasProduct = !!(productSelect && productSelect.value);
             var supplierSel = document.querySelector('[name="supplierId"]');
             var createRow = document.getElementById('createSupplierRow');
             var clearBtn = document.getElementById('clearSupplierBtn');
             var hasSupplier = !!(supplierSel && supplierSel.value);
-            if (createRow) createRow.style.display = hasSupplier ? 'none' : '';
+            if (createRow) createRow.style.display = (!hasProduct || hasSupplier) ? 'none' : '';
             if (clearBtn) clearBtn.style.display = hasSupplier ? '' : 'none';
         }
 
@@ -269,6 +316,9 @@
             if (clearPrice) clearPrice.style.display = (price && price.value) ? '' : 'none';
             if (clearExpiry) clearExpiry.style.display = (expiry && expiry.value) ? '' : 'none';
             if (clearBatch) clearBatch.style.display = (batch && batch.value) ? '' : 'none';
+            var barcode = document.getElementById('barcodeInput');
+            var clearBarcode = document.getElementById('clearBarcodeBtn');
+            if (clearBarcode) clearBarcode.style.display = (barcode && barcode.value) ? '' : 'none';
             updateTotal();
         }
 
@@ -289,12 +339,13 @@
         document.addEventListener('DOMContentLoaded', function () {
             var productSelect = document.getElementById('productSelect');
             if (productSelect && productSelect.value) onProductChange(productSelect);
+            syncFieldsLock();
 
             var supplierSel = document.querySelector('[name="supplierId"]');
             if (supplierSel) supplierSel.addEventListener('change', syncCreateSupplierLink);
             syncCreateSupplierLink();
 
-            ['quantity', 'purchasePriceInput', 'expiryDateInput', 'batchNumberInput'].forEach(function (id) {
+            ['quantity', 'purchasePriceInput', 'expiryDateInput', 'batchNumberInput', 'barcodeInput'].forEach(function (id) {
                 var el = document.getElementById(id);
                 if (el) el.addEventListener('input', syncClearBtns);
             });
