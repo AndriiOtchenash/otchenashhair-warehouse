@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(#{visit.journal.title}, ~{::content})}">
+<body>
+<div th:fragment="content">
+    <style>
+        tr.row-unpaid { background: #fff3cd !important; }
+        .client-link { color: #1e2d24; text-decoration: none; font-weight: 500; }
+        .client-link:hover { text-decoration: underline; }
+        .date-group-label { font-size: 0.72rem; color: #41464b !important; text-transform: uppercase;
+                            letter-spacing: .05em; background: #e2e3e5 !important; padding: 0.25rem 0.75rem; }
+        .date-group-label td { text-align: center; }
+    </style>
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{visit.journal.title}">Журнал візитів</h1>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form method="get" th:action="@{/clientcare/visits}" id="filterForm">
+                <div class="row g-2 align-items-end">
+
+                    <!-- Date range -->
+                    <div class="col-12 col-md-4">
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="form-label form-label-sm fw-semibold flex-shrink-0 mb-0" th:text="#{movements.filter.dateFrom}">Від</span>
+                            <div class="input-group input-group-sm flex-grow-1" id="dateFromWrap"
+                                 th:classappend="${from != null} ? 'filter-active'">
+                                <input type="date" name="from" class="form-control form-control-sm"
+                                       th:value="${from}"
+                                       onclick="this.showPicker&&this.showPicker()"/>
+                                <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                                        id="clearFromBtn" style="display:none"
+                                        onclick="document.querySelector('[name=from]').value=''; this.closest('.input-group').classList.remove('filter-active'); this.style.display='none'; document.getElementById('filterForm').submit();">
+                                    <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                                </button>
+                            </div>
+                            <span class="form-label form-label-sm fw-semibold flex-shrink-0 mb-0" th:text="#{movements.filter.dateTo}">До</span>
+                            <div class="input-group input-group-sm flex-grow-1" id="dateToWrap"
+                                 th:classappend="${to != null} ? 'filter-active'">
+                                <input type="date" name="to" class="form-control form-control-sm"
+                                       th:value="${to}"
+                                       onclick="this.showPicker&&this.showPicker()"/>
+                                <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                                        id="clearToBtn" style="display:none"
+                                        onclick="document.querySelector('[name=to]').value=''; this.closest('.input-group').classList.remove('filter-active'); this.style.display='none'; document.getElementById('filterForm').submit();">
+                                    <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service -->
+                    <div class="col-6 col-md-3">
+                        <div class="filter-select-wrap" id="serviceWrap"
+                             th:classappend="${serviceId != null} ? 'filter-active'">
+                            <select name="serviceId" class="form-select form-select-sm"
+                                    onchange="document.getElementById('filterForm').submit()">
+                                <option value="" th:text="#{visit.journal.filter.service}">Послуга</option>
+                                <option th:each="s : ${services}"
+                                        th:value="${s.id}"
+                                        th:text="${s.name}"
+                                        th:selected="${serviceId != null and serviceId == s.id}">
+                                </option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                    id="clearServiceBtn" tabindex="-1"
+                                    th:style="${serviceId != null} ? '' : 'display:none'"
+                                    onclick="document.querySelector('[name=serviceId]').value=''; document.getElementById('filterForm').submit();">
+                                <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Payment status -->
+                    <div class="col-6 col-md-2">
+                        <div class="filter-select-wrap" id="paidWrap"
+                             th:classappend="${paid != null} ? 'filter-active'">
+                            <select name="paid" class="form-select form-select-sm"
+                                    onchange="document.getElementById('filterForm').submit()">
+                                <option value="" th:text="#{visit.journal.filter.payment}">Оплата</option>
+                                <option value="true"
+                                        th:text="#{visit.journal.filter.payment.paid}"
+                                        th:selected="${paid != null and paid}">Оплачено</option>
+                                <option value="false"
+                                        th:text="#{visit.journal.filter.payment.unpaid}"
+                                        th:selected="${paid != null and !paid}">Не оплачено</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                    id="clearPaidBtn" tabindex="-1"
+                                    th:style="${paid != null} ? '' : 'display:none'"
+                                    onclick="document.querySelector('[name=paid]').value=''; document.getElementById('filterForm').submit();">
+                                <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Client name search (client-side) + clear-all -->
+                <div class="mt-2 d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm" style="max-width:320px">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="clientSearch" class="form-control form-control-sm"
+                               th:placeholder="#{visit.journal.client.search}" autocomplete="off"/>
+                        <button type="button" id="clearClientSearchBtn"
+                                class="btn btn-outline-secondary px-1" style="display:none"
+                                onclick="document.getElementById('clientSearch').value=''; filterByClient(''); syncClearAllBtn();">
+                            <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                        </button>
+                    </div>
+                    <a th:href="@{/clientcare/visits}" id="clearAllBtn"
+                       style="display:none; font-size:0.82rem; color:var(--accent); text-decoration:none; white-space:nowrap;"
+                       th:data-label="#{btn.reset}"></a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="mb-3 px-3 py-2 rounded" style="font-size:0.85rem; background:var(--accent-light); color:#1e2d24">
+        <span th:text="#{visit.journal.kpi.total}">Візитів</span>: <strong th:text="${kpiTotal}">0</strong>
+        <span class="mx-2">·</span>
+        <span th:text="#{visit.journal.kpi.revenue}">Виручка</span>: <strong th:text="${kpiRevenue != null and kpiRevenue.compareTo(0) > 0 ? #numbers.formatDecimal(kpiRevenue,1,'COMMA',2,'POINT') + ' zł' : '—'}">—</strong>
+        <th:block th:if="${kpiUnpaid > 0}">
+            <span class="mx-2">·</span>
+            <span th:text="#{visit.journal.kpi.unpaid}">Не оплачено</span>: <strong style="color:#842029" th:text="${kpiUnpaid}">0</strong>
+        </th:block>
+    </div>
+
+    <!-- Empty state -->
+    <div th:if="${visits.isEmpty()}" class="text-muted py-5 text-center">
+        <i class="bi bi-journal-x fs-1 d-block mb-2 opacity-50"></i>
+        <span th:text="#{visit.journal.empty}">Немає візитів за вказаними критеріями</span>
+    </div>
+
+    <!-- Table -->
+    <div th:unless="${visits.isEmpty()}" class="card">
+        <div class="card-body p-0">
+                <table class="table table-hover table-auto mb-0 w-100" id="journalTable">
+                    <tbody>
+                    <th:block th:each="v, vStat : ${visits}">
+                    <!-- Date separator row when date changes -->
+                    <tr th:if="${vStat.first or v.visitDate != visits[vStat.index - 1].visitDate}"
+                        class="date-group-label">
+                        <td colspan="4" th:text="${#temporals.format(v.visitDate, 'EEEE, dd MMMM yyyy')}"></td>
+                    </tr>
+                    <tr th:classappend="${!v.paid and (v.priceAtTime != null or v.paymentMethod != null)} ? 'row-unpaid'"
+                        th:attr="data-client=${v.clientName}">
+                        <!-- Client -->
+                        <td style="font-size:0.9rem">
+                            <a th:href="@{/clientcare/clients/{id}(id=${v.clientId})}"
+                               class="client-link" th:text="${v.clientName}">Ім'я клієнта</a>
+                            <!-- Mobile payment badge -->
+                            <span class="d-md-none ms-1">
+                                <span th:if="${!v.paid and (v.priceAtTime != null or v.paymentMethod != null)}"
+                                      class="badge" style="background:#f8d7da;color:#842029;font-size:0.7rem">
+                                    <span class="me-1">-$</span>
+                                    <span th:if="${v.priceAtTime != null}"
+                                          th:text="${#numbers.formatDecimal(v.priceAtTime,1,'COMMA',2,'POINT') + ' zł'}"></span>
+                                </span>
+                                <span th:if="${v.paid}"
+                                      class="badge" style="background:#d1e7dd;color:#0a3622;font-size:0.7rem">
+                                    <i class="bi bi-check2 me-1"></i>
+                                    <span th:if="${v.priceAtTime != null}"
+                                          th:text="${#numbers.formatDecimal(v.priceAtTime,1,'COMMA',2,'POINT') + ' zł'}"></span>
+                                    <span th:if="${v.paymentMethod != null}">
+                                        &middot;
+                                        <span th:switch="${v.paymentMethod.name()}">
+                                            <span th:case="'CASH'"          th:text="#{payment.method.CASH}"></span>
+                                            <span th:case="'CARD'"          th:text="#{payment.method.CARD}"></span>
+                                            <span th:case="'CERTIFICATE'"   th:text="#{payment.method.CERTIFICATE}"></span>
+                                            <span th:case="'BARTER'"        th:text="#{payment.method.BARTER}"></span>
+                                            <span th:case="'COMPLIMENTARY'" th:text="#{payment.method.COMPLIMENTARY}"></span>
+                                            <span th:case="'PROMO'"         th:text="#{payment.method.PROMO}"></span>
+                                        </span>
+                                    </span>
+                                </span>
+                            </span>
+                        </td>
+                        <!-- Service (desktop) -->
+                        <td class="d-none d-md-table-cell" style="font-size:0.9rem;color:#555">
+                            <span th:if="${v.serviceId != null and serviceNames[v.serviceId] != null}"
+                                  th:text="${serviceNames[v.serviceId]}"></span>
+                            <span th:if="${v.serviceId == null or serviceNames[v.serviceId] == null}"
+                                  class="text-muted">—</span>
+                        </td>
+                        <!-- Payment (desktop) -->
+                        <td class="d-none d-md-table-cell" style="font-size:0.9rem">
+                            <span th:if="${!v.paid and (v.priceAtTime != null or v.paymentMethod != null)}"
+                                  class="badge" style="background:#f8d7da;color:#842029">
+                                <span class="me-1">-$</span>
+                                <span th:if="${v.priceAtTime != null}"
+                                      th:text="${#numbers.formatDecimal(v.priceAtTime,1,'COMMA',2,'POINT') + ' zł'}"></span>
+                            </span>
+                            <span th:if="${v.paid}"
+                                  class="badge" style="background:#d1e7dd;color:#0a3622">
+                                <i class="bi bi-check2 me-1"></i>
+                                <span th:if="${v.priceAtTime != null}"
+                                      th:text="${#numbers.formatDecimal(v.priceAtTime,1,'COMMA',2,'POINT') + ' zł'}"></span>
+                                <span th:if="${v.paymentMethod != null}">
+                                    &middot;
+                                    <span th:switch="${v.paymentMethod.name()}">
+                                        <span th:case="'CASH'"          th:text="#{payment.method.CASH}"></span>
+                                        <span th:case="'CARD'"          th:text="#{payment.method.CARD}"></span>
+                                        <span th:case="'CERTIFICATE'"   th:text="#{payment.method.CERTIFICATE}"></span>
+                                        <span th:case="'BARTER'"        th:text="#{payment.method.BARTER}"></span>
+                                        <span th:case="'COMPLIMENTARY'" th:text="#{payment.method.COMPLIMENTARY}"></span>
+                                        <span th:case="'PROMO'"         th:text="#{payment.method.PROMO}"></span>
+                                    </span>
+                                </span>
+                            </span>
+                            <span th:if="${v.priceAtTime == null and v.paymentMethod == null}"
+                                  class="text-muted">—</span>
+                        </td>
+                        <!-- Edit -->
+                        <td class="text-end pe-2">
+                            <a th:href="@{/clientcare/visits/{id}/edit(id=${v.id}, returnTo='/clientcare/visits')}"
+                               class="btn btn-outline-primary btn-sm py-0 px-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    </th:block>
+                    </tbody>
+                </table>
+        </div>
+    </div>
+
+    <!-- Limit note -->
+    <div th:if="${kpiTotal >= 200}" class="text-muted small text-center mt-2"
+         th:text="#{visit.journal.limit}">Показано останні 200 записів</div>
+
+    <script th:inline="javascript">
+        function countActiveFilters() {
+            let n = 0;
+            if (document.querySelector('[name=from]')?.value)      n++;
+            if (document.querySelector('[name=to]')?.value)        n++;
+            if (document.querySelector('[name=serviceId]')?.value) n++;
+            if (document.querySelector('[name=paid]')?.value)      n++;
+            if (document.getElementById('clientSearch')?.value)    n++;
+            return n;
+        }
+
+        function syncClearAllBtn() {
+            const btn = document.getElementById('clearAllBtn');
+            if (!btn) return;
+            const n = countActiveFilters();
+            btn.style.display = n > 0 ? '' : 'none';
+            btn.textContent = btn.dataset.label + ' (' + n + ')';
+        }
+
+        function filterByClient(query) {
+            const q = query.toLowerCase().trim();
+            const rows = Array.from(document.querySelectorAll('#journalTable tbody tr'));
+            // First pass: show/hide data rows
+            rows.forEach(tr => {
+                if (tr.classList.contains('date-group-label')) return;
+                const name = (tr.dataset.client || '').toLowerCase();
+                tr.style.display = (!q || name.includes(q)) ? '' : 'none';
+            });
+            // Second pass: hide date separators that have no visible rows beneath them
+            rows.forEach((tr, i) => {
+                if (!tr.classList.contains('date-group-label')) return;
+                let hasVisible = false;
+                for (let j = i + 1; j < rows.length; j++) {
+                    if (rows[j].classList.contains('date-group-label')) break;
+                    if (rows[j].style.display !== 'none') { hasVisible = true; break; }
+                }
+                tr.style.display = hasVisible ? '' : 'none';
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Restore client search saved before form submit
+            const clientSearch = document.getElementById('clientSearch');
+            const savedSearch = sessionStorage.getItem('journalClientSearch');
+            if (savedSearch && clientSearch) {
+                clientSearch.value = savedSearch;
+                filterByClient(savedSearch);
+                document.getElementById('clearClientSearchBtn').style.display = savedSearch ? '' : 'none';
+                sessionStorage.removeItem('journalClientSearch');
+            }
+
+            syncClearAllBtn();
+
+            // Save client search before form submits (form.submit() bypasses 'submit' event)
+            const filterForm = document.getElementById('filterForm');
+            const _origSubmit = filterForm.submit.bind(filterForm);
+            filterForm.submit = function () {
+                sessionStorage.setItem('journalClientSearch', clientSearch ? clientSearch.value : '');
+                _origSubmit();
+            };
+
+            // Auto-submit date inputs on change
+            ['from', 'to'].forEach(function (name) {
+                const el = document.querySelector('[name="' + name + '"]');
+                if (el) el.addEventListener('change', function () {
+                    syncClearAllBtn();
+                    document.getElementById('filterForm').submit();
+                });
+            });
+
+            // Show × on mobile date inputs if pre-filled
+            const fromVal = document.querySelector('[name=from]');
+            const toVal = document.querySelector('[name=to]');
+            if (fromVal && fromVal.value) document.getElementById('clearFromBtn').style.display = '';
+            if (toVal && toVal.value) document.getElementById('clearToBtn').style.display = '';
+
+            // Client search
+            if (clientSearch) {
+                clientSearch.addEventListener('input', function () {
+                    filterByClient(this.value);
+                    document.getElementById('clearClientSearchBtn').style.display = this.value ? '' : 'none';
+                    syncClearAllBtn();
+                });
+            }
+        });
+    </script>
+</div>
+</body>
+</html>

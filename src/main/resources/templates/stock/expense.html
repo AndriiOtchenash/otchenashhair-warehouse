@@ -52,7 +52,7 @@
                                     <option th:each="p : ${products}"
                                             th:value="${p.id}"
                                             th:text="${p.name}"
-                                            th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''}">
+                                            th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''},data-rec-price=${p.recommendedPrice != null ? p.recommendedPrice : ''}">
                                     </option>
                                 </select>
                                 <button th:if="${dto.productId == null}" type="button" id="clearProductBtn"
@@ -198,26 +198,46 @@
                         <!-- Product (full width) -->
                         <div class="col-12">
                             <label class="form-label fw-semibold" th:text="#{stock.form.product}">Товар</label>
-                            <div class="filter-select-wrap">
-                                <select class="form-select ts-client" th:field="*{productId}"
-                                        th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
-                                        th:disabled="${dto.productId != null}"
-                                        id="productSelect"
-                                        onchange="updateStockHint(this)">
-                                    <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
+
+                            <!-- Locked: product pre-selected via URL -->
+                            <th:block th:if="${dto.productId != null}">
+                                <div class="form-control field-locked"
+                                     style="background:#e9ecef;color:#495057;"
+                                     th:text="${lockedProductName}"></div>
+                                <input type="hidden" name="productId" th:value="${dto.productId}"/>
+                                <!-- Hidden select keeps data-* attrs for JS stock hint / rec price -->
+                                <select id="productSelect" style="display:none" disabled>
+                                    <option value=""></option>
                                     <option th:each="p : ${products}"
                                             th:value="${p.id}"
-                                            th:text="${p.name}"
-                                            th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''}">
+                                            th:selected="${p.id == dto.productId}"
+                                            th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''},data-rec-price=${p.recommendedPrice != null ? p.recommendedPrice : ''}">
                                     </option>
                                 </select>
-                                <button th:if="${dto.productId == null}" type="button" id="clearProductBtn"
-                                        class="btn btn-outline-secondary btn-sm d-md-none px-1"
-                                        onclick="clearProduct()" tabindex="-1" style="display:none">
-                                    <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
-                                </button>
-                            </div>
-                            <input th:if="${dto.productId != null}" id="productIdHidden" type="hidden" name="productId" th:value="${dto.productId}"/>
+                            </th:block>
+
+                            <!-- Normal: editable product select -->
+                            <th:block th:unless="${dto.productId != null}">
+                                <div class="filter-select-wrap">
+                                    <select class="form-select ts-client" th:field="*{productId}"
+                                            th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'"
+                                            id="productSelect"
+                                            onchange="updateStockHint(this)">
+                                        <option value="" th:text="#{stock.form.selectProduct}">-- Оберіть товар --</option>
+                                        <option th:each="p : ${products}"
+                                                th:value="${p.id}"
+                                                th:text="${p.name}"
+                                                th:attr="data-qty=${@qf.format(p.currentQuantity, p.unit.name())},data-unit=${p.unit},data-raw-qty=${p.currentQuantity},data-fifo-price=${fifoPrices != null and fifoPrices[p.id] != null ? fifoPrices[p.id] : ''},data-rec-price=${p.recommendedPrice != null ? p.recommendedPrice : ''}">
+                                        </option>
+                                    </select>
+                                    <button type="button" id="clearProductBtn"
+                                            class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                            onclick="clearProduct()" tabindex="-1" style="display:none">
+                                        <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                    </button>
+                                </div>
+                            </th:block>
+
                             <div id="stockHint" class="form-text text-muted mt-1"></div>
                             <div class="invalid-feedback" th:errors="*{productId}"></div>
                             <div id="barcodeBlock" th:if="${dto.productId == null}">
@@ -429,6 +449,15 @@
                 if (barcodeBlock) barcodeBlock.style.display = '';
                 if (clearProductBtn) clearProductBtn.style.display = 'none';
             }
+            // Sync recommended price when product changes and SALE is selected
+            const priceInput = document.getElementById('unitPriceInput');
+            const typeSelect = document.querySelector('[name="movementType"]');
+            if (priceInput && typeSelect && typeSelect.value === 'SALE') {
+                priceInput.value = (option && option.value && option.dataset.recPrice) ? option.dataset.recPrice : '';
+                checkPriceWarning();
+                updateTotal();
+                syncClearBtns();
+            }
             checkPriceWarning();
             syncFieldsLock();
         }
@@ -464,7 +493,8 @@
 
         function syncFieldsLock() {
             const productSelect = document.getElementById('productSelect');
-            const hasProduct = !!(productSelect && productSelect.value);
+            const productHidden = document.querySelector('input[type="hidden"][name="productId"]');
+            const hasProduct = !!(productSelect && productSelect.value) || !!(productHidden && productHidden.value);
             const qty = document.getElementById('quantity');
             const price = document.getElementById('unitPriceInput');
             const typeSelect = document.querySelector('[name="movementType"]');
@@ -544,6 +574,18 @@
                     isBelowCost = false;
                     const warningDiv = document.getElementById('priceWarning');
                     if (warningDiv) warningDiv.style.display = 'none';
+                } else if (isSale && !priceInput.value) {
+                    // Auto-fill recommended price when switching to SALE with empty price
+                    const productSelect = document.getElementById('productSelect');
+                    const productHidden = document.querySelector('input[type="hidden"][name="productId"]');
+                    const pid = (productSelect && productSelect.value) || (productHidden && productHidden.value) || '';
+                    if (pid) {
+                        const option = document.querySelector('#productSelect option[value="' + pid + '"]');
+                        if (option && option.dataset.recPrice) {
+                            priceInput.value = option.dataset.recPrice;
+                            syncClearBtns();
+                        }
+                    }
                 }
             }
             if (!showClient && !CLIENT_LOCKED) {

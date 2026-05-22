@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.clientcare.service;
 
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
+import com.hairmony.warehouse.clientcare.web.dto.VisitJournalRowDto;
 import com.hairmony.warehouse.domain.appointment.Appointment;
 import com.hairmony.warehouse.domain.appointment.PaymentMethod;
 import com.hairmony.warehouse.domain.client.Client;
@@ -15,6 +16,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -122,6 +130,34 @@ public class VisitService {
         return visitRepository.findClientIdsWithUnpaidVisits();
     }
 
+    @Transactional(readOnly = true)
+    public List<VisitJournalRowDto> findForJournal(LocalDate from, LocalDate to,
+                                                    Long clientId, Long serviceId, Boolean paid) {
+        Specification<Visit> spec = (root, query, cb) -> {
+            root.fetch("client", JoinType.INNER);
+            List<Predicate> predicates = new ArrayList<>();
+            if (from      != null) predicates.add(cb.greaterThanOrEqualTo(root.get("visitDate"), from));
+            if (to        != null) predicates.add(cb.lessThanOrEqualTo(root.get("visitDate"), to));
+            if (clientId  != null) predicates.add(cb.equal(root.get("client").get("id"), clientId));
+            if (serviceId != null) predicates.add(cb.equal(root.get("serviceId"), serviceId));
+            if (paid      != null) predicates.add(cb.equal(root.get("paid"), paid));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return visitRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "visitDate", "createdAt"))
+                .stream().limit(200).map(v -> {
+                    VisitJournalRowDto row = new VisitJournalRowDto();
+                    row.setId(v.getId());
+                    row.setVisitDate(v.getVisitDate());
+                    row.setClientId(v.getClient().getId());
+                    row.setClientName(v.getClient().getName());
+                    row.setServiceId(v.getServiceId());
+                    row.setPriceAtTime(v.getPriceAtTime());
+                    row.setPaymentMethod(v.getPaymentMethod());
+                    row.setPaid(v.isPaid());
+                    return row;
+                }).toList();
+    }
+
     @Transactional
     public void delete(Long id) {
         visitRepository.deleteById(id);
@@ -158,7 +194,7 @@ public class VisitService {
      * - BARTER/COMPLIMENTARY/PROMO: paid=true, priceAtTime cleared (no cash exchanged)
      */
     private void applyCertificatePayment(VisitDto dto) {
-        if (AUTO_PAID_METHODS.contains(dto.getPaymentMethod())) {
+        if (dto.getPaymentMethod() != null && AUTO_PAID_METHODS.contains(dto.getPaymentMethod())) {
             dto.setPaid(true);
             dto.setPriceAtTime(null);
             return;

@@ -78,6 +78,10 @@ public class StockController {
         populateExpenseModel(model);
         model.addAttribute("dto", dto);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
+        if (productId != null) {
+            productService.findById(productId).ifPresent(p ->
+                    model.addAttribute("lockedProductName", p.getName()));
+        }
         if (clientId != null && returnTo != null) {
             model.addAttribute("clientLocked", true);
             model.addAttribute("lockedClientName", clientService.findById(clientId).getName());

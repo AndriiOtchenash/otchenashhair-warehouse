@@ -43,6 +43,9 @@ public class ProductDto {
     @Size(max = 2000, message = "{validation.size.max2000}")
     private String description;
 
+    @DecimalMin(value = "0.01", message = "{validation.price.positive}")
+    private BigDecimal recommendedPrice;
+
     @Size(max = 500, message = "{validation.size.max500}")
     private String imageUrl;
 

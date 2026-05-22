@@ -281,6 +281,12 @@
             </a>
 
             <div class="nav-label" th:text="#{nav.section.analytics}">Аналітика</div>
+            <a th:href="@{/clientcare/visits}"
+               th:classappend="${currentUri != null and currentUri == '/clientcare/visits'} ? 'active'"
+               class="nav-link">
+                <i class="bi bi-clock-history"></i>
+                <span th:text="#{nav.clientcare.visits}">Журнал</span>
+            </a>
             <a th:href="@{/clientcare/finance}"
                th:classappend="${currentUri != null and currentUri.startsWith('/clientcare/finance')} ? 'active'"
                class="nav-link">
