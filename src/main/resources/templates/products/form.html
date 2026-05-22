@@ -22,8 +22,7 @@
         <div class="card-body">
             <form th:action="${product.id != null} ? @{/products/{id}/edit(id=${product.id})} : @{/products/new}"
                   th:object="${product}"
-                  method="post"
-                  th:attr="data-autosave-key=${product.id == null} ? 'product_new' : null">
+                  method="post">
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <input th:if="${mode != null}" type="hidden" name="mode" th:value="${mode}"/>
 

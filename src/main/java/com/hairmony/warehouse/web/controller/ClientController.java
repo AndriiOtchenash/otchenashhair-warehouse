@@ -73,6 +73,7 @@ public class ClientController {
                          @RequestParam(required = false) String from,
                          @RequestParam(required = false) Long productId,
                          @RequestParam(required = false) String date,
+                         @RequestParam(required = false) String returnTo,
                          HttpServletRequest request) {
         List<StockMovement> movements = stockService.getMovementsByClient(id);
         Set<Long> cancelledIds = stockService.getCancelledMovementIds(
@@ -108,9 +109,11 @@ public class ClientController {
             return "clientcare/clients/detail";
         }
         if (isClientCare(request)) {
-            model.addAttribute("backUrl", "/clientcare/clients");
+            String backUrl = safeReturnTo(returnTo, "/clientcare/clients");
+            model.addAttribute("backUrl", backUrl);
             model.addAttribute("editUrl", "/clientcare/clients/" + id + "/edit?returnTo=detail");
-            model.addAttribute("currentPageUrl", "/clientcare/clients/" + id);
+            model.addAttribute("currentPageUrl", "/clientcare/clients/" + id +
+                    (returnTo != null ? "?returnTo=" + returnTo : ""));
             model.addAttribute("appointmentsByDate", appointmentService.getAppointmentsByDateForClient(id));
             return "clientcare/clients/detail";
         }
@@ -225,6 +228,10 @@ public class ClientController {
                     : "redirect:/clients/" + id;
         }
         return isClientCare(request) ? "redirect:/clientcare/clients" : "redirect:/clients";
+    }
+
+    private static String safeReturnTo(String returnTo, String fallback) {
+        return (returnTo != null && returnTo.matches("^/[^/].*")) ? returnTo : fallback;
     }
 
     @PostMapping("/{id}/delete")

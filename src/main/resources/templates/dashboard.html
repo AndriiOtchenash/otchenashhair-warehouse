@@ -219,13 +219,13 @@
                     </td>
                     <td class="col-actions" onclick="event.stopPropagation()">
                         <div class="d-flex gap-1">
-                            <a th:href="@{/movements/income(productId=${row.productId})}"
+                            <a th:href="@{/movements/income(productId=${row.productId},returnTo='/')}"
                                class="btn btn-sm btn-outline-success btn-square px-md-2"
                                th:title="#{stock.income.title}"
                                data-bs-toggle="tooltip">
                                 <i class="bi bi-arrow-down-circle"></i>
                             </a>
-                            <a th:href="@{/movements/expense(productId=${row.productId})}"
+                            <a th:href="@{/movements/expense(productId=${row.productId},returnTo='/')}"
                                class="btn btn-sm btn-outline-danger btn-square px-md-2"
                                th:classappend="${row.status.name() == 'OUT'} ? ' disabled'"
                                th:attr="tabindex=${row.status.name() == 'OUT'} ? '-1' : null, aria-disabled=${row.status.name() == 'OUT'} ? 'true' : null"

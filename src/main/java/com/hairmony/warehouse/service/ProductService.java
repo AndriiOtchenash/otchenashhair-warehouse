@@ -59,7 +59,7 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         product.setName(dto.getName());
-        product.setBrand(dto.getBrand());
+        product.setBrand(trimOrNull(dto.getBrand()));
         product.setCategory(dto.getCategory());
         product.setBarcode(dto.getBarcode());
         product.setUnit(dto.getUnit());
@@ -154,11 +154,17 @@ public class ProductService {
                 .build();
     }
 
+    private String trimOrNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
     private Product toEntity(ProductDto dto) {
         return Product.builder()
                 .id(dto.getId())
                 .name(dto.getName())
-                .brand(dto.getBrand())
+                .brand(trimOrNull(dto.getBrand()))
                 .category(dto.getCategory())
                 .barcode(dto.getBarcode())
                 .unit(dto.getUnit())

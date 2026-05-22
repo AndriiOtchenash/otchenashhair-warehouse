@@ -28,6 +28,7 @@ public class StockController {
     @GetMapping("/income")
     public String incomeForm(@RequestParam(required = false) Long productId,
                              @RequestParam(required = false) Long supplierId,
+                             @RequestParam(required = false) String returnTo,
                              Model model) {
         StockIncomeDto dto = new StockIncomeDto();
         if (productId != null) dto.setProductId(productId);
@@ -35,17 +36,20 @@ public class StockController {
         model.addAttribute("dto", dto);
         model.addAttribute("products", productService.findAllActive());
         model.addAttribute("suppliers", supplierService.findAll());
+        if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "stock/income";
     }
 
     @PostMapping("/income")
     public String registerIncome(@Valid @ModelAttribute("dto") StockIncomeDto dto,
                                  BindingResult result,
+                                 @RequestParam(required = false) String returnTo,
                                  Model model,
                                  RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("products", productService.findAllActive());
             model.addAttribute("suppliers", supplierService.findAll());
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "stock/income";
         }
         try {
@@ -55,7 +59,7 @@ public class StockController {
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
-        return "redirect:/movements/income";
+        return "redirect:" + safeRedirect(returnTo, "/movements/income");
     }
 
     @GetMapping("/expense")
@@ -63,14 +67,21 @@ public class StockController {
                               @RequestParam(required = false) Long clientId,
                               @RequestParam(required = false) MovementType movementType,
                               @RequestParam(required = false) java.math.BigDecimal quantity,
+                              @RequestParam(required = false) String returnTo,
                               Model model) {
         StockExpenseDto dto = new StockExpenseDto();
+        dto.setSaleDate(java.time.LocalDate.now());
         if (productId != null) dto.setProductId(productId);
         if (clientId != null) dto.setClientId(clientId);
         if (movementType != null) dto.setMovementType(movementType);
         if (quantity != null) dto.setQuantity(quantity);
         populateExpenseModel(model);
         model.addAttribute("dto", dto);
+        if (returnTo != null) model.addAttribute("returnTo", returnTo);
+        if (clientId != null && returnTo != null) {
+            model.addAttribute("clientLocked", true);
+            model.addAttribute("lockedClientName", clientService.findById(clientId).getName());
+        }
         return "stock/expense";
     }
 
@@ -78,21 +89,28 @@ public class StockController {
     public String registerExpense(@Valid @ModelAttribute("dto") StockExpenseDto dto,
                                   BindingResult result,
                                   Model model,
+                                  @RequestParam(required = false) String returnTo,
                                   RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             populateExpenseModel(model);
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "stock/expense";
         }
         try {
             stockService.registerExpense(dto);
             redirectAttributes.addFlashAttribute("successMessage",
                     messageSource.getMessage("stock.expense.success", null, LocaleContextHolder.getLocale()));
-            return "redirect:/movements/expense";
+            return "redirect:" + safeRedirect(returnTo, "/movements/expense");
         } catch (IllegalStateException e) {
             model.addAttribute("errorMessage", e.getMessage());
             populateExpenseModel(model);
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "stock/expense";
         }
+    }
+
+    private static String safeRedirect(String returnTo, String fallback) {
+        return (returnTo != null && returnTo.matches("^/[^/].*")) ? returnTo : fallback;
     }
 
     private void populateExpenseModel(Model model) {
