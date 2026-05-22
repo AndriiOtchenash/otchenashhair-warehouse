@@ -46,6 +46,9 @@ public class Product {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "recommended_price", precision = 10, scale = 2)
+    private BigDecimal recommendedPrice;
+
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 

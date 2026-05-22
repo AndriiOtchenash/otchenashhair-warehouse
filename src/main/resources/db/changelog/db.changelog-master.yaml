@@ -68,3 +68,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/023-add-gift-certificate-price.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/024-add-product-recommended-price.sql
+      relativeToChangelogFile: false

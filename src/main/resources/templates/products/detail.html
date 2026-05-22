@@ -30,11 +30,18 @@
                     <i class="bi bi-arrow-down-circle me-1 text-success"></i>
                     <span th:text="#{stock.income.title}">Прихід</span>
                 </a>
-                <a th:href="@{/movements/expense(productId=${product.id},returnTo='/products/' + ${product.id})}"
+                <a th:if="${product.currentQuantity != null and product.currentQuantity > 0}"
+                   th:href="@{/movements/expense(productId=${product.id},returnTo='/products/' + ${product.id})}"
                    class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-up-circle me-1 text-danger"></i>
                     <span th:text="#{stock.expense.title}">Витрата</span>
                 </a>
+                <button th:unless="${product.currentQuantity != null and product.currentQuantity > 0}"
+                        type="button" class="btn btn-outline-secondary btn-sm" disabled
+                        th:title="#{stock.expense.disabled.noStock}">
+                    <i class="bi bi-arrow-up-circle me-1 text-danger"></i>
+                    <span th:text="#{stock.expense.title}">Витрата</span>
+                </button>
             </th:block>
             <a th:href="@{/products/{id}/edit(id=${product.id},returnTo='detail')}"
                class="btn btn-outline-primary btn-sm">
@@ -72,6 +79,10 @@
                             <tr>
                                 <td class="text-muted" th:text="#{product.form.barcode}">Штрихкод</td>
                                 <td th:text="${product.barcode}"></td>
+                            </tr>
+                            <tr th:if="${product.recommendedPrice != null}">
+                                <td class="text-muted" th:text="#{product.form.recommendedPrice}">Рекомендована ціна</td>
+                                <td><strong th:text="${#numbers.formatDecimal(product.recommendedPrice,1,'COMMA',2,'POINT') + ' zł'}"></strong></td>
                             </tr>
                             <tr>
                                 <td class="text-muted" th:text="#{product.form.minStockLevel}">Мін. залишок</td>
@@ -122,6 +133,10 @@
                         <span th:text="#{unit.__${product.unit}__}"></span>
                         <span class="text-muted small" th:if="${product.unitSize != null}"
                               th:text="'(' + ${product.unitSize} + ')'"></span>
+                    </div>
+                    <div th:if="${product.recommendedPrice != null}">
+                        <span class="text-muted small" th:text="#{product.form.recommendedPrice}">Рекомендована ціна</span>:
+                        <strong th:text="${#numbers.formatDecimal(product.recommendedPrice,1,'COMMA',2,'POINT') + ' zł'}"></strong>
                     </div>
                     <div>
                         <span class="text-muted small" th:text="#{product.form.minStockLevel}">Мін. залишок</span>:

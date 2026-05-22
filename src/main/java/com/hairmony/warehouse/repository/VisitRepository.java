@@ -2,6 +2,7 @@ package com.hairmony.warehouse.repository;
 
 import com.hairmony.warehouse.domain.visit.Visit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-public interface VisitRepository extends JpaRepository<Visit, Long> {
+public interface VisitRepository extends JpaRepository<Visit, Long>, JpaSpecificationExecutor<Visit> {
 
     List<Visit> findAllByClientIdOrderByVisitDateDescCreatedAtDesc(Long clientId);
 
@@ -52,4 +53,5 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
     /** Earliest visit date — used for ALL_TIME period preset. */
     @Query("SELECT MIN(v.visitDate) FROM Visit v")
     Optional<LocalDate> findEarliestVisitDate();
+
 }

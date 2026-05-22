@@ -66,6 +66,7 @@ public class ProductService {
         product.setUnitSize(dto.getUnitSize());
         product.setMinStockLevel(dto.getMinStockLevel());
         product.setDescription(dto.getDescription());
+        product.setRecommendedPrice(dto.getRecommendedPrice());
         product.setImageUrl(dto.getImageUrl());
         return toDto(product); // no save() needed — dirty checking handles it
     }
@@ -146,6 +147,7 @@ public class ProductService {
                 .unitSize(product.getUnitSize())
                 .minStockLevel(product.getMinStockLevel())
                 .description(product.getDescription())
+                .recommendedPrice(product.getRecommendedPrice())
                 .imageUrl(product.getImageUrl())
                 .active(product.getActive())
                 .deactivatedAt(product.getDeactivatedAt())
@@ -171,6 +173,7 @@ public class ProductService {
                 .unitSize(dto.getUnitSize())
                 .minStockLevel(dto.getMinStockLevel())
                 .description(dto.getDescription())
+                .recommendedPrice(dto.getRecommendedPrice())
                 .imageUrl(dto.getImageUrl())
                 .active(dto.isActive())
                 .build();

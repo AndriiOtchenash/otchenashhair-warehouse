@@ -6,6 +6,7 @@ import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.clientcare.web.dto.SalonServiceDto;
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
+import com.hairmony.warehouse.clientcare.web.dto.VisitJournalRowDto;
 import com.hairmony.warehouse.domain.appointment.AppointmentStatus;
 import com.hairmony.warehouse.domain.appointment.PaymentMethod;
 import com.hairmony.warehouse.service.ClientService;
@@ -21,8 +22,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -37,6 +42,40 @@ public class VisitController {
     private final ClientService clientService;
     private final GiftCertificateService giftCertificateService;
     private final MessageSource messageSource;
+
+    @GetMapping("/clientcare/visits")
+    public String journal(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                          @RequestParam(required = false) Long clientId,
+                          @RequestParam(required = false) Long serviceId,
+                          @RequestParam(required = false) Boolean paid,
+                          Model model) {
+        List<VisitJournalRowDto> rows = visitService.findForJournal(from, to, clientId, serviceId, paid);
+
+        Map<Long, String> serviceNames = salonServiceService.findAll().stream()
+                .collect(Collectors.toMap(SalonServiceDto::getId, SalonServiceDto::getName));
+
+        long unpaidCount = rows.stream()
+                .filter(r -> !r.isPaid() && (r.getPriceAtTime() != null || r.getPaymentMethod() != null))
+                .count();
+        BigDecimal revenue = rows.stream()
+                .filter(r -> r.isPaid() && r.getPriceAtTime() != null)
+                .map(VisitJournalRowDto::getPriceAtTime)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        model.addAttribute("visits", rows);
+        model.addAttribute("serviceNames", serviceNames);
+        model.addAttribute("services", salonServiceService.findAll());
+        model.addAttribute("from", from);
+        model.addAttribute("to", to);
+        model.addAttribute("clientId", clientId);
+        model.addAttribute("serviceId", serviceId);
+        model.addAttribute("paid", paid);
+        model.addAttribute("kpiTotal", rows.size());
+        model.addAttribute("kpiRevenue", revenue);
+        model.addAttribute("kpiUnpaid", unpaidCount);
+        return "clientcare/visits/journal";
+    }
 
     /** AJAX endpoint — checks if a gift certificate code is valid (ACTIVE) for redemption.
      *  Returns {@code {valid: true/false, recipientName: "..." | null, serviceName: "..." | null}}. */
