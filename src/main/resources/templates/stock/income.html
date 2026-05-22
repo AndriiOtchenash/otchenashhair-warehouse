@@ -63,6 +63,8 @@
                                     <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
                                     <input type="text" id="barcodeInput" class="form-control"
                                            th:placeholder="#{scan.barcode.placeholder}"
+                                           inputmode="numeric"
+                                           oninput="this.value=this.value.replace(/\D/g,'')"
                                            autocomplete="off"/>
                                     <button type="button" id="clearBarcodeBtn"
                                             class="btn btn-outline-secondary d-md-none px-1"
