@@ -74,6 +74,8 @@
                                         </a>
                                         <input type="text" id="barcodeInput" class="form-control"
                                                th:placeholder="#{scan.barcode.placeholder}"
+                                               inputmode="numeric"
+                                               oninput="this.value=this.value.replace(/\D/g,'')"
                                                autocomplete="off"/>
                                         <button type="button" id="clearBarcodeBtn"
                                                 class="btn btn-outline-secondary d-md-none px-1"
@@ -228,6 +230,8 @@
                                         </a>
                                         <input type="text" id="barcodeInput" class="form-control"
                                                th:placeholder="#{scan.barcode.placeholder}"
+                                               inputmode="numeric"
+                                               oninput="this.value=this.value.replace(/\D/g,'')"
                                                autocomplete="off"/>
                                         <button type="button" id="clearBarcodeBtn"
                                                 class="btn btn-outline-secondary d-md-none px-1"
@@ -464,9 +468,13 @@
             const qty = document.getElementById('quantity');
             const price = document.getElementById('unitPriceInput');
             const typeSelect = document.querySelector('[name="movementType"]');
+            const saleDate = document.getElementById('saleDate');
+            const notes = document.querySelector('textarea[name="notes"]');
             if (qty) qty.disabled = !hasProduct;
             if (price) price.disabled = !hasProduct;
             if (typeSelect) typeSelect.disabled = !hasProduct;
+            if (saleDate) saleDate.disabled = !hasProduct;
+            if (notes) notes.disabled = !hasProduct;
 
             // Show/create hint above compact fields when no product selected
             let hint = document.getElementById('noProductHint');
