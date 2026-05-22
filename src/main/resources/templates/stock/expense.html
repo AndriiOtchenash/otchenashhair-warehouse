@@ -9,6 +9,8 @@
         .field-locked { cursor: not-allowed; }
         .filter-select-wrap > .ts-wrapper { flex: 1; min-width: 0; }
         .filter-select-wrap .ts-wrapper.has-items .ts-control > input { width: 0 !important; min-width: 0 !important; }
+        a#scannerLink { color: var(--accent); background: var(--accent-light); border-color: #ced4da; transition: background 0.15s, color 0.15s; }
+        a#scannerLink:hover { background: var(--accent); color: #fff; }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{stock.expense.title}">Витрата товару</h1>
@@ -63,12 +65,23 @@
                             <div id="stockHint" class="form-text text-muted mt-1"></div>
                             <div class="invalid-feedback" th:errors="*{productId}"></div>
                             <div id="barcodeBlock" th:if="${dto.productId == null}">
-                                <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                                    <input type="text" id="barcodeInput" class="form-control"
-                                           th:placeholder="#{scan.barcode.placeholder}"
-                                           autocomplete="off"/>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <span class="text-muted small flex-shrink-0" th:text="#{common.or}">або</span>
+                                    <div class="input-group input-group-sm flex-grow-1">
+                                        <a id="scannerLink" href="/scan?mode=expense"
+                                           class="input-group-text" th:title="#{scan.title}">
+                                            <i class="bi bi-upc-scan"></i>
+                                        </a>
+                                        <input type="text" id="barcodeInput" class="form-control"
+                                               th:placeholder="#{scan.barcode.placeholder}"
+                                               autocomplete="off"/>
+                                        <button type="button" id="clearBarcodeBtn"
+                                                class="btn btn-outline-secondary d-md-none px-1"
+                                                onclick="document.getElementById('barcodeInput').value=''; document.getElementById('clearBarcodeBtn').style.display='none'; document.getElementById('barcodeError').style.display='none';"
+                                                tabindex="-1" style="display:none">
+                                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="barcodeError" class="form-text mt-1" style="display:none"></div>
                             </div>
@@ -206,12 +219,23 @@
                             <div id="stockHint" class="form-text text-muted mt-1"></div>
                             <div class="invalid-feedback" th:errors="*{productId}"></div>
                             <div id="barcodeBlock" th:if="${dto.productId == null}">
-                                <div class="text-center text-muted small my-2" th:text="#{common.or}">або</div>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                                    <input type="text" id="barcodeInput" class="form-control"
-                                           th:placeholder="#{scan.barcode.placeholder}"
-                                           autocomplete="off"/>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <span class="text-muted small flex-shrink-0" th:text="#{common.or}">або</span>
+                                    <div class="input-group input-group-sm flex-grow-1">
+                                        <a id="scannerLink" href="/scan?mode=expense"
+                                           class="input-group-text" th:title="#{scan.title}">
+                                            <i class="bi bi-upc-scan"></i>
+                                        </a>
+                                        <input type="text" id="barcodeInput" class="form-control"
+                                               th:placeholder="#{scan.barcode.placeholder}"
+                                               autocomplete="off"/>
+                                        <button type="button" id="clearBarcodeBtn"
+                                                class="btn btn-outline-secondary d-md-none px-1"
+                                                onclick="document.getElementById('barcodeInput').value=''; document.getElementById('clearBarcodeBtn').style.display='none'; document.getElementById('barcodeError').style.display='none';"
+                                                tabindex="-1" style="display:none">
+                                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="barcodeError" class="form-text mt-1" style="display:none"></div>
                             </div>
@@ -439,8 +463,10 @@
             const hasProduct = !!(productSelect && productSelect.value);
             const qty = document.getElementById('quantity');
             const price = document.getElementById('unitPriceInput');
+            const typeSelect = document.querySelector('[name="movementType"]');
             if (qty) qty.disabled = !hasProduct;
             if (price) price.disabled = !hasProduct;
+            if (typeSelect) typeSelect.disabled = !hasProduct;
 
             // Show/create hint above compact fields when no product selected
             let hint = document.getElementById('noProductHint');
@@ -550,6 +576,9 @@ function updateNewClientLink() {
             const clearPrice = document.getElementById('clearPriceBtn');
             if (clearQty) clearQty.style.display = (qty && qty.value) ? '' : 'none';
             if (clearPrice) clearPrice.style.display = (price && price.value) ? '' : 'none';
+            const barcode = document.getElementById('barcodeInput');
+            const clearBarcode = document.getElementById('clearBarcodeBtn');
+            if (clearBarcode) clearBarcode.style.display = (barcode && barcode.value) ? '' : 'none';
         }
 
         function clearClientSelect() {
@@ -558,6 +587,17 @@ function updateNewClientLink() {
             if (clientSel.tomselect) clientSel.tomselect.clear();
             else clientSel.value = '';
             syncCreateClientLink();
+        }
+
+        function syncScannerLink() {
+            const link = document.getElementById('scannerLink');
+            if (!link) return;
+            let href = '/scan?mode=expense';
+            const clientHidden = document.querySelector('input[name="clientId"][type="hidden"]');
+            if (clientHidden && clientHidden.value) href += '&clientId=' + encodeURIComponent(clientHidden.value);
+            const returnToHidden = document.querySelector('input[name="returnTo"][type="hidden"]');
+            if (returnToHidden && returnToHidden.value) href += '&returnTo=' + encodeURIComponent(returnToHidden.value);
+            link.href = href;
         }
 
         function syncCreateClientLink() {
@@ -611,12 +651,15 @@ function updateNewClientLink() {
                 quantityInput.addEventListener('input', updateTotal);
                 quantityInput.addEventListener('input', syncClearBtns);
             }
+            const barcodeInput = document.getElementById('barcodeInput');
+            if (barcodeInput) barcodeInput.addEventListener('input', syncClearBtns);
             updateTotal();
             syncClearBtns();
 
             const clientSelectEl = document.querySelector('[name="clientId"]');
             if (clientSelectEl) clientSelectEl.addEventListener('change', syncCreateClientLink);
             syncCreateClientLink();
+            syncScannerLink();
 
             const form = document.querySelector('form');
             if (form) {
