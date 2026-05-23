@@ -192,6 +192,15 @@
             /* table readability on mobile */
             .table th { font-size: 0.76rem; letter-spacing: 0.03em; }
             .table td { font-size: 0.9rem; }
+
+            /* compact action buttons in table cells */
+            .table td .btn { padding-top: 0; padding-bottom: 0; padding-left: 0.25rem; padding-right: 0.25rem; }
+
+            /* actions column — minimum width, buttons right, header centered */
+            .table td:last-child, .table th:last-child { width: 1%; white-space: nowrap; padding-left: 0; }
+            .table td:last-child { text-align: right; }
+            .table th:last-child { text-align: center; }
+            .table td:last-child > .d-flex { justify-content: flex-end; }
         }
         /* ── Global badges (shared with main layout) ── */
         .badge-writeoff { background-color: #f5a3b0 !important; color: #7d2535 !important; }

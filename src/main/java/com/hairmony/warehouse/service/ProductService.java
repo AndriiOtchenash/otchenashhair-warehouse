@@ -1,8 +1,11 @@
 package com.hairmony.warehouse.service;
 
+import com.hairmony.warehouse.domain.category.Category;
 import com.hairmony.warehouse.domain.product.Product;
+import com.hairmony.warehouse.repository.CategoryRepository;
 import com.hairmony.warehouse.repository.ProductRepository;
 import com.hairmony.warehouse.repository.StockItemRepository;
+import com.hairmony.warehouse.repository.StockMovementRepository;
 import com.hairmony.warehouse.web.dto.ProductDto;
 import com.hairmony.warehouse.web.dto.ProductLookupDto;
 import jakarta.persistence.EntityNotFoundException;
@@ -20,6 +23,8 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final StockItemRepository stockItemRepository;
+    private final StockMovementRepository stockMovementRepository;
+    private final CategoryRepository categoryRepository;
 
     @Transactional(readOnly = true)
     public List<ProductDto> findAll() {
@@ -50,18 +55,20 @@ public class ProductService {
     }
 
     public ProductDto save(ProductDto dto) {
+        validateBarcodeUnique(dto.getBarcode(), null);
         Product product = toEntity(dto);
         product.setActive(true);
         return toDto(productRepository.save(product));
     }
 
     public ProductDto update(Long id, ProductDto dto) {
+        validateBarcodeUnique(dto.getBarcode(), id);
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         product.setName(dto.getName());
         product.setBrand(trimOrNull(dto.getBrand()));
-        product.setCategory(dto.getCategory());
-        product.setBarcode(dto.getBarcode());
+        product.setCategory(resolveCategory(dto));
+        product.setBarcode(trimOrNull(dto.getBarcode()));
         product.setUnit(dto.getUnit());
         product.setUnitSize(dto.getUnitSize());
         product.setMinStockLevel(dto.getMinStockLevel());
@@ -79,6 +86,22 @@ public class ProductService {
         String trimmed = (reason != null) ? reason.trim() : "";
         product.setDeactivationReason(trimmed.isEmpty() ? null : trimmed);
         // no save() needed — dirty checking handles it
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isDeletable(Long id) {
+        return !stockMovementRepository.existsByProductId(id)
+                && !stockItemRepository.existsByProductId(id);
+    }
+
+    public String delete(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
+        if (!isDeletable(id)) {
+            throw new IllegalStateException("product.delete.hasReferences");
+        }
+        productRepository.delete(product);
+        return product.getName();
     }
 
     public void restore(Long id) {
@@ -162,13 +185,27 @@ public class ProductService {
         return t.isEmpty() ? null : t;
     }
 
+    private void validateBarcodeUnique(String barcode, Long excludeId) {
+        if (barcode == null || barcode.isBlank()) return;
+        productRepository.findByBarcode(barcode.trim()).ifPresent(existing -> {
+            if (!existing.getId().equals(excludeId)) {
+                throw new IllegalStateException("product.barcode.duplicate");
+            }
+        });
+    }
+
+    private Category resolveCategory(ProductDto dto) {
+        if (dto.getCategory() == null || dto.getCategory().getId() == null) return null;
+        return categoryRepository.getReferenceById(dto.getCategory().getId());
+    }
+
     private Product toEntity(ProductDto dto) {
         return Product.builder()
                 .id(dto.getId())
                 .name(dto.getName())
                 .brand(trimOrNull(dto.getBrand()))
-                .category(dto.getCategory())
-                .barcode(dto.getBarcode())
+                .category(resolveCategory(dto))
+                .barcode(trimOrNull(dto.getBarcode()))
                 .unit(dto.getUnit())
                 .unitSize(dto.getUnitSize())
                 .minStockLevel(dto.getMinStockLevel())

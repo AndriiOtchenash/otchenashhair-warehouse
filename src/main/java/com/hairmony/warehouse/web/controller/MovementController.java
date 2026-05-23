@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import org.springframework.data.domain.Page;
 
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,12 @@ public class MovementController {
 
     @GetMapping("/movements/history")
     public String history(MovementFilterDto filter, Model model) {
+        if (filter.getDateFrom() != null && filter.getDateTo() != null
+                && filter.getDateTo().isBefore(filter.getDateFrom())) {
+            LocalDate tmp = filter.getDateFrom();
+            filter.setDateFrom(filter.getDateTo());
+            filter.setDateTo(tmp);
+        }
         Page<StockMovement> page = movementHistoryService.findFiltered(filter);
 
         Set<Long> ids = page.getContent().stream()

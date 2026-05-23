@@ -293,10 +293,24 @@
                 _origSubmit();
             };
 
+            // Sync min/max on date range inputs to prevent invalid ranges
+            function syncDateRange(changed) {
+                const fromEl = document.querySelector('[name=from]');
+                const toEl   = document.querySelector('[name=to]');
+                if (!fromEl || !toEl) return;
+                if (fromEl.value) toEl.min = fromEl.value; else toEl.removeAttribute('min');
+                if (toEl.value)   fromEl.max = toEl.value; else fromEl.removeAttribute('max');
+                if (fromEl.value && toEl.value && toEl.value < fromEl.value) {
+                    if (changed === 'from') { toEl.value = ''; toEl.removeAttribute('min'); }
+                    else                   { fromEl.value = ''; fromEl.removeAttribute('max'); }
+                }
+            }
+
             // Auto-submit date inputs on change
             ['from', 'to'].forEach(function (name) {
                 const el = document.querySelector('[name="' + name + '"]');
                 if (el) el.addEventListener('change', function () {
+                    syncDateRange(name);
                     syncClearAllBtn();
                     document.getElementById('filterForm').submit();
                 });
@@ -307,6 +321,7 @@
             const toVal = document.querySelector('[name=to]');
             if (fromVal && fromVal.value) document.getElementById('clearFromBtn').style.display = '';
             if (toVal && toVal.value) document.getElementById('clearToBtn').style.display = '';
+            syncDateRange(null);
 
             // Client search
             if (clientSearch) {
