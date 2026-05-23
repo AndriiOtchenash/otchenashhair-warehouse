@@ -56,6 +56,17 @@
         </div>
     </div>
 
+    <div id="unpaidFilterBadge" class="mb-2" style="display:none">
+        <span class="badge rounded-pill d-inline-flex align-items-center gap-1"
+              style="background:#f8d7da; color:#842029; font-size:0.85rem; font-weight:600; padding:0.35rem 0.65rem;">
+            <span th:text="#{clientcare.filter.unpaidVisits}">Клієнти які мають неоплачений візит</span>
+            <button type="button" onclick="clearUnpaidFilter()"
+                    style="background:none;border:none;padding:0;line-height:1;color:#842029;cursor:pointer;margin-left:2px;">
+                <i class="bi bi-x-lg" style="font-size:0.75rem;"></i>
+            </button>
+        </span>
+    </div>
+
     <div class="mb-3">
         <div class="input-group input-group-sm" style="max-width:300px;">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -85,7 +96,7 @@
                 </thead>
                 <tbody>
                 <tr th:each="c : ${clients}"
-                    th:attr="data-name=${c.name},data-phone=${c.phone ?: ''}"
+                    th:attr="data-name=${c.name},data-phone=${c.phone ?: ''},data-unpaid=${clientsWithUnpaidVisits != null and clientsWithUnpaidVisits.contains(c.id) ? 'true' : null}"
                     th:onclick="|window.location='@{/clientcare/clients/{id}(id=${c.id})}'|"
                     style="cursor:pointer">
                     <td>
@@ -116,11 +127,14 @@
                                th:title="#{appointment.badge.overdue}"
                                data-bs-toggle="tooltip"></i>
                             <!-- Unpaid visit icon -->
-                            <span th:if="${clientsWithUnpaidVisits != null and clientsWithUnpaidVisits.contains(c.id)}"
-                                  class="text-danger"
-                                  style="font-size:1.0rem; flex-shrink:0; font-weight:700; line-height:1;"
-                                  th:title="#{client.unpaid.visit}"
-                                  data-bs-toggle="tooltip">−<i class="bi bi-currency-dollar"></i></span>
+                            <svg th:if="${clientsWithUnpaidVisits != null and clientsWithUnpaidVisits.contains(c.id)}"
+                                 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                 width="1.1rem" height="1.1rem"
+                                 style="color:#dc3545; flex-shrink:0;"
+                                 th:title="#{client.unpaid.visit}"
+                                 data-bs-toggle="tooltip">
+                                <text x="50%" y="78%" text-anchor="middle" font-size="23" font-weight="700" fill="currentColor" font-family="inherit">−$</text>
+                            </svg>
                         </div>
                     </td>
                     <td class="d-none d-md-table-cell" th:text="${c.phone ?: '—'}"></td>
@@ -191,23 +205,46 @@
     </style>
 
     <script>
-        function filterSearch(value) {
-            const q = value.toLowerCase();
-            document.querySelectorAll('tbody tr').forEach(row => {
-                const name = (row.dataset.name || '').toLowerCase();
-                const phone = (row.dataset.phone || '').toLowerCase();
-                row.style.display = (!q || name.includes(q) || phone.includes(q)) ? '' : 'none';
+        var unpaidFilterActive = false;
+
+        function applyFilters() {
+            var input = document.querySelector('.input-group input[type="text"]');
+            var q = ((input && input.value) || '').toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(function(row) {
+                var name  = (row.dataset.name  || '').toLowerCase();
+                var phone = (row.dataset.phone || '').toLowerCase();
+                var matchSearch = !q || name.includes(q) || phone.includes(q);
+                var matchUnpaid = !unpaidFilterActive || row.dataset.unpaid === 'true';
+                row.style.display = (matchSearch && matchUnpaid) ? '' : 'none';
             });
+            var badge = document.getElementById('unpaidFilterBadge');
+            if (badge) badge.style.display = unpaidFilterActive ? '' : 'none';
         }
+
+        function filterSearch(value) { applyFilters(); }
+
+        function clearUnpaidFilter() {
+            unpaidFilterActive = false;
+            // Remove param from URL without reload
+            var url = new URL(window.location);
+            url.searchParams.delete('unpaid');
+            history.replaceState(null, '', url);
+            applyFilters();
+        }
+
         function toggleClearBtn(input) {
             var btn = input.nextElementSibling;
             if (btn) btn.style.display = input.value ? '' : 'none';
         }
         function clearSearch() {
             var input = document.querySelector('.input-group input[type="text"]');
-            if (input) { input.value = ''; filterSearch(''); toggleClearBtn(input); }
+            if (input) { input.value = ''; applyFilters(); toggleClearBtn(input); }
         }
         document.addEventListener('DOMContentLoaded', function() {
+            if (new URLSearchParams(window.location.search).get('unpaid') === 'true') {
+                unpaidFilterActive = true;
+                applyFilters();
+            }
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
                 new bootstrap.Tooltip(el);
             });

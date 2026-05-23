@@ -380,7 +380,7 @@
                         <div class="input-group input-group-sm" id="dateFromWrap" style="flex:1;min-width:0">
                             <span class="input-group-text" th:text="#{movements.filter.dateFrom}">Від</span>
                             <input type="date" class="form-control" id="histDateFrom"
-                                   onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                                   onchange="syncDateRange('from'); applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
                             <button type="button" class="btn btn-outline-secondary d-md-none px-1"
                                     id="clearDateFromBtn" onclick="clearDateFrom()" tabindex="-1" style="display:none">
                                 <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
@@ -389,7 +389,7 @@
                         <div class="input-group input-group-sm" id="dateToWrap" style="flex:1;min-width:0">
                             <span class="input-group-text" th:text="#{movements.filter.dateTo}">До</span>
                             <input type="date" class="form-control" id="histDateTo"
-                                   onchange="applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
+                                   onchange="syncDateRange('to'); applyHistoryFilters()" onclick="this.showPicker&&this.showPicker()"/>
                             <button type="button" class="btn btn-outline-secondary d-md-none px-1"
                                     id="clearDateToBtn" onclick="clearDateTo()" tabindex="-1" style="display:none">
                                 <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
@@ -692,6 +692,18 @@
                 btn.classList.remove('filter-active');
                 btn.innerHTML = '<i class="bi bi-gift me-1"></i>' + label;
                 typeSelect.disabled = false;
+            }
+        }
+
+        function syncDateRange(changed) {
+            const fromEl = document.getElementById('histDateFrom');
+            const toEl   = document.getElementById('histDateTo');
+            if (!fromEl || !toEl) return;
+            if (fromEl.value) toEl.min = fromEl.value; else toEl.removeAttribute('min');
+            if (toEl.value)   fromEl.max = toEl.value; else fromEl.removeAttribute('max');
+            if (fromEl.value && toEl.value && toEl.value < fromEl.value) {
+                if (changed === 'from') { toEl.value = ''; toEl.removeAttribute('min'); }
+                else                   { fromEl.value = ''; fromEl.removeAttribute('max'); }
             }
         }
 

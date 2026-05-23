@@ -112,7 +112,9 @@ Migrations:
 
 ## Warehouse features
 - **Dashboard** (/) — KPI cards (All/OK/LOW/OUT), status/category/brand/search filters, clickable rows; `.stock-table` with table-layout:fixed
-- **Products** — CRUD + soft deactivate/restore + brand autocomplete; StockItem batch edit modal (expiry, batch number, price); `recommendedPrice` field (nullable NUMERIC(10,2)) — shown on detail page, auto-fills sale price on expense form when SALE selected; "Витрата" button disabled (with tooltip) when `currentQuantity <= 0`
+- **Products** — CRUD + soft deactivate/restore + brand autocomplete; StockItem batch edit modal (expiry, batch number, price); `recommendedPrice` field (nullable NUMERIC(10,2)) — shown on detail page, auto-fills sale price on expense form when SALE selected; "Витрата" button disabled (with tooltip) when `currentQuantity <= 0`; hard delete if no stock/movement references (`isDeletable()`, trash icon on detail header)
+  - **New product form** progressive unlock (`syncProductFormLock()`): fields unlock sequentially as required fields filled — Name → Category → Unit → Unit Size → Min Stock → Description
+  - **Barcode uniqueness** pre-validated in `ProductService.validateBarcodeUnique()` before DB insert/update; empty string normalized to `null` via `trimOrNull()`; `CategoryRepository.getReferenceById()` used to avoid `TransientObjectException` when binding category from form
 - **Categories** — CRUD, guarded delete (disabled with tooltip if has products assigned)
 - **Suppliers** — CRUD + detail page with purchase history; guarded delete
 - **Clients** — CRUD + detail page with transaction history; guarded delete
@@ -258,6 +260,7 @@ Migrations:
   (not on select/input itself) for green border; "Скинути (N)" button below filters, visible
   when ≥1 active; all via updateResetBtn() JS; date inputs use showPicker() onclick for mobile;
   data-date="yyyy-MM-dd" on each <tr> for client-side date range filtering
+- **Date range validation** (`syncDateRange(changed)`): applied on all від/до filter pairs — sets `min`/`max` on inputs and clears conflicting value if `to < from`; server-side swap (`if (to.isBefore(from)) swap`) in `VisitController`, `MovementController`, `ReportController`, `ClientCareFinanceController`; pattern applied in: `client-detail.html`, `products/detail.html`, `suppliers/detail.html`, `journal.html`, `history.html`, `reports.html`, `trends.html`, `finance.html`
 - Client detail quick filter "Подарунки": toggle button in same row as type select;
   when active — filter-active border, × shown inside button text, type select disabled;
   data-label attr holds i18n text (btn.quickFilter.gifts); blur() on toggle to avoid focus gray;
@@ -424,7 +427,8 @@ com.hairmony.warehouse/
 | `/clientcare/clients/{id}` | `/clientcare/clients` | `/clientcare/clients/{id}/edit?returnTo=detail` |
 | `from=appointments` | `/clientcare/appointments?date=...` | `/clientcare/clients/{id}/edit?returnTo=detail` |
 
-- `clientsWithUnpaidVisits` Set passed to model only in clientcare context (for `−$` icon next to name)
+- `clientsWithUnpaidVisits` Set passed to model only in clientcare context (for `−$` SVG icon next to name in list, and `bi-receipt-cutoff`-style KPI card on dashboard)
+- `/clientcare/clients?unpaid=true` — client-side filter: hides clients without unpaid visits; activated via dashboard KPI card link; active state shown as dismissible pill ("Клієнти які мають неоплачений візит"); `clearUnpaidFilter()` removes param from URL via `history.replaceState` without reload
 - `serviceNames` Map (`Map<Long, String>`) loaded via `SalonServiceService.findAll()` in two places:
   `VisitController.allVisits()` (visits list page) and `ClientController.detail()` (shared fragment);
   fragment guards with `serviceNames != null` (warehouse context has no serviceNames in model)
