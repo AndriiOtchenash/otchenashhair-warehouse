@@ -33,7 +33,7 @@ web/formatter/ — QuantityFormatter (@qf bean)
 config/ — SecurityConfig, LocaleConfig, WebMvcConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-023)
+- ddl-auto=none, Liquibase manages schema (migrations 001-024)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -107,22 +107,27 @@ Migrations:
 020-create-gift-certificates (gift_certificates + indexes on purchaser/recipient/status),
 021-add-visit-billing (service_id, price_at_time, payment_method, is_paid, certificate_code on visits),
 022-appointment-service-link (drops appointment_type; adds service_id BIGINT FK → services ON DELETE SET NULL),
-023-add-gift-certificate-price (price NUMERIC(10,2) NOT NULL DEFAULT 0 on gift_certificates)
+023-add-gift-certificate-price (price NUMERIC(10,2) NOT NULL DEFAULT 0 on gift_certificates),
+024-add-product-recommended-price (recommended_price NUMERIC(10,2) nullable on products)
 
 ## Warehouse features
 - **Dashboard** (/) — KPI cards (All/OK/LOW/OUT), status/category/brand/search filters, clickable rows; `.stock-table` with table-layout:fixed
-- **Products** — CRUD + soft deactivate/restore + brand autocomplete; StockItem batch edit modal (expiry, batch number, price)
+- **Products** — CRUD + soft deactivate/restore + brand autocomplete; StockItem batch edit modal (expiry, batch number, price); `recommendedPrice` field (nullable NUMERIC(10,2)) — shown on detail page, auto-fills sale price on expense form when SALE selected; "Витрата" button disabled (with tooltip) when `currentQuantity <= 0`
 - **Categories** — CRUD, guarded delete (disabled with tooltip if has products assigned)
 - **Suppliers** — CRUD + detail page with purchase history; guarded delete
 - **Clients** — CRUD + detail page with transaction history; guarded delete
 - **Stock income** (/movements/income) — FIFO batches, barcode AJAX, create-supplier round-trip; compact mobile form with purchase total (qty × price); `returnTo` support (back to dashboard or product detail); all fields locked until product selected (`syncFieldsLock()`)
-- **Stock expense** (/movements/expense) — SALE/WRITE_OFF/ADJUSTMENT; below-cost JS warning + confirm(); create-client round-trip; WriteOffReason: GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER; locked layout when productId/clientId pre-selected; `returnTo` support; all fields + movement type locked until product selected; barcode scanner icon (`<a id="scannerLink">`) navigates to `/scan?mode=expense` with clientId/returnTo context
+- **Stock expense** (/movements/expense) — SALE/WRITE_OFF/ADJUSTMENT; below-cost JS warning + confirm(); create-client round-trip; WriteOffReason: GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER; `returnTo` support; all fields + movement type locked until product selected; barcode scanner icon (`<a id="scannerLink">`) navigates to `/scan?mode=expense` with clientId/returnTo context
+  - **productId pre-selected** (from dashboard/product detail): product shown as locked gray div (`field-locked`), hidden input for submit, hidden `<select id="productSelect">` (no `ts-client`) retains `data-*` attrs for JS; `lockedProductName` passed from controller; `syncFieldsLock()` detects via `input[type=hidden][name=productId]`
+  - **clientId pre-selected** (`clientLocked=true`): separate layout block with client locked, movementType forced to SALE
+  - **Recommended price auto-fill**: `data-rec-price` on each product option; fills `unitPriceInput` on SALE type select (in `toggleTypeFields()`) and on product change (`updateStockHint()`); on product change always syncs — sets rec price or clears if none
 - **Barcode scanner** (/scan) — camera + manual, income/expense mode; accepts `clientId` + `returnTo` URL params, appended to expense redirect after scan (`getStockUrl()`, `updateManualLink()`)
 - **Movement journal** (/movements/history) — JPA Spec server-side filtering + pagination (100/page); debounced auto-submit; clickable product/client/supplier links (`from=history` pattern)
 - **Movement cancellation** — reverses PURCHASE/SALE/WRITE_OFF/ADJUSTMENT; guards: double-cancel, partially used batch
 - **Reports** (/reports) — period presets, KPI banner with previous-period deltas, top sales/clients, margin analysis, slow movers; Trends chart at /reports/trends (Chart.js 4)
 - **AI Assistant** (/ai) — Gemini 2.5 Flash, warehouse context, AJAX chat; `GEMINI_API_KEY` env var
 - **i18n** — uk (primary), pl, en; all strings via `#{}` and `messageSource.getMessage()`; no hardcoded text in controllers
+  - **CRITICAL**: `messages_uk.properties` and `messages_pl.properties` store Cyrillic as `\uXXXX` escape sequences. Never save these files with raw UTF-8 bytes (e.g. from an editor that converts escapes) — Spring reads `.properties` as ISO-8859-1 by default, raw UTF-8 Cyrillic will render as `ÐÐ¾ÐºÑÐ¿ÐºÐ¸`. Always edit via Claude Code tools or add keys manually as `\uXXXX`.
 - **PWA** — manifest.webmanifest, icons, no service worker
 
 ## Color palette
@@ -381,7 +386,7 @@ com.hairmony.warehouse/
 - Mobile topbar: `[≡] OtchenashHair  [Склад] [ClientCare]` (pill switcher, active = accent color)
 - ClientCare sidebar: `bi-grid` Огляд→`/clientcare`, `bi-people` Клієнти→`/clientcare/clients`,
   `bi-list-check` Follow-up→`/clientcare/followups`, `bi-calendar3` Календар→`/clientcare/appointments`,
-  `bi-bar-chart-line` Фінанси→`/clientcare/finance`
+  `bi-journal-text` Журнал→`/clientcare/visits`, `bi-bar-chart-line` Фінанси→`/clientcare/finance`
 
 ---
 
@@ -435,6 +440,15 @@ com.hairmony.warehouse/
 ### Google Drive folder
 - `Client.driveFolderUrl` (source of truth) + `driveFolderId` (nullable regex extract) — no Drive API/OAuth
 - `DriveFolderController`: GET/POST edit, POST remove; `DriveFolderDto` with `@Pattern` + `@Size(max=500)` + `@NotNull clientId`
+
+### Visit journal `/clientcare/visits`
+- Cross-client visit journal; max 200 records (`.stream().limit(200)`); hint shown when list hits limit
+- Filters: date range (від/до), service, payment status (paid/unpaid/all), client text search (client-side)
+- Server-side filtering via `JpaSpecificationExecutor<Visit>` + `Specification<Visit>` with `root.fetch("client", JoinType.INNER)` — avoids PostgreSQL null-param type inference error from JPQL `:param IS NULL OR` pattern
+- KPI strip (inline, accent-light bg): total visits + revenue for filtered period — placed above table, below filters
+- Date separator rows (`.date-group-label`): grey background `#e2e3e5 / #41464b`; hidden when no visible rows below (two-pass `filterByClient()`)
+- Client search state persisted via `sessionStorage` across filter form submits (form.submit override pattern)
+- `table-auto` class on table to override layout `.table { min-width: 500px }` for horizontal scroll fix
 
 ### Visits
 - `Visit` entity fields: client_id, visit_date, complaint, scalp_condition, recommendations, notes, next_appointment_id FK,
@@ -521,6 +535,9 @@ com.hairmony.warehouse/
 - **Wave 4 — Protocol entity** — POSTPONED: treatment type → recommended product list; not relevant at current stage
 
 ### Warehouse
+- **Brand entity** — refactor `brand` from plain String to JPA entity (migration: `brands` table + FK on `products`);
+  CRUD by pattern of Category (BrandRepository, BrandService, BrandController, BrandDto, guard delete if has products);
+  TomSelect select in product form with "Створити новий бренд →" round-trip link; brand filter on `/products` switches to id-based
 - Low stock email notifications — daily digest; Spring @Scheduled + spring-boot-starter-mail
 - Export to Excel — reports + movement history; Apache POI (xlsx)
 - Inventory count / stock-take — formal workflow: physical counts → ADJUSTMENT movements; `/scan?mode=stocktake` entry point

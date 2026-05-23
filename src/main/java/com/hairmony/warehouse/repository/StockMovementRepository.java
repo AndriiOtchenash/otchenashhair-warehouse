@@ -19,6 +19,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     boolean existsByOriginalMovementId(Long originalMovementId);
     boolean existsByClientId(Long clientId);
     boolean existsBySupplierId(Long supplierId);
+    boolean existsByProductId(Long productId);
 
     @Query("SELECT DISTINCT m.client.id FROM StockMovement m WHERE m.client IS NOT NULL")
     Set<Long> findAllClientIdsWithMovements();

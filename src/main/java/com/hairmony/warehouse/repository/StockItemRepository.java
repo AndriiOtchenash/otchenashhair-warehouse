@@ -10,6 +10,7 @@ import java.util.List;
 public interface StockItemRepository extends JpaRepository<StockItem, Long> {
 
     List<StockItem> findAllByProductIdOrderByCreatedAtAsc(Long productId);
+    boolean existsByProductId(Long productId);
 
     @Query("SELECT si FROM StockItem si WHERE si.product.id = :productId AND si.quantity > 0 ORDER BY si.createdAt ASC")
     List<StockItem> findAvailableByProductIdFifo(@Param("productId") Long productId);

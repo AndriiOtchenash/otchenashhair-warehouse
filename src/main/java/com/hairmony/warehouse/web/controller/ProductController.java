@@ -17,6 +17,10 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -30,11 +34,13 @@ public class ProductController {
     private final CategoryService categoryService;
     private final StockService stockService;
     private final ClientService clientService;
+    private final MessageSource messageSource;
 
     @GetMapping
     public String list(@RequestParam(defaultValue = "false") boolean showInactive, Model model) {
         model.addAttribute("products", showInactive ? productService.findAll() : productService.findAllActive());
         model.addAttribute("showInactive", showInactive);
+        model.addAttribute("brands", productService.findAllBrands());
         return "products/list";
     }
 
@@ -55,6 +61,7 @@ public class ProductController {
         model.addAttribute("cancelledMovementIds", cancelledIds);
         model.addAttribute("clients", clientService.findAll());
         model.addAttribute("totalQuantity", stockService.getAvailableQuantity(id));
+        model.addAttribute("canDelete", productService.isDeletable(id));
         if (from != null) model.addAttribute("from", from);
         if (clientId != null) model.addAttribute("clientId", clientId);
         if (supplierId != null) model.addAttribute("supplierId", supplierId);
@@ -98,7 +105,19 @@ public class ProductController {
             if (mode != null) model.addAttribute("mode", mode);
             return "products/form";
         }
-        ProductDto saved = productService.save(dto);
+        ProductDto saved;
+        try {
+            saved = productService.save(dto);
+        } catch (IllegalStateException e) {
+            result.rejectValue("barcode", "",
+                    messageSource.getMessage(e.getMessage(), null, LocaleContextHolder.getLocale()));
+            model.addAttribute("categories", categoryService.findAll());
+            model.addAttribute("units", Unit.values());
+            model.addAttribute("existingBrands", productService.findAllBrands());
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
+            if (mode != null) model.addAttribute("mode", mode);
+            return "products/form";
+        }
         if ("scan".equals(returnTo) && mode != null) {
             String path = "income".equals(mode) ? "/movements/income" : "/movements/expense";
             return "redirect:" + path + "?productId=" + saved.getId();
@@ -162,7 +181,17 @@ public class ProductController {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "products/form";
         }
-        productService.update(id, dto);
+        try {
+            productService.update(id, dto);
+        } catch (IllegalStateException e) {
+            result.rejectValue("barcode", "",
+                    messageSource.getMessage(e.getMessage(), null, LocaleContextHolder.getLocale()));
+            model.addAttribute("categories", categoryService.findAll());
+            model.addAttribute("units", Unit.values());
+            model.addAttribute("existingBrands", productService.findAllBrands());
+            if (returnTo != null) model.addAttribute("returnTo", returnTo);
+            return "products/form";
+        }
         if ("detail".equals(returnTo)) return "redirect:/products/" + id;
         return "redirect:/products";
     }
@@ -178,6 +207,21 @@ public class ProductController {
         }
         productService.deactivate(id, deactivationReason);
         return "redirect:/products";
+    }
+
+    @PostMapping("/{id}/delete")
+    public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            String name = productService.delete(id);
+            redirectAttributes.addFlashAttribute("successMessage",
+                    messageSource.getMessage("product.delete.success",
+                            new Object[]{name}, LocaleContextHolder.getLocale()));
+            return "redirect:/products";
+        } catch (IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    messageSource.getMessage(e.getMessage(), null, LocaleContextHolder.getLocale()));
+            return "redirect:/products/" + id;
+        }
     }
 
     @PostMapping("/{id}/restore")
