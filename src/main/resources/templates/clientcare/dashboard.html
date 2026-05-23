@@ -79,7 +79,7 @@
 
         <!-- Очікує оплати -->
         <div class="col-6 col-md-4" th:if="${dashboard.unpaidVisitCount > 0}">
-            <a th:href="@{/clientcare/clients}" class="text-decoration-none">
+            <a th:href="@{/clientcare/clients(unpaid=true)}" class="text-decoration-none">
                 <div class="card kpi-card h-100 p-3" style="background:#f8d7da;">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
@@ -87,7 +87,7 @@
                             <div class="fw-600 mt-1" style="font-size:0.9rem;color:#842029;" th:text="#{clientcare.card.unpaidVisits}">Очікує оплати</div>
                             <div class="kpi-hint" style="color:#842029;" th:text="#{clientcare.card.unpaidVisits.hint}">Ціна вказана, не підтверджено</div>
                         </div>
-                        <i class="bi bi-currency-dollar kpi-icon" style="color:#842029;"></i>
+                        <svg class="kpi-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1.6rem" height="1.6rem" style="color:#842029;"><text x="50%" y="78%" text-anchor="middle" font-size="23" font-weight="700" fill="currentColor" font-family="inherit">−$</text></svg>
                     </div>
                 </div>
             </a>

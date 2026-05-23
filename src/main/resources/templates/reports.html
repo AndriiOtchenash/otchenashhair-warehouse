@@ -75,12 +75,14 @@
                     <input type="hidden" name="expiryDays" th:value="${expiryDays}"/>
                     <input type="date" class="form-control form-control-sm"
                            style="flex: 0.85 1 0; min-width: 0;"
-                           name="from"
-                           th:value="${#temporals.format(period.from, 'yyyy-MM-dd')}"/>
+                           id="reportDateFrom" name="from"
+                           th:value="${#temporals.format(period.from, 'yyyy-MM-dd')}"
+                           onchange="syncReportDateRange('from')"/>
                     <input type="date" class="form-control form-control-sm"
                            style="flex: 0.85 1 0; min-width: 0;"
-                           name="to"
-                           th:value="${#temporals.format(period.to, 'yyyy-MM-dd')}"/>
+                           id="reportDateTo" name="to"
+                           th:value="${#temporals.format(period.to, 'yyyy-MM-dd')}"
+                           onchange="syncReportDateRange('to')"/>
                     <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"
                             th:text="#{report.apply}">Застосувати</button>
                 </form>
@@ -411,6 +413,25 @@
         </div>
     </div>
 
+    <script>
+        function syncReportDateRange(changed) {
+            const fromEl = document.getElementById('reportDateFrom');
+            const toEl   = document.getElementById('reportDateTo');
+            if (!fromEl || !toEl) return;
+            if (fromEl.value) toEl.min = fromEl.value; else toEl.removeAttribute('min');
+            if (toEl.value)   fromEl.max = toEl.value; else fromEl.removeAttribute('max');
+            if (fromEl.value && toEl.value && toEl.value < fromEl.value) {
+                if (changed === 'from') { toEl.value = ''; toEl.removeAttribute('min'); }
+                else                   { fromEl.value = ''; fromEl.removeAttribute('max'); }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const fromEl = document.getElementById('reportDateFrom');
+            const toEl   = document.getElementById('reportDateTo');
+            if (fromEl && fromEl.value) toEl.min = fromEl.value;
+            if (toEl   && toEl.value)  fromEl.max = toEl.value;
+        });
+    </script>
 </div>
 </body>
 </html>

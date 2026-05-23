@@ -83,6 +83,7 @@ public class ReportController {
         } else if ("ALL_TIME".equals(preset)) {
             return new ReportPeriod(reportService.getEarliestMovementDate(), LocalDate.now(), "ALL_TIME");
         } else if ("CUSTOM".equals(preset) && from != null && to != null) {
+            if (to.isBefore(from)) { LocalDate tmp = from; from = to; to = tmp; }
             return new ReportPeriod(from, to, "CUSTOM");
         } else {
             return ReportPeriod.thisMonth();

@@ -72,6 +72,7 @@ public class ClientCareFinanceController {
             LocalDate earliest = financeService.getEarliestVisitDate();
             return new ReportPeriod(earliest, LocalDate.now(), "ALL_TIME");
         } else if ("CUSTOM".equals(preset) && from != null && to != null) {
+            if (to.isBefore(from)) { LocalDate tmp = from; from = to; to = tmp; }
             return new ReportPeriod(from, to, "CUSTOM");
         } else {
             return ReportPeriod.thisMonth();
