@@ -5,6 +5,7 @@
 <div th:fragment="content">
     <style>
         .table { min-width: 0 !important; }
+        #saveNewCategoryBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{category.list.title}">Категорії</h1>
@@ -31,16 +32,26 @@
             <div class="card-header" th:text="#{category.form.title.new}">Нова категорія</div>
             <div class="card-body">
                 <form th:action="@{/categories}" th:object="${newCategory}" method="post">
-                    <div class="d-flex gap-2">
-                        <input type="text" class="form-control"
-                               th:field="*{name}"
-                               th:placeholder="#{category.form.name}"
-                               th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <input type="text" class="form-control"
+                                   th:field="*{name}"
+                                   th:placeholder="#{category.form.name}"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                                   oninput="document.getElementById('saveNewCategoryBtn').disabled = !this.value.trim()"/>
+                            <div class="invalid-feedback" th:errors="*{name}"></div>
+                        </div>
+                        <div class="col-12 d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    data-bs-toggle="collapse" data-bs-target="#newCategoryForm"
+                                    th:text="#{btn.cancel}">Скасувати</button>
+                            <button type="submit" id="saveNewCategoryBtn" class="btn btn-primary btn-sm"
+                                    th:disabled="${newCategory.name == null or newCategory.name.isEmpty()}">
+                                <i class="bi bi-check-lg me-1"></i>
+                                <span th:text="#{btn.save}">Зберегти</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="invalid-feedback" th:errors="*{name}"></div>
                 </form>
             </div>
         </div>
@@ -140,11 +151,11 @@
                     </p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm"
+                    <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
                             data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
                     <form id="deleteCategoryForm" method="post">
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                        <button type="submit" class="btn btn-danger btn-sm" th:text="#{btn.yes}">Так</button>
+                        <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem" th:text="#{btn.yes}">Так</button>
                     </form>
                 </div>
             </div>

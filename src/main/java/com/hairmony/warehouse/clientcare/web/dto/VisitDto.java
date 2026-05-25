@@ -43,6 +43,7 @@ public class VisitDto {
     // Populated from Visit.nextAppointment (read-only in form)
     private Long nextAppointmentId;
     private LocalDateTime nextAppointmentStartAt;
+    private boolean nextVisitSkipped;
 
     // --- Financial fields (draft: backed by migration 021) ---
 

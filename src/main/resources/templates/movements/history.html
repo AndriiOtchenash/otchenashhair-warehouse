@@ -367,11 +367,11 @@
                     <p id="cancelConfirmText" class="text-muted small mb-0" th:text="#{movement.cancel.confirm}">Ви впевнені, що хочете скасувати цю операцію? Товар буде повернуто на склад.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"
+                    <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem" data-bs-dismiss="modal"
                             th:text="#{btn.no}">Ні</button>
                     <form id="cancelForm" method="post">
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                        <button type="submit" class="btn btn-danger btn-sm"
+                        <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem"
                                 th:text="#{btn.yes}">Так</button>
                     </form>
                 </div>

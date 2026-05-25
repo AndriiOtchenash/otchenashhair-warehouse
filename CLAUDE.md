@@ -414,6 +414,15 @@ com.hairmony.warehouse/
 - Activity badge: `FollowUpRepository.countPerClient()` one query → `Map<Long, Integer>`; `syncActivityCountBadge()` JS
 - "Видалити всі записи" always triggers page reload (DONE/SNOOZE deleted → client queue position changes)
 - `FollowUpActionController`: `@Validated`, `@Min(1) @Max(365)` on snooze days, `@Size(max=500)` on note; all `returnTo` via `safeRedirect(fallback="/clientcare/followups")`
+- **Two-tab layout:** Tab 1 "Товари і записи" (purchase/appointment queue, existing logic); Tab 2 "Без запису" (clients whose latest visit has no linked appointment and no upcoming calendar appointment)
+  - Tab nav CSS pattern identical to `client-detail.html` (`#followupTabs`, `flex-shrink-0` on `<li>`, `badge bg-secondary ms-1` count badges hidden when 0)
+  - Tab persistence: `sessionStorage('followupTab')` on `shown.bs.tab` event
+  - `UnresolvedVisitRowDto` record: `visitId, clientId, clientName, clientPhone, lastVisitDate, daysSinceLastVisit`; loaded in `ClientCareFollowupController.followups()` from `VisitService`
+  - `VisitService.getClientsWithUnresolvedNextVisit()` / `getClientsWithSkippedNextVisit()` — delegate to two new `VisitRepository` JPQL queries
+  - `VisitRepository.findLatestUnresolvedVisitsPerClient()` — fetches one visit per client (latest by date+createdAt) where `nextVisitSkipped=false AND nextAppointment IS NULL` AND no upcoming PLANNED/CONFIRMED appointment in `appointments` table (`NOT EXISTS` subquery)
+  - `VisitRepository.findLatestSkippedVisitsPerClient()` — same "latest visit" logic, `nextVisitSkipped=true`; sorted most-recent-first
+  - Tab 2 structure: collapsed card at top ("Відмічено як «Запис не потрібний»") with clickable `card-header` (accordion, `cursor:pointer; user-select:none`) + chevron icon; below it the main unresolved table with `--bs-table-bg: var(--accent-light)` on `<thead>`
+  - Unskip from Tab 2 skipped section: form POSTs to `VisitController.unskipNext()` with `redirectTo=/clientcare/followups`
 
 ### Client list and detail
 - `ClientController` maps to `{"/clients", "/clientcare/clients"}` — `isClientCare(HttpServletRequest)` helper via URI prefix
@@ -427,7 +436,7 @@ com.hairmony.warehouse/
 | `/clientcare/clients/{id}` | `/clientcare/clients` | `/clientcare/clients/{id}/edit?returnTo=detail` |
 | `from=appointments` | `/clientcare/appointments?date=...` | `/clientcare/clients/{id}/edit?returnTo=detail` |
 
-- `clientsWithUnpaidVisits` Set passed to model only in clientcare context (for `−$` SVG icon next to name in list, and `bi-receipt-cutoff`-style KPI card on dashboard)
+- `clientsWithUnpaidVisits` Set passed to model in clientcare context (for `−$` SVG icon next to name in list, and `bi-receipt-cutoff`-style KPI card on dashboard)
 - `/clientcare/clients?unpaid=true` — client-side filter: hides clients without unpaid visits; activated via dashboard KPI card link; active state shown as dismissible pill ("Клієнти які мають неоплачений візит"); `clearUnpaidFilter()` removes param from URL via `history.replaceState` without reload
 - `serviceNames` Map (`Map<Long, String>`) loaded via `SalonServiceService.findAll()` in two places:
   `VisitController.allVisits()` (visits list page) and `ClientController.detail()` (shared fragment);
@@ -460,6 +469,9 @@ com.hairmony.warehouse/
 - `nextVisitDate` DB column exists for legacy data; NOT submitted from form
 - Visit form: `id="visitForm"` required — JS `getElementById` targets correct form (layout logout form is also a `<form>`)
 - `VisitService.save()` returns `Long` (visitId) — needed for action=schedule redirect
+- **`nextVisitSkipped` flag:** boolean on `Visit` entity; set via "Не потрібний прийом" button on visit edit form; resets naturally when a new visit is created for the same client; drives Tab 2 skipped section on `/clientcare/followups`
+  - `VisitController.unskipNext(@PathVariable id, returnTo, redirectTo)`: if `redirectTo` present and safe → redirect there directly; otherwise redirect to visit edit form (with optional `returnTo`); `redirectTo` vs `returnTo` distinction: `redirectTo` is where this action goes; `returnTo` is the back-button destination passed to the next page
+  - Visit form "skipped" indicator: `alert-secondary d-flex justify-content-between` — text+icon left (`bi-slash-circle`), rollback button right (`bi-arrow-counterclockwise`, `btn-outline-secondary btn-sm`)
 - **Billing (migration 021) — Appointment = attendance only; Visit = protocol + payment:**
   - CASH/CARD → price + isPaid checkbox; CERTIFICATE → cert code field (price/isPaid hidden); BARTER → price (auto-paid); COMPLIMENTARY/PROMO → no price, auto-paid
   - `applyCertificatePayment()`: validates cert code, sets REDEEMED + redeemedAt in same transaction
@@ -478,7 +490,7 @@ com.hairmony.warehouse/
 - `Appointment` entity: id, client_id (nullable), guest_name, guest_phone, start_at, end_at,
   status (PLANNED/CONFIRMED/COMPLETED/CANCELLED/NO_SHOW), service_id FK, notes, created_at, updated_at
 - DB CHECK: `client_id IS NOT NULL OR NULLIF(TRIM(guest_name),'') IS NOT NULL`
-- `AppointmentDto`: `@AssertTrue isClientOrGuestPresent()`, `@AssertTrue isEndAfterStart()`, `@DateTimeFormat(ISO.DATE_TIME)` on startAt/endAt; `serviceId` (Long)
+- `AppointmentDto`: `@AssertTrue isClientOrGuestPresent()`, `@AssertTrue isEndAfterStart()`, `@DateTimeFormat(ISO.DATE_TIME)` on startAt/endAt; `serviceId` — `@NotNull(message="{appointment.service.required}")` (form shows `is-invalid` + `invalid-feedback` on the service select)
 - `AppointmentService.save()` returns `Long` (appointmentId) — needed for `linkAppointment()` call
 - Calendar: FullCalendar v6 CDN; day/week/month views; drag-drop reschedule (PLANNED/CONFIRMED only)
   - Event feed: `GET /clientcare/appointments/api?start=...&end=...`; event colors client-side via `eventDidMount`

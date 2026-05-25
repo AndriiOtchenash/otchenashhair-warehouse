@@ -3,6 +3,9 @@
       th:replace="~{layout/main :: layout(#{supplier.list.title}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        #saveNewSupplierBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+    </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{supplier.list.title}">Постачальники</h1>
         <button class="btn btn-primary btn-sm" type="button"
@@ -32,7 +35,8 @@
                         <div class="col-md-4">
                             <input type="text" class="form-control" th:field="*{name}"
                                    th:placeholder="#{supplier.form.name}"
-                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"/>
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                                   oninput="document.getElementById('saveNewSupplierBtn').disabled = !this.value.trim()"/>
                             <div class="invalid-feedback" th:errors="*{name}"></div>
                         </div>
                         <div class="col-md-4">
@@ -43,8 +47,12 @@
                             <textarea class="form-control" th:field="*{notes}" rows="1"
                                       th:placeholder="#{supplier.form.notes}"></textarea>
                         </div>
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary btn-sm">
+                        <div class="col-12 d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    data-bs-toggle="collapse" data-bs-target="#newSupplierForm"
+                                    th:text="#{btn.cancel}">Скасувати</button>
+                            <button type="submit" id="saveNewSupplierBtn" class="btn btn-primary btn-sm"
+                                    th:disabled="${newSupplier.name == null or newSupplier.name.isEmpty()}">
                                 <i class="bi bi-check-lg me-1"></i>
                                 <span th:text="#{btn.save}">Зберегти</span>
                             </button>
@@ -156,11 +164,11 @@
                     </p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm"
+                    <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
                             data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
                     <form id="deleteSupplierForm" method="post">
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                        <button type="submit" class="btn btn-danger btn-sm" th:text="#{btn.yes}">Так</button>
+                        <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem" th:text="#{btn.yes}">Так</button>
                     </form>
                 </div>
             </div>

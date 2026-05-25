@@ -40,6 +40,8 @@ public class AppointmentDto {
     private LocalDateTime endAt;
 
     private AppointmentStatus status;
+
+    @NotNull(message = "{appointment.service.required}")
     private Long serviceId;
     private String serviceName;  // read-only, populated from entity for display
 

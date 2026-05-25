@@ -36,6 +36,12 @@
         }
         #paid:checked { background-color: var(--accent); border-color: var(--accent); }
         #paid:focus   { box-shadow: 0 0 0 0.2rem rgba(74,124,89,.25); }
+        #saveBtn:disabled {
+            background-color: transparent;
+            border-color: #6c757d;
+            color: #6c757d;
+            opacity: 0.65;
+        }
     </style>
 
     <div class="page-header">
@@ -114,64 +120,79 @@
                         <span th:text="#{visit.form.billing.section}">Послуга та оплата</span>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="serviceId" class="form-label fw-semibold"
+                    <div class="row gy-2 gx-0 align-items-center">
+
+                        <!-- Послуга -->
+                        <label for="serviceId" class="col-4 col-form-label fw-semibold"
                                th:text="#{visit.form.service}">Послуга</label>
-                        <select id="serviceId" class="form-select" th:field="*{serviceId}">
-                            <option value="" th:text="#{visit.form.service.placeholder}">— без послуги —</option>
-                            <option th:each="svc : ${activeServices}"
-                                    th:value="${svc.id}"
-                                    th:text="${svc.name}">
-                            </option>
-                        </select>
-                    </div>
-
-                    <div id="priceSection" class="mb-3">
-                        <label for="priceAtTime" class="form-label fw-semibold"
-                               th:text="#{visit.form.price}">Ціна</label>
-                        <div class="input-group">
-                            <input type="number" id="priceAtTime" class="form-control"
-                                   step="0.01" min="0"
-                                   th:field="*{priceAtTime}"
-                                   th:classappend="${#fields.hasErrors('priceAtTime')} ? 'is-invalid'"
-                                   th:placeholder="#{visit.form.price.hint}"/>
-                            <span class="input-group-text">zł</span>
-                            <div class="invalid-feedback" th:errors="*{priceAtTime}"></div>
+                        <div class="col-8">
+                            <select id="serviceId" class="form-select" th:field="*{serviceId}">
+                                <option value="" th:text="#{visit.form.service.placeholder}">— без послуги —</option>
+                                <option th:each="svc : ${activeServices}"
+                                        th:value="${svc.id}"
+                                        th:text="${svc.name}">
+                                </option>
+                            </select>
                         </div>
+
+                        <!-- Ціна (умовно прихована) -->
+                        <div id="priceSection" class="col-12">
+                            <div class="row gx-0 align-items-center">
+                                <label for="priceAtTime" class="col-4 col-form-label fw-semibold"
+                                       th:text="#{visit.form.price}">Ціна</label>
+                                <div class="col-8">
+                                    <div class="input-group">
+                                        <input type="number" id="priceAtTime" class="form-control text-end"
+                                               step="0.01" min="0"
+                                               th:field="*{priceAtTime}"
+                                               th:classappend="${#fields.hasErrors('priceAtTime')} ? 'is-invalid'"
+                                               th:placeholder="#{visit.form.price.hint}"/>
+                                        <span class="input-group-text">zł</span>
+                                        <div class="invalid-feedback" th:errors="*{priceAtTime}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Оплата -->
+                        <label for="paymentMethod" class="col-4 col-form-label fw-semibold"
+                               th:text="#{visit.form.paymentMethod}">Оплата</label>
+                        <div class="col-8">
+                            <select id="paymentMethod" class="form-select" th:field="*{paymentMethod}"
+                                    th:classappend="${#fields.hasErrors('paymentMethodRequiredWhenPaid')} ? 'is-invalid'"
+                                    onchange="onPaymentMethodChange()">
+                                <option value="" th:text="#{visit.form.paymentMethod.placeholder}">— не вказано —</option>
+                                <option th:each="pm : ${paymentMethods}"
+                                        th:value="${pm.name()}"
+                                        th:text="#{payment.method.__${pm}__}">
+                                </option>
+                            </select>
+                            <div class="invalid-feedback" th:errors="*{paymentMethodRequiredWhenPaid}"></div>
+                        </div>
+
+                        <!-- Код сертифіката (умовно прихована) -->
+                        <div id="certificateSection" class="col-12" style="display:none">
+                            <div class="row gx-0 align-items-start">
+                                <label for="certificateCode" class="col-4 col-form-label fw-semibold"
+                                       th:text="#{visit.form.certificateCode}">Код сертифіката</label>
+                                <div class="col-8">
+                                    <input type="text" id="certificateCode" class="form-control text-uppercase"
+                                           th:field="*{certificateCode}"
+                                           th:classappend="${#fields.hasErrors('certificateCode')} ? 'is-invalid'"
+                                           th:placeholder="#{visit.form.certificateCode.hint}"
+                                           maxlength="20"
+                                           oninput="this.value=this.value.toUpperCase(); clearCertStatus()"
+                                           onblur="checkCertificate(this.value)"/>
+                                    <div class="invalid-feedback" th:errors="*{certificateCode}"></div>
+                                    <div id="certStatus" class="mt-2" style="display:none"></div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
-                    <div class="mb-3">
-                        <label for="paymentMethod" class="form-label fw-semibold"
-                               th:text="#{visit.form.paymentMethod}">Спосіб оплати</label>
-                        <select id="paymentMethod" class="form-select" th:field="*{paymentMethod}"
-                                th:classappend="${#fields.hasErrors('paymentMethodRequiredWhenPaid')} ? 'is-invalid'"
-                                onchange="onPaymentMethodChange()">
-                            <option value="" th:text="#{visit.form.paymentMethod.placeholder}">— не вказано —</option>
-                            <option th:each="pm : ${paymentMethods}"
-                                    th:value="${pm.name()}"
-                                    th:text="#{payment.method.__${pm}__}">
-                            </option>
-                        </select>
-                        <div class="invalid-feedback" th:errors="*{paymentMethodRequiredWhenPaid}"></div>
-                    </div>
-
-                    <!-- Certificate code — shown only when CERTIFICATE -->
-                    <div id="certificateSection" class="mb-3" style="display:none">
-                        <label for="certificateCode" class="form-label fw-semibold"
-                               th:text="#{visit.form.certificateCode}">Код сертифіката</label>
-                        <input type="text" id="certificateCode" class="form-control text-uppercase"
-                               th:field="*{certificateCode}"
-                               th:classappend="${#fields.hasErrors('certificateCode')} ? 'is-invalid'"
-                               th:placeholder="#{visit.form.certificateCode.hint}"
-                               maxlength="20"
-                               oninput="this.value=this.value.toUpperCase(); clearCertStatus()"
-                               onblur="checkCertificate(this.value)"/>
-                        <div class="invalid-feedback" th:errors="*{certificateCode}"></div>
-                        <div id="certStatus" class="mt-2" style="display:none"></div>
-                    </div>
-
-                    <!-- Paid checkbox — hidden for CERTIFICATE (auto-marked paid) -->
-                    <div id="paidSection" class="form-check mb-1">
+                    <!-- Оплачено (умовно прихована) -->
+                    <div id="paidSection" class="form-check mt-2 mb-1">
                         <input class="form-check-input" type="checkbox" id="paid" th:field="*{paid}"/>
                         <label class="form-check-label" for="paid"
                                th:text="#{visit.form.paid}">Оплачено</label>
@@ -180,19 +201,43 @@
 
                 <!-- ── Next appointment ── -->
                 <div class="mb-3">
-                    <div th:if="${visit.nextAppointmentId == null and isLatestVisit and !hasUpcomingAppointment}"
-                         class="alert alert-warning d-flex align-items-center justify-content-between gap-2 flex-wrap mb-0 py-2">
-                        <span class="small">
+                    <!-- Not scheduled, no decision yet -->
+                    <div th:if="${visit.nextAppointmentId == null and isLatestVisit and !hasUpcomingAppointment and !visit.nextVisitSkipped}"
+                         class="alert alert-warning d-flex flex-column align-items-center gap-2 mb-0 py-2">
+                        <span class="small text-center">
                             <i class="bi bi-calendar-x me-1"></i>
                             <span th:text="#{visit.nextAppointment.notScheduled}">Наступний візит не запланований</span>
                         </span>
-                        <button type="submit" name="action" value="schedule"
-                                class="btn btn-warning btn-sm py-0 px-2"
-                                style="white-space:nowrap">
-                            <i class="bi bi-calendar-plus me-1"></i>
-                            <span th:text="#{visit.nextAppointment.schedule}">Запланувати →</span>
+                        <div class="d-flex gap-2 flex-wrap justify-content-center">
+                            <button type="submit" name="action" value="schedule"
+                                    class="btn btn-warning btn-sm py-0 px-2"
+                                    style="white-space:nowrap">
+                                <i class="bi bi-calendar-plus me-1"></i>
+                                <span th:text="#{visit.nextAppointment.schedule}">Запланувати →</span>
+                            </button>
+                            <button th:if="${visit.id != null}"
+                                    type="submit" form="skipNextForm"
+                                    class="btn btn-outline-secondary btn-sm py-0 px-2"
+                                    style="white-space:nowrap">
+                                <span th:text="#{visit.nextAppointment.notRequired}">Не потрібно</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Explicitly marked as not required -->
+                    <div th:if="${visit.nextAppointmentId == null and isLatestVisit and visit.nextVisitSkipped}"
+                         class="alert alert-secondary d-flex align-items-center justify-content-between gap-2 mb-0 py-2">
+                        <span class="small text-muted">
+                            <i class="bi bi-slash-circle me-1"></i>
+                            <span th:text="#{visit.nextAppointment.skipped}">Наступний прийом позначено як непотрібний</span>
+                        </span>
+                        <button type="submit" form="unskipNextForm"
+                                class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                                th:title="#{visit.nextAppointment.unskip}"
+                                data-bs-toggle="tooltip">
+                            <i class="bi bi-arrow-counterclockwise"></i>
                         </button>
                     </div>
+                    <!-- Scheduled -->
                     <div th:if="${visit.nextAppointmentId != null}"
                          class="alert alert-success d-flex align-items-center justify-content-between gap-2 flex-wrap mb-0 py-2">
                         <span class="small">
@@ -210,9 +255,11 @@
                 </div>
 
                 <!-- ── Actions ── -->
-                <div class="form-actions d-flex gap-2">
+                <div class="form-actions d-flex gap-2 justify-content-center">
                     <button type="submit" name="action" value="save"
-                            class="btn btn-primary">
+                            id="saveBtn"
+                            class="btn btn-primary"
+                            th:disabled="${visit.id != null}">
                         <i class="bi bi-check2 me-1"></i>
                         <span th:text="#{btn.save}">Зберегти</span>
                     </button>
@@ -220,6 +267,22 @@
                        class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
                 </div>
             </form>
+
+            <!-- Skip/unskip forms placed outside main form to avoid nesting (buttons reference via form= attribute) -->
+            <th:block th:if="${visit.id != null}">
+                <form id="skipNextForm"
+                      th:action="@{/clientcare/visits/{id}/skip-next(id=${visit.id})}"
+                      method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                    <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
+                </form>
+                <form id="unskipNextForm"
+                      th:action="@{/clientcare/visits/{id}/unskip-next(id=${visit.id})}"
+                      method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                    <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
+                </form>
+            </th:block>
         </div>
     </div>
 
@@ -312,6 +375,34 @@
             }
         }
         onPaymentMethodChange();
+
+        // ── Dirty-form detection (disable Save when no changes) ──────────────
+        var initialSnapshot = null;
+
+        function getFormSnapshot() {
+            var data = {};
+            document.querySelectorAll('#visitForm input:not([type=hidden]), #visitForm select, #visitForm textarea')
+                .forEach(function(el) {
+                    var key = el.name || el.id;
+                    data[key] = el.type === 'checkbox' ? el.checked : el.value;
+                });
+            return JSON.stringify(data);
+        }
+
+        function syncSaveBtn() {
+            var saveBtn = document.getElementById('saveBtn');
+            if (!saveBtn || initialSnapshot === null) return;
+            saveBtn.disabled = (getFormSnapshot() === initialSnapshot);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var form = document.getElementById('visitForm');
+            if (form) {
+                initialSnapshot = getFormSnapshot();
+                form.addEventListener('input',  syncSaveBtn);
+                form.addEventListener('change', syncSaveBtn);
+            }
+        });
 
         // ── Submit validation ─────────────────────────────────────────────────
         document.getElementById('visitForm').addEventListener('submit', function(e) {

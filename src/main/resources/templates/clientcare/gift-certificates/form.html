@@ -15,6 +15,8 @@
         .mode-toggle .btn-check:checked + .btn { background: var(--accent); color: #fff; border-color: var(--accent); }
         .purchaser-section { display: none; }
         .purchaser-section.active { display: block; }
+        #saveBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+        .ts-wrapper .ts-control .item[data-value=""] { font-size: 0.875rem; color: #9ba5ae; }
     </style>
 
     <div class="card" style="max-width: 640px;">
@@ -52,7 +54,7 @@
                     <!-- Existing client dropdown -->
                     <div id="sectionPurchaserExisting" class="purchaser-section">
                         <select class="form-select ts-client" th:field="*{purchaserClientId}">
-                            <option value="" th:text="#{gift.form.select.client}">— оберіть клієнта —</option>
+                            <option value="" th:text="#{gift.form.select.purchaser}">— Оберіть покупця із переліку клієнтів —</option>
                             <option th:each="c : ${clients}"
                                     th:value="${c.id}"
                                     th:text="${c.name}"></option>
@@ -85,23 +87,31 @@
 
                 <!-- Recipient toggle -->
                 <div class="mb-3">
-                    <label class="form-label fw-semibold" th:text="#{gift.form.recipient}">Отримувач</label>
-                    <div class="d-flex gap-2 mb-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary active" id="btnRecipientClient"
-                                onclick="showRecipientMode('client')" th:text="#{gift.form.recipient.existing}">Клієнт із бази</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRecipientFree"
-                                onclick="showRecipientMode('free')" th:text="#{gift.form.recipient.new}">Інша людина</button>
+                    <label class="form-label fw-semibold d-block" th:text="#{gift.form.recipient}">Отримувач</label>
+                    <div class="btn-group mode-toggle mb-2" style="width:66.67%" role="group">
+                        <input type="radio" class="btn-check" name="recipientMode" id="modeRecipientClient"
+                               value="client" autocomplete="off"
+                               th:checked="${form.recipientName == null or form.recipientName.isEmpty()}"/>
+                        <label class="btn btn-outline-secondary" for="modeRecipientClient"
+                               th:text="#{gift.form.purchaser.mode.existing}">Існуючий клієнт</label>
+
+                        <input type="radio" class="btn-check" name="recipientMode" id="modeRecipientFree"
+                               value="free" autocomplete="off"
+                               th:checked="${form.recipientName != null and !form.recipientName.isEmpty()}"/>
+                        <label class="btn btn-outline-secondary" for="modeRecipientFree"
+                               th:text="#{gift.form.purchaser.mode.new}">Новий</label>
                     </div>
 
                     <!-- Existing client dropdown -->
                     <div id="recipientClientBlock">
                         <select class="form-select ts-client" th:field="*{recipientClientId}"
                                 th:classappend="${#fields.hasErrors('recipientClientId')} ? 'is-invalid'">
-                            <option value="" th:text="#{gift.form.select.client}">— оберіть клієнта —</option>
+                            <option value="" th:text="#{gift.form.select.recipient}">— Оберіть отримувача із переліку клієнтів —</option>
                             <option th:each="c : ${clients}"
                                     th:value="${c.id}"
                                     th:text="${c.name}"></option>
                         </select>
+                        <div class="invalid-feedback" th:errors="*{recipientClientId}"></div>
                     </div>
 
                     <!-- Free-text recipient -->
@@ -128,42 +138,48 @@
                          class="text-danger small mt-1" th:errors="*{recipientPresent}"></div>
                 </div>
 
-                <!-- Service -->
-                <div class="mb-3">
-                    <label class="form-label fw-semibold" th:text="#{gift.form.service}">Послуга</label>
-                    <select class="form-select" th:field="*{serviceId}"
-                            th:classappend="${#fields.hasErrors('serviceId')} ? 'is-invalid'">
-                        <option value="" th:text="#{gift.form.select.service}">— оберіть послугу —</option>
-                        <option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}"></option>
-                    </select>
-                    <div class="invalid-feedback" th:errors="*{serviceId}"></div>
-                    <div th:if="${services.empty}" class="form-text text-warning">
-                        <i class="bi bi-exclamation-triangle me-1"></i>
-                        <a th:href="@{/clientcare/services}" th:text="#{gift.form.service.empty}">Додайте послуги спочатку →</a>
-                    </div>
-                </div>
+                <!-- Service / Price / Expiry — compact row layout -->
+                <div class="row gy-2 gx-0 align-items-center mb-3">
 
-                <!-- Price — hidden for salon gifts -->
-                <div id="priceSection" class="mb-3">
-                    <label class="form-label fw-semibold" th:text="#{gift.form.price}">Вартість</label>
-                    <div class="input-group">
-                        <input type="number" id="price" class="form-control" th:field="*{price}"
-                               th:classappend="${#fields.hasErrors('price')} ? 'is-invalid'"
-                               step="0.01" min="0"
-                               th:placeholder="#{gift.form.price.hint}"/>
-                        <span class="input-group-text">zł</span>
-                        <div class="invalid-feedback" th:errors="*{price}"></div>
+                    <!-- Service -->
+                    <label class="col-4 col-form-label fw-semibold" th:text="#{gift.form.service}">Послуга</label>
+                    <div class="col-8">
+                        <select class="form-select form-select-sm" id="serviceId" th:field="*{serviceId}"
+                                th:classappend="${#fields.hasErrors('serviceId')} ? 'is-invalid'">
+                            <option value="" th:text="#{gift.form.select.service}">— оберіть послугу —</option>
+                            <option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}"></option>
+                        </select>
+                        <div class="invalid-feedback" th:errors="*{serviceId}"></div>
+                        <div th:if="${services.empty}" class="form-text text-warning">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <a th:href="@{/clientcare/services}" th:text="#{gift.form.service.empty}">Додайте послуги спочатку →</a>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Expiry date -->
-                <div class="mb-3">
-                    <label class="form-label fw-semibold" th:text="#{gift.form.expiresAt}">Дійсний до</label>
-                    <input type="date" class="form-control" th:field="*{expiresAt}"
-                           th:classappend="${#fields.hasErrors('expiresAt')} ? 'is-invalid'"
-                           onclick="this.showPicker && this.showPicker()"/>
-                    <div class="form-text" th:text="#{gift.form.expiresAt.hint}">За замовчуванням — 6 місяців від сьогодні</div>
-                    <div class="invalid-feedback" th:errors="*{expiresAt}"></div>
+                    <!-- Price — hidden for salon gifts -->
+                    <div id="priceSection" class="col-12">
+                        <div class="row gx-0 align-items-center">
+                            <label class="col-4 col-form-label fw-semibold" th:text="#{gift.form.price}">Вартість сертифіката, zł</label>
+                            <div class="col-8">
+                                <input type="number" id="price" class="form-control form-control-sm text-end"
+                                       th:field="*{price}"
+                                       th:classappend="${#fields.hasErrors('price')} ? 'is-invalid'"
+                                       step="0.01" min="0"
+                                       th:placeholder="#{gift.form.price.hint}"/>
+                                <div class="invalid-feedback" th:errors="*{price}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expiry date -->
+                    <label class="col-4 col-form-label fw-semibold" th:text="#{gift.form.expiresAt}">Дійсний до</label>
+                    <div class="col-8">
+                        <input type="date" class="form-control form-control-sm text-end" th:field="*{expiresAt}"
+                               th:classappend="${#fields.hasErrors('expiresAt')} ? 'is-invalid'"
+                               onclick="this.showPicker && this.showPicker()"/>
+                        <div class="invalid-feedback" th:errors="*{expiresAt}"></div>
+                    </div>
+
                 </div>
 
                 <!-- Notes -->
@@ -175,13 +191,13 @@
                     <div class="invalid-feedback" th:errors="*{notes}"></div>
                 </div>
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success">
+                <div class="d-flex gap-2 justify-content-end">
+                    <a th:href="${returnTo != null ? returnTo : '/clientcare/gift-certificates'}"
+                       class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                    <button type="submit" id="saveBtn" class="btn btn-success" disabled>
                         <i class="bi bi-gift me-1"></i>
                         <span th:text="#{gift.btn.issue}">Видати сертифікат</span>
                     </button>
-                    <a th:href="${returnTo != null ? returnTo : '/clientcare/gift-certificates'}"
-                       class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
                 </div>
             </form>
         </div>
@@ -193,11 +209,73 @@
         const HAS_FROM_SALON       = /*[[${form.fromSalon}]]*/ false;
         const HAS_RECIPIENT_CLIENT = /*[[${form.recipientClientId != null}]]*/ false;
         const HAS_RECIPIENT_FREE   = /*[[${not #strings.isEmpty(form.recipientName)}]]*/ false;
+        const HAS_SERVICE          = /*[[${form.serviceId != null}]]*/ false;
 
         function tsClear(id) {
             const el = document.getElementById(id);
             if (el && el.tomselect) el.tomselect.clear();
             else if (el) el.value = '';
+        }
+
+        function setDisabled(id, disabled) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            if (el.tomselect) {
+                if (disabled) el.tomselect.disable(); else el.tomselect.enable();
+            } else {
+                el.disabled = disabled;
+            }
+        }
+
+        function isPurchaserFilled() {
+            var mode = document.querySelector('input[name="purchaserMode"]:checked');
+            if (!mode) return false;
+            if (mode.value === 'salon') return true;
+            if (mode.value === 'existing') {
+                var sel = document.getElementById('purchaserClientId');
+                return sel && sel.value !== '';
+            }
+            if (mode.value === 'new') {
+                var name = document.getElementById('purchaserName');
+                return name && name.value.trim() !== '';
+            }
+            return false;
+        }
+
+        function isRecipientFilled() {
+            var clientVisible = document.getElementById('recipientClientBlock').style.display !== 'none';
+            if (clientVisible) {
+                var sel = document.getElementById('recipientClientId');
+                return sel && sel.value !== '';
+            } else {
+                var name = document.getElementById('recipientName');
+                return name && name.value.trim() !== '';
+            }
+        }
+
+        function isServiceFilled() {
+            var sel = document.getElementById('serviceId');
+            return sel && sel.value !== '';
+        }
+
+        function syncFormLock() {
+            var purchaserOk = isPurchaserFilled();
+            var recipientOk = purchaserOk && isRecipientFilled();
+            var serviceOk   = recipientOk && isServiceFilled();
+
+            // Recipient section — lock/unlock all interactive elements
+            setDisabled('recipientClientId', !purchaserOk);
+            ['recipientName', 'recipientPhone', 'modeRecipientClient', 'modeRecipientFree'].forEach(function(id) {
+                setDisabled(id, !purchaserOk);
+            });
+
+            // Service
+            setDisabled('serviceId', !recipientOk);
+
+            // Price, expiry, notes, submit
+            ['price', 'expiresAt', 'notes', 'saveBtn'].forEach(function(id) {
+                setDisabled(id, !serviceOk);
+            });
         }
 
         function syncPurchaserMode(mode) {
@@ -219,20 +297,22 @@
             } else {
                 tsClear('purchaserClientId');
             }
+            syncFormLock();
         }
 
         function showRecipientMode(mode) {
             const isClient = mode === 'client';
             document.getElementById('recipientClientBlock').style.display = isClient ? '' : 'none';
             document.getElementById('recipientFreeBlock').style.display   = isClient ? 'none' : '';
-            document.getElementById('btnRecipientClient').classList.toggle('active', isClient);
-            document.getElementById('btnRecipientFree').classList.toggle('active', !isClient);
+            document.getElementById('modeRecipientClient').checked = isClient;
+            document.getElementById('modeRecipientFree').checked   = !isClient;
             if (isClient) {
                 document.getElementById('recipientName').value  = '';
                 document.getElementById('recipientPhone').value = '';
             } else {
                 tsClear('recipientClientId');
             }
+            syncFormLock();
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -247,7 +327,30 @@
                 if (this.checked) syncPurchaserMode('salon');
             });
 
-            // Restore purchaser mode on validation error re-render
+            // Purchaser free-text input
+            document.getElementById('purchaserName').addEventListener('input', syncFormLock);
+
+            // Wire recipient radio buttons
+            document.getElementById('modeRecipientClient').addEventListener('change', function () {
+                if (this.checked) showRecipientMode('client');
+            });
+            document.getElementById('modeRecipientFree').addEventListener('change', function () {
+                if (this.checked) showRecipientMode('free');
+            });
+
+            // Native change events on selects — TomSelect fires these on the underlying <select>;
+            // cannot use tomselect.on() here because TomSelect initializes in the layout's
+            // DOMContentLoaded which runs AFTER this handler.
+            document.getElementById('purchaserClientId').addEventListener('change', syncFormLock);
+            document.getElementById('recipientClientId').addEventListener('change', syncFormLock);
+
+            // Recipient free-text input
+            document.getElementById('recipientName').addEventListener('input', syncFormLock);
+
+            // Service select
+            document.getElementById('serviceId').addEventListener('change', syncFormLock);
+
+            // Restore purchaser / recipient mode (UI only, no syncFormLock yet)
             if (HAS_FROM_SALON) {
                 syncPurchaserMode('salon');
             } else if (HAS_PURCHASER_FREE && !HAS_PURCHASER_CLIENT) {
@@ -256,9 +359,16 @@
             } else {
                 syncPurchaserMode('existing');
             }
+            // Restore recipient block visibility on validation error re-render
+            // (th:checked already sets the correct radio; just sync the visible blocks)
+            if (HAS_RECIPIENT_FREE) {
+                document.getElementById('recipientClientBlock').style.display = 'none';
+                document.getElementById('recipientFreeBlock').style.display   = '';
+            }
 
-            // Restore recipient mode on validation error re-render
-            if (HAS_RECIPIENT_FREE) showRecipientMode('free');
+            // Defer lock apply so it runs after the layout's DOMContentLoaded
+            // finishes initializing TomSelect — only then can tomselect.disable() be called.
+            setTimeout(syncFormLock, 0);
         });
     </script>
 </div>

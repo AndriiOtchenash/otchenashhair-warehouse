@@ -54,168 +54,399 @@
             text-align: center; padding: 0 0.2rem;
             pointer-events: none;
         }
+        /* Tabs — same pattern as client-detail */
+        #followupTabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        #followupTabs::-webkit-scrollbar { display: none; }
+        #followupTabs .nav-link { white-space: nowrap; color: #6c757d; }
+        #followupTabs .nav-link:hover { color: var(--accent); border-color: transparent transparent var(--bs-border-color); }
+        #followupTabs .nav-link.active { color: var(--accent); border-top: 2px solid var(--accent); border-left-color: var(--bs-border-color); border-right-color: var(--bs-border-color); border-bottom-color: #fff; }
     </style>
 
     <div class="page-header">
-        <div class="w-100">
-            <!-- mobile: h1 + лічильник в одному рядку -->
-            <div class="d-flex align-items-center justify-content-between w-100 d-md-block">
-                <h1 class="page-title mb-0" th:text="#{clientcare.followups.title}">Follow-up черга</h1>
-                <span class="text-muted d-md-none ms-3"
-                      style="font-size:0.85rem; white-space:nowrap;"
-                      th:text="#{clientcare.followups.subtitle(${clients.size()})}">Клієнтів: 0</span>
-            </div>
-            <!-- desktop: subtitle під заголовком -->
-            <div class="text-muted d-none d-md-block" style="font-size:0.85rem;"
-                 th:text="#{clientcare.followups.subtitle(${clients.size()})}">Клієнтів: 0</div>
-        </div>
-        <a th:href="@{/clientcare}" class="btn btn-outline-secondary btn-sm flex-shrink-0 ms-3 d-none d-md-inline-flex">
+        <h1 class="page-title" th:text="#{clientcare.followups.title}">Follow-up черга</h1>
+        <a th:href="@{/clientcare}" class="btn btn-outline-secondary btn-sm flex-shrink-0 d-none d-md-inline-flex">
             <i class="bi bi-arrow-left me-1"></i>
             <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
         </a>
     </div>
 
-    <!-- Filters -->
-    <div class="d-flex flex-column gap-2 mb-3" style="row-gap: 0.6rem;">
-        <!-- Purchase activity -->
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="text-muted filter-row-label" th:text="#{clientcare.filter.purchase.label}">Покупки:</span>
-            <a th:href="@{/clientcare/followups(visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
-               class="filter-pill" th:classappend="${activeMinDays == 0} ? ' active'"
-               th:text="#{clientcare.filter.all}">Всі</a>
-            <a th:href="@{/clientcare/followups(minDays=30, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
-               class="filter-pill" th:classappend="${activeMinDays == 30} ? ' active'">
-                30+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-            <a th:href="@{/clientcare/followups(minDays=60, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
-               class="filter-pill" th:classappend="${activeMinDays == 60} ? ' active'">
-                60+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-            <a th:href="@{/clientcare/followups(minDays=90, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
-               class="filter-pill" th:classappend="${activeMinDays == 90} ? ' active'">
-                90+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-        </div>
-        <!-- Visit signal -->
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="text-muted filter-row-label" th:text="#{clientcare.filter.visit.label}">Візити:</span>
-            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null})}"
-               class="filter-pill" th:classappend="${activeVisitFilter == 'all'} ? ' active'"
-               th:text="#{clientcare.filter.all}">Всі</a>
-            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='overdue')}"
-               class="filter-pill" th:classappend="${activeVisitFilter == 'overdue'} ? ' active'"
-               th:text="#{clientcare.filter.visit.overdue}">Прострочені</a>
-            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='scheduled')}"
-               class="filter-pill" th:classappend="${activeVisitFilter == 'scheduled'} ? ' active'"
-               th:text="#{clientcare.filter.visit.scheduled}">Заплановані</a>
-            <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='none')}"
-               class="filter-pill" th:classappend="${activeVisitFilter == 'none'} ? ' active'"
-               th:text="#{clientcare.filter.visit.none}">Без візиту</a>
-        </div>
-    </div>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" id="followupTabs" role="tablist">
+        <li class="nav-item flex-shrink-0" role="presentation">
+            <button class="nav-link active" id="tab-queue-btn"
+                    data-bs-toggle="tab" data-bs-target="#tab-queue"
+                    type="button" role="tab">
+                <span th:text="#{followup.tab.queue}">Товари і записи</span>
+                <span th:unless="${clients.isEmpty()}" class="badge bg-secondary ms-1"
+                      th:text="${clients.size()}"></span>
+            </button>
+        </li>
+        <li class="nav-item flex-shrink-0" role="presentation">
+            <button class="nav-link" id="tab-visits-btn"
+                    data-bs-toggle="tab" data-bs-target="#tab-visits"
+                    type="button" role="tab">
+                <span th:text="#{followup.tab.visits}">Без запису</span>
+                <span th:unless="${unresolvedVisits.isEmpty()}" class="badge bg-secondary ms-1"
+                      th:text="${unresolvedVisits.size()}"></span>
+            </button>
+        </li>
+    </ul>
 
-    <div th:if="${clients.isEmpty()}" class="alert alert-info" th:text="#{clientcare.followups.empty}">
-        Клієнтів з покупками не знайдено
-    </div>
+    <div class="tab-content" id="followupTabsContent">
 
-    <div th:unless="${clients.isEmpty()}" class="card followup-card">
-        <div class="card-header" th:text="#{clientcare.followups.title}">Follow-up черга</div>
-        <div class="card-body p-0">
-            <table class="table table-striped mb-0 followup-table">
-                <thead>
-                <tr>
-                    <th th:text="#{clientcare.followups.client}">Клієнт</th>
-                    <th class="d-none d-md-table-cell text-center" th:text="#{clientcare.followups.phone}">Телефон</th>
-                    <th class="text-center" th:text="#{clientcare.followups.signals}">Сигнали</th>
-                    <th class="d-none d-md-table-cell text-end" th:text="#{clientcare.followups.totalSpent}">Сума покупок</th>
-                    <th class="text-center" th:text="#{followup.col.actions}">Дії</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="c : ${clients}">
-                    <td>
-                        <div class="d-flex align-items-center gap-1 flex-wrap">
-                            <a th:href="@{/clientcare/clients/{id}(id=${c.clientId})}"
-                               class="text-decoration-none text-body fw-medium client-name-link"
-                               style="font-size:0.9rem;"
-                               th:text="${c.clientName}">Ім'я</a>
-                            <!-- DONE badge -->
-                            <th:block th:with="fu=${latestFollowUps.get(c.clientId)}">
-                                <span th:if="${fu != null and fu.action().name() == 'DONE'}"
-                                      class="badge-done"
-                                      th:data-client-badge="${c.clientId}">
-                                    <i class="bi bi-check2"></i>
-                                    <span th:text="#{followup.badge.done}">Виконано</span>
-                                </span>
-                                <!-- NOTE icon removed — see activity log modal -->
-                            </th:block>
+        <!-- ══ TAB 1: Purchase/booking queue ══ -->
+        <div class="tab-pane fade show active" id="tab-queue" role="tabpanel">
+
+            <!-- Filters -->
+            <div class="d-flex flex-column gap-2 mb-3" style="row-gap: 0.6rem;">
+                <!-- Purchase activity -->
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="text-muted filter-row-label" th:text="#{clientcare.filter.purchase.label}">Покупки:</span>
+                    <a th:href="@{/clientcare/followups(visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                       class="filter-pill" th:classappend="${activeMinDays == 0} ? ' active'"
+                       th:text="#{clientcare.filter.all}">Всі</a>
+                    <a th:href="@{/clientcare/followups(minDays=30, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                       class="filter-pill" th:classappend="${activeMinDays == 30} ? ' active'">
+                        30+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+                    <a th:href="@{/clientcare/followups(minDays=60, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                       class="filter-pill" th:classappend="${activeMinDays == 60} ? ' active'">
+                        60+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+                    <a th:href="@{/clientcare/followups(minDays=90, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                       class="filter-pill" th:classappend="${activeMinDays == 90} ? ' active'">
+                        90+ <span th:text="#{clientcare.filter.days}">днів</span></a>
+                </div>
+                <!-- Visit signal -->
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="text-muted filter-row-label" th:text="#{clientcare.filter.visit.label}">Візити:</span>
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null})}"
+                       class="filter-pill" th:classappend="${activeVisitFilter == 'all'} ? ' active'"
+                       th:text="#{clientcare.filter.all}">Всі</a>
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='overdue')}"
+                       class="filter-pill" th:classappend="${activeVisitFilter == 'overdue'} ? ' active'"
+                       th:text="#{clientcare.filter.visit.overdue}">Прострочені</a>
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='scheduled')}"
+                       class="filter-pill" th:classappend="${activeVisitFilter == 'scheduled'} ? ' active'"
+                       th:text="#{clientcare.filter.visit.scheduled}">Заплановані</a>
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='none')}"
+                       class="filter-pill" th:classappend="${activeVisitFilter == 'none'} ? ' active'"
+                       th:text="#{clientcare.filter.visit.none}">Без візиту</a>
+                </div>
+            </div>
+
+            <div th:if="${clients.isEmpty()}" class="alert alert-info" th:text="#{clientcare.followups.empty}">
+                Клієнтів з покупками не знайдено
+            </div>
+
+            <div th:unless="${clients.isEmpty()}" class="card followup-card">
+                <div class="card-header" th:text="#{clientcare.followups.title}">Follow-up черга</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped mb-0 followup-table">
+                        <thead>
+                        <tr>
+                            <th th:text="#{clientcare.followups.client}">Клієнт</th>
+                            <th class="d-none d-md-table-cell text-center" th:text="#{clientcare.followups.phone}">Телефон</th>
+                            <th class="text-center" th:text="#{clientcare.followups.signals}">Сигнали</th>
+                            <th class="d-none d-md-table-cell text-end" th:text="#{clientcare.followups.totalSpent}">Сума покупок</th>
+                            <th class="text-center" th:text="#{followup.col.actions}">Дії</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="c : ${clients}">
+                            <td>
+                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    <a th:href="@{/clientcare/clients/{id}(id=${c.clientId})}"
+                                       class="text-decoration-none text-body fw-medium client-name-link"
+                                       style="font-size:0.9rem;"
+                                       th:text="${c.clientName}">Ім'я</a>
+                                    <!-- DONE badge -->
+                                    <th:block th:with="fu=${latestFollowUps.get(c.clientId)}">
+                                        <span th:if="${fu != null and fu.action().name() == 'DONE'}"
+                                              class="badge-done"
+                                              th:data-client-badge="${c.clientId}">
+                                            <i class="bi bi-check2"></i>
+                                            <span th:text="#{followup.badge.done}">Виконано</span>
+                                        </span>
+                                    </th:block>
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                <span th:if="${c.hasPhone()}" th:text="${c.clientPhone}" class="text-muted"></span>
+                                <span th:unless="${c.hasPhone()}" class="text-muted">—</span>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column gap-1">
+                                    <!-- Visit signal -->
+                                    <span th:if="${c.visitOverdue()}"
+                                          class="days-badge days-urgent"
+                                          th:text="#{followup.signal.visit.overdue(${-c.daysUntilNextVisit()})}">Візит: N дн тому</span>
+                                    <span th:if="${c.visitToday()}"
+                                          class="days-badge days-warn"
+                                          th:text="#{followup.signal.visit.today}">Візит: сьогодні</span>
+                                    <span th:if="${c.visitUpcoming()}"
+                                          class="days-badge days-warn"
+                                          th:text="#{followup.signal.visit.upcoming(${c.daysUntilNextVisit()})}">Візит: через N дн</span>
+                                    <!-- Purchase signal -->
+                                    <span th:if="${c.hasPurchaseSignal()}"
+                                          class="days-badge"
+                                          th:classappend="${c.daysSinceLastPurchase() > 60} ? 'days-urgent' : (${c.daysSinceLastPurchase() > 30} ? 'days-warn' : 'days-ok')"
+                                          th:text="#{followup.signal.purchase(${c.daysSinceLastPurchase()})}">Покупка: N дн</span>
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell text-end">
+                                <span th:text="${#numbers.formatDecimal(c.totalSpent, 1, 'POINT', 2, 'COMMA')} + ' zł'">0.00 zł</span>
+                            </td>
+                            <td>
+                                <div class="fu-actions">
+                                    <!-- Done — opens modal for optional comment -->
+                                    <button type="button" class="btn btn-outline-success btn-sm"
+                                            th:title="#{followup.action.done}"
+                                            th:data-client-id="${c.clientId}"
+                                            th:data-return-to="${returnTo}"
+                                            onclick="openDoneModal(this)">
+                                        <i class="bi bi-check2 d-md-none"></i>
+                                        <span class="d-none d-md-inline" th:text="#{followup.action.done}">Виконано</span>
+                                    </button>
+                                    <!-- Snooze -->
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            th:title="#{followup.action.snooze}"
+                                            th:data-client-id="${c.clientId}"
+                                            th:data-return-to="${returnTo}"
+                                            onclick="openSnoozeModal(this)">
+                                        <i class="bi bi-clock d-md-none"></i>
+                                        <span class="d-none d-md-inline" th:text="#{followup.action.snooze}">Відкласти</span>
+                                    </button>
+                                    <!-- Activity log -->
+                                    <span class="activity-btn-wrap">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                th:title="#{followup.activity.title}"
+                                                th:data-client-id="${c.clientId}"
+                                                th:data-client-name="${c.clientName}"
+                                                th:data-return-to="${returnTo}"
+                                                onclick="openActivityModal(this)">
+                                            <i class="bi bi-list-ul"></i>
+                                        </button>
+                                        <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
+                                              class="activity-count-badge"
+                                              th:data-activity-badge="${c.clientId}"
+                                              th:text="${activityCounts.get(c.clientId)}"></span>
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Snoozed section -->
+            <div th:unless="${snoozed.isEmpty()}" class="mt-3">
+                <button class="btn btn-sm btn-link text-muted px-0 collapsed"
+                        type="button" data-bs-toggle="collapse" data-bs-target="#snoozedSection">
+                    <i class="bi bi-clock me-1"></i>
+                    <span th:text="#{followup.snoozed.section(${snoozed.size()})}">Відкладені (0)</span>
+                    <i class="bi bi-chevron-down ms-1" style="font-size:0.7rem;"></i>
+                </button>
+                <div class="collapse" id="snoozedSection">
+                    <div class="card mt-2">
+                        <div class="card-body p-0">
+                            <table class="table table-sm mb-0" style="min-width:0;">
+                                <tbody>
+                                <tr th:each="c : ${snoozed}">
+                                    <td>
+                                        <div th:text="${c.clientName}" style="font-size:0.85rem;"></div>
+                                        <div class="text-muted" style="font-size:0.75rem;">
+                                            <i class="bi bi-clock me-1"></i>
+                                            <span th:with="fu=${latestFollowUps.get(c.clientId())}"
+                                                  th:text="#{followup.snoozed.until(${#temporals.format(fu.dueDate(), 'dd.MM')})}">до 21.05</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end" style="white-space:nowrap;">
+                                        <!-- Activity log -->
+                                        <span class="activity-btn-wrap">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                    th:data-client-id="${c.clientId}"
+                                                    th:data-client-name="${c.clientName}"
+                                                    th:data-return-to="${returnTo}"
+                                                    onclick="openActivityModal(this)"
+                                                    th:title="#{followup.activity.title}">
+                                                <i class="bi bi-list-ul"></i>
+                                            </button>
+                                            <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
+                                                  class="activity-count-badge"
+                                                  th:data-activity-badge="${c.clientId}"
+                                                  th:text="${activityCounts.get(c.clientId)}"></span>
+                                        </span>
+                                        <!-- Unsnooze decision modal -->
+                                        <button type="button" class="btn btn-outline-warning btn-sm"
+                                                th:data-client-id="${c.clientId}"
+                                                th:data-client-name="${c.clientName}"
+                                                th:data-return-to="${returnTo}"
+                                                onclick="openUnsnoozeModal(this)"
+                                                th:title="#{followup.snoozed.cancel}">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
                         </div>
-                    </td>
-                    <td class="d-none d-md-table-cell">
-                        <span th:if="${c.hasPhone()}" th:text="${c.clientPhone}" class="text-muted"></span>
-                        <span th:unless="${c.hasPhone()}" class="text-muted">—</span>
-                    </td>
-                    <td>
-                        <div class="d-flex flex-column gap-1">
-                            <!-- Visit signal -->
-                            <span th:if="${c.visitOverdue()}"
-                                  class="days-badge days-urgent"
-                                  th:text="#{followup.signal.visit.overdue(${-c.daysUntilNextVisit()})}">Візит: N дн тому</span>
-                            <span th:if="${c.visitToday()}"
-                                  class="days-badge days-warn"
-                                  th:text="#{followup.signal.visit.today}">Візит: сьогодні</span>
-                            <span th:if="${c.visitUpcoming()}"
-                                  class="days-badge days-warn"
-                                  th:text="#{followup.signal.visit.upcoming(${c.daysUntilNextVisit()})}">Візит: через N дн</span>
-                            <!-- Purchase signal -->
-                            <span th:if="${c.hasPurchaseSignal()}"
-                                  class="days-badge"
-                                  th:classappend="${c.daysSinceLastPurchase() > 60} ? 'days-urgent' : (${c.daysSinceLastPurchase() > 30} ? 'days-warn' : 'days-ok')"
-                                  th:text="#{followup.signal.purchase(${c.daysSinceLastPurchase()})}">Покупка: N дн</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Done section -->
+            <div th:unless="${done.isEmpty()}" class="mt-2">
+                <button class="btn btn-sm btn-link text-muted px-0 collapsed"
+                        type="button" data-bs-toggle="collapse" data-bs-target="#doneSection">
+                    <i class="bi bi-check2-circle me-1"></i>
+                    <span th:text="#{followup.done.section(${done.size()})}">Виконані (0)</span>
+                    <i class="bi bi-chevron-down ms-1" style="font-size:0.7rem;"></i>
+                </button>
+                <div class="collapse" id="doneSection">
+                    <div class="card mt-2">
+                        <div class="card-body p-0">
+                            <table class="table table-sm mb-0" style="min-width:0;">
+                                <tbody>
+                                <tr th:each="c : ${done}">
+                                    <td>
+                                        <div th:text="${c.clientName}" style="font-size:0.85rem;"></div>
+                                        <div class="text-muted" style="font-size:0.75rem;">
+                                            <i class="bi bi-eye-slash me-1"></i>
+                                            <span th:with="fu=${latestFollowUps.get(c.clientId())}"
+                                                  th:text="#{followup.done.until(${#temporals.format(fu.dueDate(), 'dd.MM')})}">до 21.05</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end" style="white-space:nowrap;">
+                                        <!-- Activity log -->
+                                        <span class="activity-btn-wrap">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                    th:data-client-id="${c.clientId}"
+                                                    th:data-client-name="${c.clientName}"
+                                                    th:data-return-to="${returnTo}"
+                                                    onclick="openActivityModal(this)"
+                                                    th:title="#{followup.activity.title}">
+                                                <i class="bi bi-list-ul"></i>
+                                            </button>
+                                            <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
+                                                  class="activity-count-badge"
+                                                  th:data-activity-badge="${c.clientId}"
+                                                  th:text="${activityCounts.get(c.clientId)}"></span>
+                                        </span>
+                                        <!-- Undo done — reset to queue -->
+                                        <button type="button" class="btn btn-outline-success btn-sm"
+                                                th:data-client-id="${c.clientId}"
+                                                th:data-return-to="${returnTo}"
+                                                onclick="undoDone(this)"
+                                                th:title="#{followup.done.undo}">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
                         </div>
-                    </td>
-                    <td class="d-none d-md-table-cell text-end">
-                        <span th:text="${#numbers.formatDecimal(c.totalSpent, 1, 'POINT', 2, 'COMMA')} + ' zł'">0.00 zł</span>
-                    </td>
-                    <td>
-                        <div class="fu-actions">
-                            <!-- Done — opens modal for optional comment -->
-                            <button type="button" class="btn btn-outline-success btn-sm"
-                                    th:title="#{followup.action.done}"
-                                    th:data-client-id="${c.clientId}"
-                                    th:data-return-to="${returnTo}"
-                                    onclick="openDoneModal(this)">
-                                <i class="bi bi-check2 d-md-none"></i>
-                                <span class="d-none d-md-inline" th:text="#{followup.action.done}">Виконано</span>
-                            </button>
-                            <!-- Snooze -->
-                            <button type="button" class="btn btn-outline-secondary btn-sm"
-                                    th:title="#{followup.action.snooze}"
-                                    th:data-client-id="${c.clientId}"
-                                    th:data-return-to="${returnTo}"
-                                    onclick="openSnoozeModal(this)">
-                                <i class="bi bi-clock d-md-none"></i>
-                                <span class="d-none d-md-inline" th:text="#{followup.action.snooze}">Відкласти</span>
-                            </button>
-                            <!-- Activity log -->
-                            <span class="activity-btn-wrap">
-                                <button type="button" class="btn btn-outline-secondary btn-sm"
-                                        th:title="#{followup.activity.title}"
-                                        th:data-client-id="${c.clientId}"
-                                        th:data-client-name="${c.clientName}"
-                                        th:data-return-to="${returnTo}"
-                                        onclick="openActivityModal(this)">
-                                    <i class="bi bi-list-ul"></i>
-                                </button>
-                                <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
-                                      class="activity-count-badge"
-                                      th:data-activity-badge="${c.clientId}"
-                                      th:text="${activityCounts.get(c.clientId)}"></span>
-                            </span>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /tab-queue -->
+
+        <!-- ══ TAB 2: Clients without next visit scheduled ══ -->
+        <div class="tab-pane fade" id="tab-visits" role="tabpanel">
+
+            <!-- Skipped section — above main list so it doesn't get buried -->
+            <div th:unless="${skippedVisits.isEmpty()}" class="card mb-3">
+                <div class="card-header d-flex align-items-center justify-content-between py-2"
+                     style="cursor:pointer; background:#f8f9fa; user-select:none;"
+                     data-bs-toggle="collapse" data-bs-target="#skippedVisitsSection">
+                    <span class="small text-muted">
+                        <i class="bi bi-slash-circle me-1"></i>
+                        <span th:text="#{followup.visits.skipped(${skippedVisits.size()})}">Відмічено як «Запис не потрібний» (0)</span>
+                    </span>
+                    <i class="bi bi-chevron-down text-muted" style="font-size:0.75rem;"></i>
+                </div>
+                <div class="collapse" id="skippedVisitsSection">
+                    <div class="card-body p-0">
+                            <table class="table table-sm mb-0" style="min-width:0;">
+                                <tbody>
+                                <tr th:each="v : ${skippedVisits}">
+                                    <td>
+                                        <a th:href="@{/clientcare/clients/{id}(id=${v.clientId})}"
+                                           class="fw-medium text-decoration-none text-body client-name-link"
+                                           style="font-size:0.85rem;"
+                                           th:text="${v.clientName}">Ім'я</a>
+                                        <div class="text-muted" style="font-size:0.75rem;">
+                                            <i class="bi bi-slash-circle me-1"></i>
+                                            <span th:text="${#temporals.format(v.lastVisitDate, 'dd.MM.yyyy')}">01.01.2025</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end" style="white-space:nowrap;">
+                                        <form th:action="@{/clientcare/visits/{id}/unskip-next(id=${v.visitId})}"
+                                              method="post" class="d-inline">
+                                            <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                                            <input type="hidden" name="redirectTo" value="/clientcare/followups"/>
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm"
+                                                    th:title="#{visit.nextAppointment.unskip}"
+                                                    data-bs-toggle="tooltip">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>
+                                                <span th:text="#{followup.done.undo}">Повернути</span>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
                         </div>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+                </div>
+            </div>
+
+            <div th:if="${unresolvedVisits.isEmpty()}" class="alert alert-info"
+                 th:text="#{followup.visits.empty}">
+                Клієнтів без запланованого наступного візиту не знайдено
+            </div>
+
+            <div th:unless="${unresolvedVisits.isEmpty()}" class="card followup-card">
+                <div class="card-body p-0">
+                    <table class="table table-striped mb-0 followup-table">
+                        <thead style="--bs-table-bg: var(--accent-light)">
+                        <tr>
+                            <th th:text="#{clientcare.followups.client}">Клієнт</th>
+                            <th class="d-none d-md-table-cell" th:text="#{clientcare.followups.phone}">Телефон</th>
+                            <th class="text-center" th:text="#{followup.visits.lastVisit}">Останній візит</th>
+                            <th class="text-center" th:text="#{followup.visits.daysSince}">Днів тому</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="v : ${unresolvedVisits}"
+                            th:data-href="@{/clientcare/clients/{id}(id=${v.clientId})}"
+                            onclick="window.location=this.dataset.href"
+                            style="cursor:pointer">
+                            <td>
+                                <a th:href="@{/clientcare/clients/{id}(id=${v.clientId})}"
+                                   class="text-decoration-none text-body fw-medium client-name-link"
+                                   style="font-size:0.9rem;"
+                                   th:text="${v.clientName}">Ім'я</a>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                <span th:if="${v.hasPhone()}" th:text="${v.clientPhone}" class="text-muted"></span>
+                                <span th:unless="${v.hasPhone()}" class="text-muted">—</span>
+                            </td>
+                            <td class="text-center text-muted" style="font-size:0.85rem;"
+                                th:text="${#temporals.format(v.lastVisitDate, 'dd.MM.yyyy')}">01.01.2025</td>
+                            <td class="text-center">
+                                <span class="days-badge"
+                                      th:classappend="${v.daysSinceLastVisit > 60} ? 'days-urgent' : (${v.daysSinceLastVisit > 30} ? 'days-warn' : 'days-ok')"
+                                      th:text="${v.daysSinceLastVisit}">0</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /tab-visits -->
+
+    </div><!-- /tab-content -->
 
     <!-- Done modal -->
     <div class="modal fade" id="doneModal" tabindex="-1">
@@ -337,117 +568,6 @@
         </div>
     </div>
 
-    <!-- Snoozed section -->
-    <div th:unless="${snoozed.isEmpty()}" class="mt-3">
-        <button class="btn btn-sm btn-link text-muted px-0 collapsed"
-                type="button" data-bs-toggle="collapse" data-bs-target="#snoozedSection">
-            <i class="bi bi-clock me-1"></i>
-            <span th:text="#{followup.snoozed.section(${snoozed.size()})}">Відкладені (0)</span>
-            <i class="bi bi-chevron-down ms-1" style="font-size:0.7rem;"></i>
-        </button>
-        <div class="collapse" id="snoozedSection">
-            <div class="card mt-2">
-                <div class="card-body p-0">
-                    <table class="table table-sm mb-0" style="min-width:0;">
-                        <tbody>
-                        <tr th:each="c : ${snoozed}">
-                            <td>
-                                <div th:text="${c.clientName}" style="font-size:0.85rem;"></div>
-                                <div class="text-muted" style="font-size:0.75rem;">
-                                    <i class="bi bi-clock me-1"></i>
-                                    <span th:with="fu=${latestFollowUps.get(c.clientId())}"
-                                          th:text="#{followup.snoozed.until(${#temporals.format(fu.dueDate(), 'dd.MM')})}">до 21.05</span>
-                                </div>
-                            </td>
-                            <td class="text-end" style="white-space:nowrap;">
-                                <!-- Activity log -->
-                                <span class="activity-btn-wrap">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm"
-                                            th:data-client-id="${c.clientId}"
-                                            th:data-client-name="${c.clientName}"
-                                            th:data-return-to="${returnTo}"
-                                            onclick="openActivityModal(this)"
-                                            th:title="#{followup.activity.title}">
-                                        <i class="bi bi-list-ul"></i>
-                                    </button>
-                                    <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
-                                          class="activity-count-badge"
-                                          th:data-activity-badge="${c.clientId}"
-                                          th:text="${activityCounts.get(c.clientId)}"></span>
-                                </span>
-                                <!-- Unsnooze decision modal -->
-                                <button type="button" class="btn btn-outline-warning btn-sm"
-                                        th:data-client-id="${c.clientId}"
-                                        th:data-client-name="${c.clientName}"
-                                        th:data-return-to="${returnTo}"
-                                        onclick="openUnsnoozeModal(this)"
-                                        th:title="#{followup.snoozed.cancel}">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Done section -->
-    <div th:unless="${done.isEmpty()}" class="mt-2">
-        <button class="btn btn-sm btn-link text-muted px-0 collapsed"
-                type="button" data-bs-toggle="collapse" data-bs-target="#doneSection">
-            <i class="bi bi-check2-circle me-1"></i>
-            <span th:text="#{followup.done.section(${done.size()})}">Виконані (0)</span>
-            <i class="bi bi-chevron-down ms-1" style="font-size:0.7rem;"></i>
-        </button>
-        <div class="collapse" id="doneSection">
-            <div class="card mt-2">
-                <div class="card-body p-0">
-                    <table class="table table-sm mb-0" style="min-width:0;">
-                        <tbody>
-                        <tr th:each="c : ${done}">
-                            <td>
-                                <div th:text="${c.clientName}" style="font-size:0.85rem;"></div>
-                                <div class="text-muted" style="font-size:0.75rem;">
-                                    <i class="bi bi-eye-slash me-1"></i>
-                                    <span th:with="fu=${latestFollowUps.get(c.clientId())}"
-                                          th:text="#{followup.done.until(${#temporals.format(fu.dueDate(), 'dd.MM')})}">до 21.05</span>
-                                </div>
-                            </td>
-                            <td class="text-end" style="white-space:nowrap;">
-                                <!-- Activity log -->
-                                <span class="activity-btn-wrap">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm"
-                                            th:data-client-id="${c.clientId}"
-                                            th:data-client-name="${c.clientName}"
-                                            th:data-return-to="${returnTo}"
-                                            onclick="openActivityModal(this)"
-                                            th:title="#{followup.activity.title}">
-                                        <i class="bi bi-list-ul"></i>
-                                    </button>
-                                    <span th:if="${activityCounts.containsKey(c.clientId) and activityCounts.get(c.clientId) > 0}"
-                                          class="activity-count-badge"
-                                          th:data-activity-badge="${c.clientId}"
-                                          th:text="${activityCounts.get(c.clientId)}"></span>
-                                </span>
-                                <!-- Undo done — reset to queue -->
-                                <button type="button" class="btn btn-outline-success btn-sm"
-                                        th:data-client-id="${c.clientId}"
-                                        th:data-return-to="${returnTo}"
-                                        onclick="undoDone(this)"
-                                        th:title="#{followup.done.undo}">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Activity log modal -->
     <div class="modal fade" id="activityModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
@@ -504,6 +624,20 @@
         const csrfParam = /*[[${_csrf.parameterName}]]*/ '_csrf';
         let currentClientId = null;
         let currentReturnTo = null;
+
+        // ── Tab persistence ──
+        (function () {
+            const stored = sessionStorage.getItem('followupTab');
+            if (stored) {
+                const btn = document.getElementById(stored);
+                if (btn) { new bootstrap.Tab(btn).show(); }
+            }
+            document.querySelectorAll('#followupTabs button[data-bs-toggle="tab"]').forEach(btn => {
+                btn.addEventListener('shown.bs.tab', function () {
+                    sessionStorage.setItem('followupTab', this.id);
+                });
+            });
+        })();
 
         function openSnoozeModal(btn) {
             document.getElementById('snoozeForm').action =

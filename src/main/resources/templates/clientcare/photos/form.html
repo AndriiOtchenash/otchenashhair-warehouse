@@ -71,7 +71,7 @@
                     <textarea class="form-control" th:field="*{notes}" rows="2"></textarea>
                 </div>
 
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 justify-content-center">
                     <button type="submit" class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
                     <a th:href="${returnTo == 'gallery'}
                                 ? @{/clientcare/clients/{id}/photos(id=${photo.clientId})}

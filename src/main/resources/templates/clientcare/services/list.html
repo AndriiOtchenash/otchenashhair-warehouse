@@ -5,6 +5,7 @@
 <div th:fragment="content">
     <style>
         .table { min-width: 0 !important; }
+        #saveNewServiceBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
         .desc-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 1px; }
         @media (max-width: 767.98px) {
             .table th { font-size: 0.75rem; padding: 0.35rem 0.4rem; }
@@ -44,7 +45,8 @@
                         <input type="text" class="form-control"
                                th:field="*{name}"
                                th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
-                               th:placeholder="#{service.form.name.hint}"/>
+                               th:placeholder="#{service.form.name.hint}"
+                               oninput="document.getElementById('saveNewServiceBtn').disabled = !this.value.trim()"/>
                         <div class="invalid-feedback" th:errors="*{name}"></div>
                     </div>
                     <div class="mb-3">
@@ -52,14 +54,15 @@
                         <textarea class="form-control" th:field="*{description}" rows="2"
                                   th:placeholder="#{service.form.description.hint}"></textarea>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-plus-lg me-1"></i>
-                            <span th:text="#{btn.save}">Зберегти</span>
-                        </button>
+                    <div class="d-flex gap-2 justify-content-end">
                         <button type="button" class="btn btn-outline-secondary"
                                 data-bs-toggle="collapse" data-bs-target="#newServiceForm"
                                 th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="submit" id="saveNewServiceBtn" class="btn btn-primary"
+                                th:disabled="${newService.name == null or newService.name.isEmpty()}">
+                            <i class="bi bi-check-lg me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
                     </div>
                 </form>
             </div>

@@ -278,7 +278,7 @@
                                     <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
                                     <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
                                 </div>
-                                <div th:if="${visit.nextAppointmentId == null and nextAppointment == null}" class="text-warning">
+                                <div th:if="${visit.nextAppointmentId == null and nextAppointment == null and !visit.nextVisitSkipped}" class="text-warning">
                                     <i class="bi bi-calendar-x me-1"></i>
                                     <span th:text="#{visit.nextAppointment.notScheduled}">Не запланований</span>
                                 </div>

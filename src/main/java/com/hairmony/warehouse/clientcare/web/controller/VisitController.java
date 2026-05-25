@@ -245,6 +245,27 @@ public class VisitController {
         return (returnTo != null && returnTo.matches("^/[^/].*")) ? returnTo : fallback;
     }
 
+    @PostMapping("/clientcare/visits/{id}/skip-next")
+    public String skipNext(@PathVariable Long id,
+                           @RequestParam(required = false) String returnTo) {
+        visitService.skipNextVisit(id);
+        String redirect = "/clientcare/visits/" + id + "/edit";
+        if (returnTo != null && returnTo.matches("^/[^/].*")) redirect += "?returnTo=" + returnTo;
+        return "redirect:" + redirect;
+    }
+
+    @PostMapping("/clientcare/visits/{id}/unskip-next")
+    public String unskipNext(@PathVariable Long id,
+                             @RequestParam(required = false) String returnTo,
+                             @RequestParam(required = false) String redirectTo) {
+        visitService.unskipNextVisit(id);
+        // redirectTo: used by followups page — go directly there instead of visit edit
+        if (redirectTo != null && redirectTo.matches("^/[^/].*")) return "redirect:" + redirectTo;
+        String redirect = "/clientcare/visits/" + id + "/edit";
+        if (returnTo != null && returnTo.matches("^/[^/].*")) redirect += "?returnTo=" + returnTo;
+        return "redirect:" + redirect;
+    }
+
     @PostMapping("/clientcare/visits/{id}/delete")
     public String delete(@PathVariable Long id,
                          @RequestParam Long clientId,
