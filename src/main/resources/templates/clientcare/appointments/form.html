@@ -39,6 +39,12 @@
             margin: 1rem -1rem -1rem;
             padding: 0.75rem 1rem;
         }
+        #saveBtn:disabled {
+            background-color: transparent;
+            border-color: #6c757d;
+            color: #6c757d;
+            opacity: 0.65;
+        }
     </style>
 
     <div class="page-header">
@@ -152,10 +158,12 @@
                     <span th:text="#{appointment.form.service}">Послуга</span>
                 </div>
                 <div class="mb-3">
-                    <select id="serviceId" class="form-select" th:field="*{serviceId}">
+                    <select id="serviceId" class="form-select" th:field="*{serviceId}"
+                            th:classappend="${#fields.hasErrors('serviceId')} ? 'is-invalid'">
                         <option value="" th:text="#{appointment.form.selectService}">-- Послуга --</option>
                         <option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}">Service</option>
                     </select>
+                    <div class="invalid-feedback" th:errors="*{serviceId}"></div>
                 </div>
 
                 <hr class="form-divider"/>
@@ -226,9 +234,11 @@
                 </div>
 
                 <!-- ── Actions ── -->
-                <div class="form-actions d-flex gap-2 justify-content-between">
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
+                <div class="form-actions d-flex align-items-center">
+                    <div th:if="${isEdit}" style="flex:1"></div>
+                    <div class="d-flex gap-2" th:classappend="${isEdit} ? 'mx-auto' : ''">
+                        <button type="submit" id="saveBtn" class="btn btn-primary"
+                                th:disabled="${isEdit}">
                             <i class="bi bi-check2 me-1"></i>
                             <span th:text="#{btn.save}">Зберегти</span>
                         </button>
@@ -238,11 +248,13 @@
                            class="btn btn-outline-secondary"
                            th:text="#{btn.cancel}">Скасувати</a>
                     </div>
-                    <button th:if="${isEdit}" type="button"
-                            class="btn btn-outline-danger"
-                            data-bs-toggle="modal" data-bs-target="#deleteApptModal">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                    <div th:if="${isEdit}" style="flex:1;display:flex;justify-content:flex-end">
+                        <button type="button"
+                                class="btn btn-outline-danger"
+                                data-bs-toggle="modal" data-bs-target="#deleteApptModal">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </div>
             </form>
 
@@ -340,12 +352,12 @@
                             <p class="mb-0" th:text="#{appointment.delete.confirm}">Видалити цей запис?</p>
                         </div>
                         <div class="modal-footer justify-content-center border-0 pt-0">
-                            <button type="button" class="btn btn-outline-secondary"
+                            <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
                                     data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
                             <form th:action="@{/clientcare/appointments/{id}/delete(id=${appointment.id})}"
                                   method="post" class="d-inline">
                                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                                <button type="submit" class="btn btn-danger" th:text="#{btn.yes}">Так</button>
+                                <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem" th:text="#{btn.yes}">Так</button>
                             </form>
                         </div>
                     </div>
@@ -477,6 +489,23 @@
             btn.href = url;
         }
 
+        // ── Dirty-form detection (edit mode only) ────────────────────────────────
+        var initialSnapshot = null;
+        function getFormSnapshot() {
+            var data = {};
+            document.querySelectorAll('#appointmentForm input:not([type=hidden]), #appointmentForm select, #appointmentForm textarea')
+                .forEach(function(el) {
+                    var key = el.name || el.id;
+                    data[key] = el.type === 'checkbox' ? el.checked : el.value;
+                });
+            return JSON.stringify(data);
+        }
+        function syncSaveBtn() {
+            var saveBtn = document.getElementById('saveBtn');
+            if (!saveBtn || initialSnapshot === null) return;
+            saveBtn.disabled = (getFormSnapshot() === initialSnapshot);
+        }
+
         // ── Client-side submit validation (novalidate form — no browser balloon) ──
         function validateTimes() {
             const startTimeEl = document.getElementById('startTime');
@@ -522,6 +551,14 @@
             document.getElementById('appointmentForm').addEventListener('submit', function (e) {
                 if (!validateTimes()) e.preventDefault();
             });
+
+            // Init dirty detection after all field initialization (edit mode only)
+            var saveBtn = document.getElementById('saveBtn');
+            if (saveBtn && saveBtn.disabled) {
+                initialSnapshot = getFormSnapshot();
+                document.getElementById('appointmentForm').addEventListener('input',  syncSaveBtn);
+                document.getElementById('appointmentForm').addEventListener('change', syncSaveBtn);
+            }
         });
     </script>
 </div>

@@ -7,6 +7,7 @@
         .compact-fields .form-control,
         .compact-fields .form-select { text-align: right; }
         .compact-fields textarea.form-control { text-align: left; }
+        #saveProductBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
     </style>
 
     <div class="page-header">
@@ -158,17 +159,17 @@
                     </div>
 
                     <!-- Buttons -->
-                    <div class="col-12 d-flex gap-2 pt-2">
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="bi bi-check-lg me-1"></i>
-                            <span th:text="#{btn.save}">Зберегти</span>
-                        </button>
+                    <div class="col-12 d-flex gap-2 pt-2 justify-content-end">
                         <a th:href="${returnTo == 'detail'} ? '/products/' + ${product.id} :
                                    (${returnTo == 'income'} ? '/movements/income' :
                                    (${returnTo == 'expense'} ? '/movements/expense' :
                                    (${returnTo == 'scan'} ? '/scan' : '/products')))"
                            class="btn btn-outline-secondary btn-sm"
                            th:text="#{btn.cancel}">Скасувати</a>
+                        <button type="submit" id="saveProductBtn" class="btn btn-primary btn-sm" disabled>
+                            <i class="bi bi-check-lg me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
                     </div>
 
                 </div>
@@ -192,6 +193,7 @@
         setDisabled('recommendedPriceInput', !hasName || !hasCat || !hasUnit || !hasUnitSize);
         setDisabled('minStockInput',         !hasName || !hasCat || !hasUnit || !hasUnitSize);
         setDisabled('descriptionInput',      !hasName || !hasCat || !hasUnit || !hasUnitSize || !hasMinStock);
+        setDisabled('saveProductBtn',        !hasName || !hasCat || !hasUnit || !hasUnitSize || !hasMinStock);
 
         // "Create category" link: hide while name not filled
         var createRow = document.getElementById('createCategoryRow');

@@ -2,8 +2,10 @@ package com.hairmony.warehouse.clientcare.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.ClientCareService;
 import com.hairmony.warehouse.clientcare.service.FollowUpService;
+import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.clientcare.web.dto.ClientFollowupDto;
 import com.hairmony.warehouse.clientcare.web.dto.LatestFollowUpDto;
+import com.hairmony.warehouse.clientcare.web.dto.UnresolvedVisitRowDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,6 +24,7 @@ public class ClientCareFollowupController {
 
     private final ClientCareService clientCareService;
     private final FollowUpService followUpService;
+    private final VisitService visitService;
 
     @GetMapping
     public String followups(@RequestParam(required = false, defaultValue = "0") int minDays,
@@ -73,6 +76,9 @@ public class ClientCareFollowupController {
 
         Map<Long, Integer> activityCounts = followUpService.getActivityCountsPerClient(clientIds);
 
+        List<UnresolvedVisitRowDto> unresolvedVisits = visitService.getClientsWithUnresolvedNextVisit();
+        List<UnresolvedVisitRowDto> skippedVisits = visitService.getClientsWithSkippedNextVisit();
+
         model.addAttribute("clients", active);
         model.addAttribute("snoozed", snoozed);
         model.addAttribute("done", done);
@@ -81,6 +87,8 @@ public class ClientCareFollowupController {
         model.addAttribute("activeMinDays", minDays);
         model.addAttribute("activeVisitFilter", visitFilter);
         model.addAttribute("returnTo", returnTo);
+        model.addAttribute("unresolvedVisits", unresolvedVisits);
+        model.addAttribute("skippedVisits", skippedVisits);
         return "clientcare/followups";
     }
 }

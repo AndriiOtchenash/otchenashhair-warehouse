@@ -68,6 +68,10 @@ public class Visit {
     @Column(name = "certificate_code", length = 20)
     private String certificateCode;
 
+    /** True when the practitioner explicitly confirmed no follow-up visit is needed. */
+    @Column(name = "next_visit_skipped", nullable = false)
+    private boolean nextVisitSkipped;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

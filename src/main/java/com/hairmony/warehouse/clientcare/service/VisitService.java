@@ -1,5 +1,6 @@
 package com.hairmony.warehouse.clientcare.service;
 
+import com.hairmony.warehouse.clientcare.web.dto.UnresolvedVisitRowDto;
 import com.hairmony.warehouse.clientcare.web.dto.VisitDto;
 import com.hairmony.warehouse.clientcare.web.dto.VisitJournalRowDto;
 import com.hairmony.warehouse.domain.appointment.Appointment;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
@@ -126,8 +128,59 @@ public class VisitService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.Set<Long> getClientIdsWithUnpaidVisits() {
+    public Set<Long> getClientIdsWithUnpaidVisits() {
         return visitRepository.findClientIdsWithUnpaidVisits();
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Long> getClientIdsWithUnresolvedNextVisit() {
+        return visitRepository.findClientIdsWithUnresolvedNextVisit();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnresolvedVisitRowDto> getClientsWithUnresolvedNextVisit() {
+        LocalDate today = LocalDate.now();
+        return visitRepository.findLatestUnresolvedVisitsPerClient()
+                .stream()
+                .map(v -> new UnresolvedVisitRowDto(
+                        v.getId(),
+                        v.getClient().getId(),
+                        v.getClient().getName(),
+                        v.getClient().getPhone(),
+                        v.getVisitDate(),
+                        ChronoUnit.DAYS.between(v.getVisitDate(), today)
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnresolvedVisitRowDto> getClientsWithSkippedNextVisit() {
+        LocalDate today = LocalDate.now();
+        return visitRepository.findLatestSkippedVisitsPerClient()
+                .stream()
+                .map(v -> new UnresolvedVisitRowDto(
+                        v.getId(),
+                        v.getClient().getId(),
+                        v.getClient().getName(),
+                        v.getClient().getPhone(),
+                        v.getVisitDate(),
+                        ChronoUnit.DAYS.between(v.getVisitDate(), today)
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public void skipNextVisit(Long id) {
+        visitRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("visit.notFound"))
+                .setNextVisitSkipped(true);
+    }
+
+    @Transactional
+    public void unskipNextVisit(Long id) {
+        visitRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("visit.notFound"))
+                .setNextVisitSkipped(false);
     }
 
     @Transactional(readOnly = true)
@@ -182,6 +235,7 @@ public class VisitService {
             dto.setNextAppointmentId(v.getNextAppointment().getId());
             dto.setNextAppointmentStartAt(v.getNextAppointment().getStartAt());
         }
+        dto.setNextVisitSkipped(v.isNextVisitSkipped());
         return dto;
     }
 

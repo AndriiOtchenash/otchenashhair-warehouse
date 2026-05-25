@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="clientList"
+     th:with="baseUrl=${activeModule == 'clientcare' ? '/clientcare/clients' : '/clients'}">
+
+    <style>
+        #saveNewClientBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+        @media (hover: hover) {
+            .client-name-link:hover { text-decoration: underline !important; }
+        }
+        .icon-legend-popover .popover-header {
+            background: var(--accent-light);
+            border-bottom: 1px solid rgba(74,124,89,0.2);
+            font-weight: 600; font-size: 0.82rem; color: #1e2d24;
+        }
+        .icon-legend-popover.popover {
+            border: 1.5px solid rgba(74,124,89,0.35);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        .icon-legend-popover .popover-arrow::after {
+            border-bottom-color: rgba(74,124,89,0.35);
+        }
+    </style>
+
+    <div class="page-header">
+        <h1 class="page-title" th:text="#{client.list.title}">Клієнти</h1>
+        <button class="btn btn-primary btn-sm" type="button"
+                data-bs-toggle="collapse" data-bs-target="#newClientForm"
+                aria-expanded="false">
+            <i class="bi bi-plus-lg"></i>
+            <span class="d-none d-md-inline ms-1" th:text="#{client.form.title.new}">Новий клієнт</span>
+        </button>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mb-3">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mb-3">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Collapsible new-client form -->
+    <div class="collapse mb-3" id="newClientForm">
+        <div class="card">
+            <div class="card-header" th:text="#{client.form.title.new}">Новий клієнт</div>
+            <div class="card-body">
+                <form th:action="@{__${baseUrl}__}" th:object="${newClient}" method="post">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" th:field="*{name}"
+                                   th:placeholder="#{client.form.name}"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                                   oninput="document.getElementById('saveNewClientBtn').disabled = !this.value.trim()"/>
+                            <div class="invalid-feedback" th:errors="*{name}"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" th:field="*{phone}"
+                                   th:placeholder="#{client.form.phone}"
+                                   oninput="this.value=this.value.replace(/[^+0-9 ()\-]/g,'')"/>
+                        </div>
+                        <div class="col-md-4">
+                            <textarea class="form-control" th:field="*{notes}" rows="1"
+                                      th:placeholder="#{client.form.notes}"></textarea>
+                        </div>
+                        <div class="col-12 d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    data-bs-toggle="collapse" data-bs-target="#newClientForm"
+                                    th:text="#{btn.cancel}">Скасувати</button>
+                            <button type="submit" id="saveNewClientBtn" class="btn btn-primary btn-sm"
+                                    th:disabled="${newClient.name == null or newClient.name.isEmpty()}">
+                                <i class="bi bi-check-lg me-1"></i>
+                                <span th:text="#{btn.save}">Зберегти</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unpaid filter badge (hidden by default, shown via JS when unpaid filter active) -->
+    <div id="unpaidFilterBadge" class="mb-2" style="display:none">
+        <span class="badge rounded-pill d-inline-flex align-items-center gap-1"
+              style="background:#f8d7da; color:#842029; font-size:0.85rem; font-weight:600; padding:0.35rem 0.65rem;">
+            <span th:text="#{clientcare.filter.unpaidVisits}">Клієнти які мають неоплачений візит</span>
+            <button type="button" onclick="clearUnpaidFilter()"
+                    style="background:none;border:none;padding:0;line-height:1;color:#842029;cursor:pointer;margin-left:2px;">
+                <i class="bi bi-x-lg" style="font-size:0.75rem;"></i>
+            </button>
+        </span>
+    </div>
+
+    <div class="mb-3 d-flex align-items-center gap-2">
+        <div class="input-group input-group-sm" style="max-width:300px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control"
+                   th:placeholder="#{common.search}"
+                   oninput="filterSearch(this.value); toggleClearBtn(this)"/>
+            <button type="button" class="btn btn-outline-secondary d-md-none"
+                    onclick="clearSearch()" tabindex="-1" style="display:none">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <button type="button" id="iconLegendBtn"
+                class="btn btn-link p-0 ms-auto"
+                style="color:var(--accent); font-size:1.1rem; line-height:1; flex-shrink:0"
+                th:title="#{client.legend.title}"
+                th:attr="data-legend-title=#{client.legend.title},
+                         data-legend-upcoming=#{appointment.badge.upcoming},
+                         data-legend-overdue=#{appointment.badge.overdue},
+                         data-legend-unresolved=#{client.unresolved.nextVisit},
+                         data-legend-unpaid=#{client.unpaid.visit}">
+            <i class="bi bi-info-circle"></i>
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div th:if="${clients.empty}" class="text-center text-muted py-5">
+                <i class="bi bi-people fs-1 d-block mb-2"></i>
+                <span th:text="#{client.list.empty}">Клієнти не знайдено</span>
+            </div>
+            <table th:unless="${clients.empty}" class="table table-hover mb-0 table-auto">
+                <thead style="--bs-table-bg: var(--accent-light)">
+                <tr>
+                    <th th:text="#{client.form.name}">Ім'я</th>
+                    <th class="d-none d-md-table-cell" th:text="#{client.form.phone}">Телефон</th>
+                    <th class="text-end" th:text="#{table.actions}">Дії</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${clients}"
+                    th:attr="data-name=${c.name},data-phone=${c.phone ?: ''},data-unpaid=${clientsWithUnpaidVisits != null and clientsWithUnpaidVisits.contains(c.id) ? 'true' : null}"
+                    th:data-href="${baseUrl + '/' + c.id}"
+                    onclick="window.location=this.dataset.href"
+                    style="cursor:pointer">
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <a th:href="${baseUrl + '/' + c.id}"
+                               class="fw-semibold text-decoration-none text-dark client-name-link"
+                               th:text="${c.name}"
+                               th:if="${c.notes == null or c.notes.isEmpty()}"></a>
+                            <a th:href="${baseUrl + '/' + c.id}"
+                               class="fw-semibold text-decoration-none text-dark client-name-link"
+                               th:text="${c.name}"
+                               th:unless="${c.notes == null or c.notes.isEmpty()}"
+                               th:title="${c.notes}"
+                               data-bs-toggle="tooltip"
+                               data-bs-placement="right"
+                               style="border-bottom: 1px dashed #6c757d;"></a>
+                            <!-- Upcoming appointment icon -->
+                            <i th:if="${clientsWithUpcoming != null and clientsWithUpcoming.contains(c.id)}"
+                               class="bi bi-calendar-check text-success"
+                               style="font-size:0.85rem; flex-shrink:0"
+                               th:title="#{appointment.badge.upcoming}"
+                               data-bs-toggle="tooltip"></i>
+                            <!-- Overdue appointment icon (only when no upcoming) -->
+                            <i th:if="${clientsWithOverdue != null and clientsWithOverdue.contains(c.id)
+                                        and (clientsWithUpcoming == null or !clientsWithUpcoming.contains(c.id))}"
+                               class="bi bi-calendar-x text-danger"
+                               style="font-size:0.85rem; flex-shrink:0"
+                               th:title="#{appointment.badge.overdue}"
+                               data-bs-toggle="tooltip"></i>
+                            <!-- Unresolved next visit icon -->
+                            <i th:if="${clientsWithUnresolvedNextVisit != null and clientsWithUnresolvedNextVisit.contains(c.id)}"
+                               class="bi bi-exclamation-triangle"
+                               style="font-size:0.85rem; flex-shrink:0; color:#664d03"
+                               th:title="#{client.unresolved.nextVisit}"
+                               data-bs-toggle="tooltip"></i>
+                            <!-- Unpaid visit icon -->
+                            <span th:if="${clientsWithUnpaidVisits != null and clientsWithUnpaidVisits.contains(c.id)}"
+                                  style="font-size:0.825rem; font-weight:800; color:#dc3545; flex-shrink:0; white-space:nowrap; line-height:1; font-family:inherit"
+                                  th:title="#{client.unpaid.visit}"
+                                  data-bs-toggle="tooltip">−$</span>
+                        </div>
+                    </td>
+                    <td class="d-none d-md-table-cell" th:text="${c.phone ?: '—'}"></td>
+                    <td class="text-end" onclick="event.stopPropagation()">
+                        <div class="d-flex gap-1 justify-content-end">
+                            <a th:href="${baseUrl + '/' + c.id + '/edit'}"
+                               class="btn btn-sm btn-outline-primary"
+                               th:title="#{btn.edit}"
+                               data-bs-toggle="tooltip">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button th:if="${!clientsNotDeletable.contains(c.id)}"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    th:title="#{btn.delete}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteClientModal"
+                                    th:attr="data-client-name=${c.name},
+                                             data-action=${baseUrl + '/' + c.id + '/delete'}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <button th:if="${clientsNotDeletable.contains(c.id)}"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    disabled
+                                    th:title="#{client.delete.error.hasData}"
+                                    data-bs-toggle="tooltip">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div class="modal fade" id="deleteClientModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" th:text="#{btn.delete}">Видалити</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        <span th:text="#{confirm.delete.client}">Видалити клієнта</span>
+                        <strong id="deleteClientName"></strong>?
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
+                            data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                    <form id="deleteClientForm" method="post">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                        <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem" th:text="#{btn.yes}">Так</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var unpaidFilterActive = false;
+
+        function applyFilters() {
+            var input = document.querySelector('.input-group input[type="text"]');
+            var q = ((input && input.value) || '').toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(function(row) {
+                var name  = (row.dataset.name  || '').toLowerCase();
+                var phone = (row.dataset.phone || '').toLowerCase();
+                var matchSearch = !q || name.includes(q) || phone.includes(q);
+                var matchUnpaid = !unpaidFilterActive || row.dataset.unpaid === 'true';
+                row.style.display = (matchSearch && matchUnpaid) ? '' : 'none';
+            });
+            var badge = document.getElementById('unpaidFilterBadge');
+            if (badge) badge.style.display = unpaidFilterActive ? '' : 'none';
+        }
+
+        function filterSearch(value) { applyFilters(); }
+
+        function clearUnpaidFilter() {
+            unpaidFilterActive = false;
+            var url = new URL(window.location);
+            url.searchParams.delete('unpaid');
+            history.replaceState(null, '', url);
+            applyFilters();
+        }
+
+        function toggleClearBtn(input) {
+            var btn = input.nextElementSibling;
+            if (btn) btn.style.display = input.value ? '' : 'none';
+        }
+
+        function clearSearch() {
+            var input = document.querySelector('.input-group input[type="text"]');
+            if (input) { input.value = ''; applyFilters(); toggleClearBtn(input); }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (new URLSearchParams(window.location.search).get('unpaid') === 'true') {
+                unpaidFilterActive = true;
+                applyFilters();
+            }
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
+
+            var legendBtn = document.getElementById('iconLegendBtn');
+            if (legendBtn) {
+                var d = legendBtn.dataset;
+                var legendContent =
+                    '<div style="font-size:0.82rem; min-width:220px">' +
+                    '<div class="d-flex align-items-center gap-2 mb-2">' +
+                        '<i class="bi bi-calendar-check text-success" style="font-size:0.9rem; flex-shrink:0"></i>' +
+                        '<span>' + d.legendUpcoming + '</span>' +
+                    '</div>' +
+                    '<div class="d-flex align-items-center gap-2 mb-2">' +
+                        '<i class="bi bi-calendar-x text-danger" style="font-size:0.9rem; flex-shrink:0"></i>' +
+                        '<span>' + d.legendOverdue + '</span>' +
+                    '</div>' +
+                    '<div class="d-flex align-items-center gap-2 mb-2">' +
+                        '<i class="bi bi-exclamation-triangle" style="font-size:0.9rem; flex-shrink:0; color:#664d03"></i>' +
+                        '<span>' + d.legendUnresolved + '</span>' +
+                    '</div>' +
+                    '<div class="d-flex align-items-center gap-2">' +
+                        '<span style="font-size:0.825rem;font-weight:800;color:#dc3545;flex-shrink:0;white-space:nowrap;line-height:1">\u2212$</span>' +
+                        '<span>' + d.legendUnpaid + '</span>' +
+                    '</div>' +
+                    '</div>';
+                new bootstrap.Popover(legendBtn, {
+                    html: true,
+                    sanitize: false,
+                    trigger: 'click',
+                    placement: 'bottom',
+                    customClass: 'icon-legend-popover',
+                    title: d.legendTitle,
+                    content: legendContent
+                });
+                document.addEventListener('click', function(e) {
+                    if (!legendBtn.contains(e.target)) {
+                        bootstrap.Popover.getInstance(legendBtn)?.hide();
+                    }
+                });
+            }
+
+            var deleteModal = document.getElementById('deleteClientModal');
+            if (deleteModal) {
+                deleteModal.addEventListener('show.bs.modal', function(event) {
+                    var btn = event.relatedTarget;
+                    document.getElementById('deleteClientName').textContent = btn.getAttribute('data-client-name');
+                    document.getElementById('deleteClientForm').action = btn.getAttribute('data-action');
+                });
+            }
+        });
+    </script>
+</div>
+</body>
+</html>
