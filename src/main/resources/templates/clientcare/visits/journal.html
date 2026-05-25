@@ -98,21 +98,26 @@
 
                 </div>
 
-                <!-- Client name search (client-side) + clear-all -->
-                <div class="mt-2 d-flex align-items-center gap-2">
-                    <div class="input-group input-group-sm" style="max-width:320px">
+                <!-- Client name search (client-side) + reset button -->
+                <div class="mt-2 d-flex align-items-center gap-2"
+                     th:with="srvFilterCount=${(from != null ? 1 : 0) + (to != null ? 1 : 0) + (serviceId != null ? 1 : 0) + (paid != null ? 1 : 0)}">
+                    <div class="input-group input-group-sm" id="clientSearchWrap" style="flex:1; min-width:0">
                         <span class="input-group-text"><i class="bi bi-search"></i></span>
                         <input type="text" id="clientSearch" class="form-control form-control-sm"
                                th:placeholder="#{visit.journal.client.search}" autocomplete="off"/>
                         <button type="button" id="clearClientSearchBtn"
                                 class="btn btn-outline-secondary px-1" style="display:none"
-                                onclick="document.getElementById('clientSearch').value=''; filterByClient(''); syncClearAllBtn();">
+                                onclick="document.getElementById('clientSearch').value=''; filterByClient(''); syncClearAllBtn(); syncSearchHighlight(); this.style.display='none';">
                             <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
                         </button>
                     </div>
                     <a th:href="@{/clientcare/visits}" id="clearAllBtn"
-                       style="display:none; font-size:0.82rem; color:var(--accent); text-decoration:none; white-space:nowrap;"
-                       th:data-label="#{btn.reset}"></a>
+                       class="btn btn-outline-secondary btn-sm"
+                       style="flex-shrink:0; white-space:nowrap"
+                       th:style="${srvFilterCount == 0} ? 'display:none'">
+                        <i class="bi bi-funnel"></i>
+                        <span th:text="#{btn.reset}">Скинути</span><span id="clearAllCountSpan" th:text="${srvFilterCount > 0} ? ${' (' + srvFilterCount + ')'} : ''"></span>
+                    </a>
                 </div>
             </form>
         </div>
@@ -125,7 +130,8 @@
         <span th:text="#{visit.journal.kpi.revenue}">Виручка</span>: <strong th:text="${kpiRevenue != null and kpiRevenue.compareTo(0) > 0 ? #numbers.formatDecimal(kpiRevenue,1,'COMMA',2,'POINT') + ' zł' : '—'}">—</strong>
         <th:block th:if="${kpiUnpaid > 0}">
             <span class="mx-2">·</span>
-            <span th:text="#{visit.journal.kpi.unpaid}">Не оплачено</span>: <strong style="color:#842029" th:text="${kpiUnpaid}">0</strong>
+            <span th:text="#{visit.journal.kpi.unpaid}">Не оплачено</span>:
+            <strong th:text="${kpiUnpaid}" style="display:inline-flex;align-items:center;justify-content:center;background:#f8d7da;color:#842029;border-radius:50%;min-width:1.4em;height:1.4em;font-size:0.82rem;vertical-align:middle;padding:0 0.2em">0</strong>
         </th:block>
     </div>
 
@@ -243,12 +249,20 @@
             return n;
         }
 
+        function syncSearchHighlight() {
+            const input = document.getElementById('clientSearch');
+            if (!input) return;
+            if (input.value) input.classList.add('filter-active');
+            else input.classList.remove('filter-active');
+        }
+
         function syncClearAllBtn() {
             const btn = document.getElementById('clearAllBtn');
+            const countSpan = document.getElementById('clearAllCountSpan');
             if (!btn) return;
             const n = countActiveFilters();
             btn.style.display = n > 0 ? '' : 'none';
-            btn.textContent = btn.dataset.label + ' (' + n + ')';
+            if (countSpan) countSpan.textContent = n > 0 ? ' (' + n + ')' : '';
         }
 
         function filterByClient(query) {
@@ -280,6 +294,7 @@
                 clientSearch.value = savedSearch;
                 filterByClient(savedSearch);
                 document.getElementById('clearClientSearchBtn').style.display = savedSearch ? '' : 'none';
+                syncSearchHighlight();
                 sessionStorage.removeItem('journalClientSearch');
             }
 
@@ -329,6 +344,7 @@
                     filterByClient(this.value);
                     document.getElementById('clearClientSearchBtn').style.display = this.value ? '' : 'none';
                     syncClearAllBtn();
+                    syncSearchHighlight();
                 });
             }
         });
