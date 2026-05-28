@@ -3,6 +3,9 @@
       th:replace="~{layout/main :: layout(${supplier.id == null} ? #{supplier.form.title.new} : #{supplier.form.title.edit}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        #saveSupplierBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+    </style>
     <div class="page-header">
         <h1 class="page-title"
             th:text="${supplier.id == null} ? #{supplier.form.title.new} : #{supplier.form.title.edit}">Постачальник</h1>
@@ -15,7 +18,8 @@
     </div>
     <div class="card">
         <div class="card-body">
-            <form th:action="${supplier.id == null} ? @{/suppliers/new} : @{/suppliers/{id}/edit(id=${supplier.id})}"
+            <form id="supplierForm"
+                  th:action="${supplier.id == null} ? @{/suppliers/new} : @{/suppliers/{id}/edit(id=${supplier.id})}"
                   th:object="${supplier}" method="post">
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <div class="row g-3">
@@ -33,20 +37,48 @@
                         <label class="form-label fw-semibold" th:text="#{supplier.form.notes}">Примітки</label>
                         <textarea class="form-control" rows="3" th:field="*{notes}"></textarea>
                     </div>
-                    <div class="col-12 d-flex gap-2 justify-content-center">
-                        <button type="submit" class="btn btn-primary">
+                    <div class="col-12 d-flex gap-2 justify-content-end">
+                        <a th:href="${returnTo == 'income'} ? @{/movements/income} :
+                                   (${returnTo == 'detail' and supplier.id != null} ? @{/suppliers/{id}(id=${supplier.id})} : @{/suppliers})"
+                           class="btn btn-outline-secondary btn-sm"
+                           th:text="#{btn.cancel}">Скасувати</a>
+                        <button type="submit" id="saveSupplierBtn" class="btn btn-primary btn-sm" disabled>
                             <i class="bi bi-check-lg me-1"></i>
                             <span th:text="#{btn.save}">Зберегти</span>
                         </button>
-                        <a th:href="${returnTo == 'income'} ? @{/movements/income} :
-                                   (${returnTo == 'detail' and supplier.id != null} ? @{/suppliers/{id}(id=${supplier.id})} : @{/suppliers})"
-                           class="btn btn-outline-secondary"
-                           th:text="#{btn.cancel}">Скасувати</a>
                     </div>
                 </div>
             </form>
         </div>
     </div>
+    <script th:inline="javascript">
+    const IS_EDIT = /*[[${supplier.id != null}]]*/ false;
+    var initialSnapshot = null;
+
+    function getFormSnapshot() {
+        var data = {};
+        document.querySelectorAll('#supplierForm input:not([type=hidden]), #supplierForm textarea')
+            .forEach(function(el) { data[el.name || el.id] = el.value; });
+        return JSON.stringify(data);
+    }
+
+    function syncSaveBtn() {
+        var btn = document.getElementById('saveSupplierBtn');
+        if (!btn) return;
+        if (IS_EDIT) {
+            btn.disabled = (initialSnapshot === null || getFormSnapshot() === initialSnapshot);
+        } else {
+            var hasName = (document.querySelector('#supplierForm input[name="name"]')?.value || '').trim().length > 0;
+            btn.disabled = !hasName;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (IS_EDIT) initialSnapshot = getFormSnapshot();
+        document.getElementById('supplierForm').addEventListener('input', syncSaveBtn);
+        syncSaveBtn();
+    });
+    </script>
 </div>
 </body>
 </html>
