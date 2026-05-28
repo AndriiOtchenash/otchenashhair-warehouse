@@ -34,6 +34,12 @@ public class Client {
     @Column(name = "drive_folder_id", length = 100)
     private String driveFolderId;
 
+    @Column(name = "telegram_chat_id")
+    private Long telegramChatId;
+
+    @Column(name = "telegram_link_token", length = 64, unique = true)
+    private String telegramLinkToken;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

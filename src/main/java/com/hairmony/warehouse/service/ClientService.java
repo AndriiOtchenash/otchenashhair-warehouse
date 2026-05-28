@@ -118,6 +118,7 @@ public class ClientService {
                 .notes(c.getNotes())
                 .driveFolderUrl(c.getDriveFolderUrl())
                 .driveFolderId(c.getDriveFolderId())
+                .telegramChatId(c.getTelegramChatId())
                 .build();
     }
 

@@ -60,4 +60,21 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findOverdueByClientId(@Param("clientId") Long clientId,
                                             @Param("before") LocalDateTime before,
                                             @Param("statuses") Collection<AppointmentStatus> statuses);
+
+    // ── Reminder queries ──────────────────────────────────────────────────────
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.client WHERE a.startAt BETWEEN :from AND :to AND a.status IN :statuses AND a.reminder48hSentAt IS NULL")
+    List<Appointment> findAppointmentsFor48hReminder(@Param("from") LocalDateTime from,
+                                                     @Param("to") LocalDateTime to,
+                                                     @Param("statuses") Collection<AppointmentStatus> statuses);
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.client WHERE a.startAt >= :dayStart AND a.startAt < :dayEnd AND a.status IN :statuses AND a.reminder24hSentAt IS NULL")
+    List<Appointment> findAppointmentsForDayReminder(@Param("dayStart") LocalDateTime dayStart,
+                                                     @Param("dayEnd") LocalDateTime dayEnd,
+                                                     @Param("statuses") Collection<AppointmentStatus> statuses);
+
+    @Query("SELECT a FROM Appointment a JOIN FETCH a.client WHERE a.startAt BETWEEN :from AND :to AND a.status IN :statuses AND a.reminder2hSentAt IS NULL")
+    List<Appointment> findAppointmentsFor2hReminder(@Param("from") LocalDateTime from,
+                                                    @Param("to") LocalDateTime to,
+                                                    @Param("statuses") Collection<AppointmentStatus> statuses);
 }

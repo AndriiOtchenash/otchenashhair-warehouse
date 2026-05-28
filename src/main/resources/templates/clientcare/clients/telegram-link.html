@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/clientcare :: layout(~{::title}, ~{::main})}">
+<head>
+    <title th:text="'Telegram — ' + ${client.name}">Telegram</title>
+</head>
+<body>
+<main>
+    <div class="page-header d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h4 mb-0" th:text="${client.name}">Клієнт</h1>
+        <a th:href="@{/clientcare/clients/{id}(id=${client.id})}"
+           class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>
+            <span class="d-none d-sm-inline" th:text="#{btn.back}">Назад</span>
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body text-center py-4">
+            <i class="bi bi-telegram fs-1 text-primary mb-3 d-block"></i>
+            <h5 class="mb-1" th:text="#{telegram.connect.title}">Підключення Telegram</h5>
+            <p class="text-muted mb-3" th:text="#{telegram.connect.hint}">
+                Скопіюйте посилання та перешліть клієнту.
+            </p>
+
+            <div class="input-group mb-2 mx-auto" style="max-width: 480px;">
+                <input type="text" class="form-control font-monospace"
+                       id="tgLink" th:value="${telegramLink}" readonly>
+                <button class="btn btn-outline-secondary" type="button"
+                        onclick="copyLink()" th:title="#{telegram.connect.btn.copy}">
+                    <i class="bi bi-copy"></i>
+                </button>
+            </div>
+
+            <div id="copyDone" class="text-success small mb-3" style="display:none;">
+                <i class="bi bi-check-lg me-1"></i>
+                <span th:text="#{telegram.connect.copied}">Повідомлення скопійовано</span>
+            </div>
+
+            <p class="text-muted small mb-0" th:utext="#{telegram.connect.instruction}">
+                Клієнт має перейти за посиланням і натиснути <strong>Start</strong>.
+            </p>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        const TELEGRAM_LINK = /*[[${telegramLink}]]*/ '';
+        const MSG_PREFIX    = /*[[#{telegram.connect.clipboard.prefix}]]*/ '';
+        const MESSAGE = MSG_PREFIX + '\n' + TELEGRAM_LINK;
+
+        function copyLink() {
+            navigator.clipboard.writeText(MESSAGE).then(() => {
+                const done = document.getElementById('copyDone');
+                done.style.display = '';
+                setTimeout(() => done.style.display = 'none', 2500);
+            });
+        }
+    </script>
+</main>
+</body>
+</html>
