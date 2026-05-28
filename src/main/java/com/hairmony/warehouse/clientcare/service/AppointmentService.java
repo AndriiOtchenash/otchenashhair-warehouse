@@ -68,8 +68,6 @@ public class AppointmentService {
         Appointment a = appointmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));
         a.setClient(resolveClient(dto));
-        a.setGuestName(dto.getClientId() == null ? trimOrNull(dto.getGuestName()) : null);
-        a.setGuestPhone(dto.getClientId() == null ? trimOrNull(dto.getGuestPhone()) : null);
         a.setStartAt(dto.getStartAt());
         a.setEndAt(dto.getEndAt());
         a.setStatus(dto.getStatus() != null ? dto.getStatus() : AppointmentStatus.PLANNED);
@@ -164,8 +162,6 @@ public class AppointmentService {
                 .clientId(c != null ? c.getId() : null)
                 .clientName(c != null ? c.getName() : null)
                 .clientPhone(c != null ? c.getPhone() : null)
-                .guestName(a.getGuestName())
-                .guestPhone(a.getGuestPhone())
                 .startAt(a.getStartAt())
                 .endAt(a.getEndAt())
                 .status(a.getStatus())
@@ -177,8 +173,6 @@ public class AppointmentService {
     private Appointment toEntity(AppointmentDto dto) {
         return Appointment.builder()
                 .client(resolveClient(dto))
-                .guestName(dto.getClientId() == null ? trimOrNull(dto.getGuestName()) : null)
-                .guestPhone(dto.getClientId() == null ? trimOrNull(dto.getGuestPhone()) : null)
                 .startAt(dto.getStartAt())
                 .endAt(dto.getEndAt())
                 .status(dto.getStatus() != null ? dto.getStatus() : AppointmentStatus.PLANNED)

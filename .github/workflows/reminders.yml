@@ -1,0 +1,25 @@
+name: Send Appointment Reminders
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 09:00 Wrocław summer (CEST = UTC+2)
+    - cron: '0 8 * * *'   # 09:00 Wrocław winter (CET  = UTC+1)
+  workflow_dispatch:           # manual trigger from GitHub UI
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminder endpoint
+        run: |
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -H "X-Internal-Token: ${{ secrets.INTERNAL_SECRET }}" \
+            https://otchenashhair-warehouse.fly.dev/internal/reminders)
+          BODY=$(echo "$RESPONSE" | sed -e 's/HTTP_STATUS:.*//')
+          STATUS=$(echo "$RESPONSE" | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
+          echo "$BODY"
+          echo "Response status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Reminder endpoint returned $STATUS"
+            exit 1
+          fi

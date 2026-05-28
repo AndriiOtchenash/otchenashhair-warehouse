@@ -22,14 +22,8 @@ public class Appointment {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "client_id")
+    @JoinColumn(name = "client_id", nullable = false)
     private Client client;
-
-    @Column(name = "guest_name", length = 150)
-    private String guestName;
-
-    @Column(name = "guest_phone", length = 50)
-    private String guestPhone;
 
     @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
@@ -46,6 +40,15 @@ public class Appointment {
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "reminder_48h_sent_at")
+    private LocalDateTime reminder48hSentAt;
+
+    @Column(name = "reminder_24h_sent_at")
+    private LocalDateTime reminder24hSentAt;
+
+    @Column(name = "reminder_2h_sent_at")
+    private LocalDateTime reminder2hSentAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

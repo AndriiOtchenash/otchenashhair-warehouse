@@ -92,7 +92,47 @@
 
     <div class="page-header">
         <div>
-            <h1 class="page-title" th:text="${client.name}"></h1>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h1 class="page-title mb-0" th:text="${client.name}"></h1>
+                <!-- Telegram icon (clientcare context only) -->
+                <th:block th:if="${currentPageUrl != null and #strings.contains(currentPageUrl, '/clientcare/')}">
+                    <!-- Not connected -->
+                    <a th:if="${client.telegramChatId == null}"
+                       th:href="@{/clientcare/clients/{id}/telegram(id=${client.id})}"
+                       th:title="#{telegram.connect.tooltip}" style="color:#adb5bd; font-size:1.5rem; line-height:1;">
+                        <i class="bi bi-telegram"></i>
+                    </a>
+                    <!-- Connected: dropdown -->
+                    <div th:if="${client.telegramChatId != null}" class="dropdown d-inline-flex align-items-center">
+                        <button class="btn btn-link p-0 border-0 d-inline-flex align-items-center"
+                                style="color:#0088cc; font-size:1.5rem; line-height:1;"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="position-relative">
+                                <i class="bi bi-telegram"></i>
+                                <span class="position-absolute rounded-circle bg-success"
+                                      style="width:9px;height:9px;bottom:0;right:-2px;border:1.5px solid #fff;"></span>
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:200px;">
+                            <li>
+                                <a class="dropdown-item small"
+                                   th:href="@{/clientcare/clients/{id}/telegram(id=${client.id})}">
+                                    <i class="bi bi-arrow-repeat me-2"></i>
+                                    <span th:text="#{telegram.resend.link}">Переслати посилання</span>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <button class="dropdown-item small text-danger" type="button"
+                                        data-bs-toggle="modal" data-bs-target="#tgDisconnectModal">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    <span th:text="#{telegram.disconnect}">Відключити</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </th:block>
+            </div>
             <span class="text-muted small" th:if="${client.phone != null and !client.phone.isEmpty()}">
                 <span th:text="#{client.form.phone.short}">тел.</span>&nbsp;<span th:text="${client.phone}"></span>
             </span>
@@ -661,6 +701,25 @@
                                 th:text="#{btn.save}">Зберегти</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telegram disconnect modal -->
+    <div th:if="${currentPageUrl != null and #strings.contains(currentPageUrl, '/clientcare/') and client.telegramChatId != null}"
+         class="modal fade" id="tgDisconnectModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-telegram fs-2 mb-2 d-block" style="color:#0088cc"></i>
+                    <p class="mb-3" th:text="#{telegram.disconnect.confirm}">Відключити Telegram у цього клієнта?</p>
+                    <form th:action="@{/clientcare/clients/{id}/telegram/remove(id=${client.id})}" method="post">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                        <button type="submit" class="btn btn-danger btn-sm me-2" th:text="#{btn.yes}">Так</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>

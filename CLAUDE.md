@@ -14,26 +14,30 @@ domain/ — JPA entities (category, client, product, stock, supplier, user, visi
 repository/ — Spring Data JPA + JpaSpecificationExecutor for movements
 service/ — business logic (ProductService, StockService, ClientService,
            SupplierService, CategoryService, MovementHistoryService,
-           ReportService, AiAssistantService, UserService, UserDetailsServiceImpl)
+           ReportService, AiAssistantService, UserService, UserDetailsServiceImpl,
+           TelegramService, ReminderService)
 web/controller/ — MVC controllers (thin):
   DashboardController, ProductController, ClientController,
   SupplierController, CategoryController, StockController (income/expense/cancel),
   StockItemController (/stock/items/{id}/edit), MovementController (/movements/history),
   ProfileController, LoginController, ReportController, AiController,
+  TelegramWebhookController (POST /telegram/webhook),
+  ReminderController (GET /internal/reminders),
   GlobalExceptionHandler (@ControllerAdvice)
 clientcare/web/controller/ — ClientCare controllers:
   ClientCareController, ClientCareFollowupController, FollowUpActionController,
   AppointmentController, ScalpPhotoController, DriveFolderController, VisitController,
   GiftCertificateController (/clientcare/gift-certificates),
-  ClientCareFinanceController (/clientcare/finance)
+  ClientCareFinanceController (/clientcare/finance),
+  ClientTelegramController (/clientcare/clients/{id}/telegram)
 web/dto/ — form objects and filter DTOs
 web/validator/ — custom Bean Validation annotations (ValidDateRange + DateRangeValidator)
 web/interceptor/ — CurrentUriInterceptor
 web/formatter/ — QuantityFormatter (@qf bean)
-config/ — SecurityConfig, LocaleConfig, WebMvcConfig
+config/ — SecurityConfig, LocaleConfig, WebMvcConfig, TelegramConfig
 
 ## Key Rules
-- ddl-auto=none, Liquibase manages schema (migrations 001-024)
+- ddl-auto=none, Liquibase manages schema (migrations 001-028)
 - Controllers are thin, logic in services
 - Never pass entities to templates, use DTOs
 - Dirty checking for updates — no explicit save() on managed entities
@@ -108,7 +112,11 @@ Migrations:
 021-add-visit-billing (service_id, price_at_time, payment_method, is_paid, certificate_code on visits),
 022-appointment-service-link (drops appointment_type; adds service_id BIGINT FK → services ON DELETE SET NULL),
 023-add-gift-certificate-price (price NUMERIC(10,2) NOT NULL DEFAULT 0 on gift_certificates),
-024-add-product-recommended-price (recommended_price NUMERIC(10,2) nullable on products)
+024-add-product-recommended-price (recommended_price NUMERIC(10,2) nullable on products),
+025-create-salon-services (services table — name, description, duration),
+026-add-telegram-client (telegram_chat_id BIGINT nullable + telegram_link_token VARCHAR(64) unique nullable on clients),
+027-add-appointment-reminders (reminder_48h_sent_at, reminder_24h_sent_at, reminder_2h_sent_at TIMESTAMP nullable on appointments),
+028-remove-guest-appointments (drops guest_name, guest_phone from appointments; sets client_id NOT NULL)
 
 ## Warehouse features
 - **Dashboard** (/) — KPI cards (All/OK/LOW/OUT), status/category/brand/search filters, clickable rows; `.stock-table` with table-layout:fixed
@@ -180,16 +188,24 @@ Migrations:
 | `.badge-inactive`  | `#f8d7da`   | `#721c24` | Inactive status badge              |
 | `.filter-active`   | —           | —         | `2px solid var(--accent)` border on active filter wrappers |
 
-### Calendar event colors (`appointments/day.html` `eventDidMount`)
+### Calendar event colors (`appointments/day.html`)
+Colors computed by `eventStyle(status, start, end)` — single source of truth used in both
+`buildEventContent` (month pill) and `eventDidMount` (timeGrid wrapper).
+`eventColor()` returns the saturated dot color for mobile month view.
+
 | State              | Background | Border     | Text      |
 |--------------------|------------|------------|-----------|
 | PLANNED            | `#fff3cd`  | `#ffe69c`  | `#664d03` |
-| CONFIRMED          | `#4a7c59`  | `#4a7c59`  | `#fff`    |
+| CONFIRMED          | `#d1e7dd`  | `#a3cfbb`  | `#0a3622` |
 | COMPLETED          | `#e2e3e5`  | `#c4c8cb`  | `#41464b` |
 | CANCELLED          | `#dc3545`  | `#dc3545`  | `#fff`    |
 | NO_SHOW            | `#fd7e14`  | `#fd7e14`  | `#fff`    |
-| Overdue (PLANNED/CONFIRMED + past end) | `#f8d7da` | `#f1aeb5` | `#842029` |
+| Overdue (PLANNED/CONFIRMED + past end)       | `#f8d7da` | `#f1aeb5` | `#842029` |
 | In-progress (PLANNED/CONFIRMED + now inside) | `#d1e7dd` | `#a3cfbb` | `#0a3622` |
+
+Note: CONFIRMED intentionally uses the same palette as In-progress (confirmed ≠ attended).
+Month view desktop pill gets background applied directly on `.fc-month-pill` (not only on outer FC wrapper)
+to avoid `.fc-daygrid-dot-event` transparent-background issue.
 
 ### Client detail appointment badges (inline style in `fragments/client-detail.html`)
 | Badge              | Background | Text      |
@@ -342,6 +358,8 @@ Migrations:
 - DB-based authentication via UserDetailsServiceImpl; BCrypt password encoding
 - All routes protected except /login, /logout, static resources (/favicon.svg, /css/**, /js/**, /images/**, /webjars/**)
 - `/error` in permitAll — correct error page instead of redirect loop
+- `/telegram/webhook` in permitAll — secured by `X-Telegram-Bot-Api-Secret-Token` header in controller (not Spring Security)
+- `/internal/reminders` in permitAll — secured by `X-Internal-Token` header in controller (not Spring Security)
 - Default user: admin (change password after first login)
 - Open redirect protection on all `returnTo` params: `safeRedirect()` accepts only `/[^/].*`
 
@@ -353,7 +371,10 @@ Migrations:
   - test.yml — triggers on push to develop and PRs to master; runs ./mvnw test (unit tests only, no DB required)
   - deploy.yml — triggers on push to master; runs unit tests first, then builds Docker image and deploys to Fly.io
   - deploy-on-comment.yml — triggers on PR comment "/deploy" by repo owner, same deploy flow
-- Secrets managed via Fly.io secrets (DB_URL, DB_USERNAME, DB_PASSWORD, SPRING_PROFILES_ACTIVE, GEMINI_API_KEY)
+- Secrets managed via Fly.io secrets (DB_URL, DB_USERNAME, DB_PASSWORD, SPRING_PROFILES_ACTIVE, GEMINI_API_KEY,
+  TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_MASTER_CHAT_ID, TELEGRAM_WEBHOOK_SECRET,
+  INTERNAL_SECRET, TELEGRAM_HOW_TO_FIND_VIDEO_ID, TELEGRAM_CHECKLIST_PHOTO_ID)
+- GitHub Secrets: INTERNAL_SECRET (used by reminders.yml cron to call /internal/reminders)
 
 ## Local development
 Run with VM option: -Dspring.profiles.active=dev
@@ -545,6 +566,59 @@ com.hairmony.warehouse/
 
 ---
 
+## Telegram Bot
+
+### Overview
+Appointment reminders via Telegram Bot API. No third-party library — pure RestClient + raw HTTP.
+Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
+
+### Config — `TelegramConfig` (`@ConfigurationProperties("telegram")`)
+- `telegram.bot.token`, `telegram.bot.username`, `master.chat-id`, `webhook.secret`
+- `telegram.files.how-to-find-video-id`, `telegram.files.checklist-photo-id` — Telegram file_ids (permanent, free hosting)
+- `RestClient` bean wired to `https://api.telegram.org/bot{token}`
+
+### Client linking flow
+1. Master opens `/clientcare/clients/{id}/telegram` → `ClientTelegramController` generates UUID token, saves to `client.telegramLinkToken`
+2. Page shows deep link `https://t.me/{bot}?start={token}`; copy button copies full ready-to-send message to clipboard
+3. Client clicks link → Telegram opens bot → client sends `/start TOKEN`
+4. `TelegramWebhookController.handleMessage()` finds client by token, saves `chatId`, clears token (dirty checking, `@Transactional`)
+5. Client receives "✅ Чудово!"; master receives "🔗 {name} підключив Telegram"
+6. Client detail page header: gray `bi-telegram` icon if not connected; blue icon + green dot (Bootstrap dropdown) if connected
+   - Dropdown: "Переслати посилання" → link page | "Відключити" → `#tgDisconnectModal` (Так/Ні)
+   - `POST /clientcare/clients/{id}/telegram/remove` → clears chatId + token (`@Transactional` required for dirty checking)
+
+### Reminder flow (day-based)
+- **Trigger:** GitHub Actions cron (`reminders.yml`, `*/15 * * * *`) calls `GET /internal/reminders`
+  with `X-Internal-Token` header. Fly.io uses `auto_stop_machines = 'suspend'` — `@Scheduled` won't fire.
+- **Window:** all appointments tomorrow (dayStart..dayEnd), status IN (PLANNED, CONFIRMED), `reminder24hSentAt IS NULL`
+- **With chatId:** sends message with ✅/❌ inline buttons; sets `reminder24hSentAt = now()`
+- **Without chatId:** notifies master to remind manually
+- **Message text:** `🌿 Нагадуємо: завтра ваш візит!\n📅 {date}\n🕐 {time}\n✂️ {service}\n📍 Jana Sebastiana Bacha 11, 50-305 Wrocław`
+- Rate limit guard: `Thread.sleep(50)` between sends
+
+### Confirmation / cancellation flow (`TelegramWebhookController.handleCallbackQuery`)
+- `confirm:{id}` → status CONFIRMED; edits original message (keeps full info + address); notifies master
+- `cancel:{id}` → status CANCELLED; edits original message; notifies master with phone
+- Guard: if status ≠ PLANNED/CONFIRMED → "Цей візит вже оброблено." (idempotent)
+- After confirmation, sends post-confirm files then maps link as separate final message:
+  - "Консультація первинна": video (HowToFind) with caption + checklist photo with caption → maps link
+  - "Консультація повторна": checklist photo with caption → maps link
+  - Other services: maps link only
+- Maps link: `🗺 <a href="https://www.google.com/maps/dir/?api=1&destination=Jana+Sebastiana+Bacha+11%2C+50-305+Wroc%C5%82aw%2C+Poland">Прокласти маршрут →</a>` (sent via `sendMessageNoPreview`)
+
+### Appointment guest UI vs DB
+- Form UI has "guest" toggle (name + phone without selecting existing client) — UI kept as-is
+- **In DB, guests never exist:** `AppointmentService.save()` auto-promotes any guest to a real `Client` entity
+- `Appointment.guestName` / `guestPhone` fields removed (migration 028); `client_id NOT NULL`
+- The CHECK constraint from migration 017 was also removed in 028
+
+### i18n
+- `telegram.*` keys added to all three properties files (`messages_uk.properties`, `messages_pl.properties`, `messages.properties`)
+- Keys: `telegram.connect.title/hint/btn.copy/copied/instruction/clipboard.prefix/tooltip`, `telegram.resend.link`, `telegram.disconnect`, `telegram.disconnect.confirm`
+- Telegram message content (reminders, confirmations) is hardcoded Ukrainian — outside Spring MVC i18n scope
+
+---
+
 ## TODO
 
 ### ClientCare (pending)
@@ -563,6 +637,7 @@ com.hairmony.warehouse/
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
 ### Infrastructure
+- **Deploy Telegram Bot to prod** — set Fly.io secrets (TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_MASTER_CHAT_ID, TELEGRAM_WEBHOOK_SECRET, INTERNAL_SECRET, TELEGRAM_HOW_TO_FIND_VIDEO_ID, TELEGRAM_CHECKLIST_PHOTO_ID) + GitHub Secret INTERNAL_SECRET
 - **Google Calendar sync** — OAuth2 two-way sync; main complexity: token storage per user + conflict resolution
 - **PostgreSQL backup** — pg_dump @Scheduled or Neon point-in-time recovery (check if sufficient before custom solution)
 - Spring Session (if scaling beyond 1 machine)

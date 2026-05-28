@@ -74,3 +74,12 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/025-add-next-visit-skipped.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/026-add-telegram-client.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/027-add-appointment-reminders.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/028-remove-guest-appointments.sql
+      relativeToChangelogFile: false

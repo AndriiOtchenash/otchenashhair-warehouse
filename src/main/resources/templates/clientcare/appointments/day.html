@@ -332,7 +332,6 @@
 
         // Solid-bg events (white text)
         const STATUS_COLORS = {
-            CONFIRMED: '#4a7c59',
             CANCELLED: '#dc3545',
             NO_SHOW:   '#fd7e14',
         };
@@ -373,10 +372,22 @@
             return start < now && (end == null || end <= now);
         }
 
-        /** Color for dot in month/mobile view. */
+        /** Compute {bg, border, text} for any view — single source of truth. */
+        function eventStyle(status, start, end) {
+            if (isInProgress(status, start, end)) return { bg: IN_PROGRESS_BG, border: IN_PROGRESS_BORDER, text: IN_PROGRESS_TEXT };
+            if (isOverdue(status, start, end))    return { bg: OVERDUE_BG,      border: OVERDUE_BORDER,     text: OVERDUE_TEXT };
+            if (status === 'CONFIRMED')           return { bg: IN_PROGRESS_BG,  border: IN_PROGRESS_BORDER, text: IN_PROGRESS_TEXT };
+            if (status === 'PLANNED')             return { bg: PLANNED_BG,      border: PLANNED_BORDER,     text: PLANNED_TEXT };
+            if (status === 'COMPLETED')           return { bg: COMPLETED_BG,    border: COMPLETED_BORDER,   text: COMPLETED_TEXT };
+            const solid = STATUS_COLORS[status] || '#adb5bd';
+            return { bg: solid, border: solid, text: '#fff' };
+        }
+
+        /** Dot color for month/mobile view — uses the saturated variant of each state. */
         function eventColor(status, start, end) {
             if (isInProgress(status, start, end)) return IN_PROGRESS_DOT;
             if (isOverdue(status, start, end))    return OVERDUE_DOT;
+            if (status === 'CONFIRMED')           return IN_PROGRESS_DOT;
             if (status === 'PLANNED')             return PLANNED_DOT;
             if (status === 'COMPLETED')           return COMPLETED_DOT;
             return STATUS_COLORS[status] || '#adb5bd';
@@ -420,8 +431,10 @@
          *   timeGrid*              → time / title / phone
          */
         function buildEventContent(arg) {
-            const view  = arg.view.type;
-            const color = eventColor(arg.event.extendedProps.status, arg.event.start, arg.event.end);
+            const view   = arg.view.type;
+            const status = arg.event.extendedProps.status;
+            const start  = arg.event.start;
+            const end    = arg.event.end;
 
             if (view === 'dayGridMonth') {
                 if (isMobile()) {
@@ -429,21 +442,29 @@
                     pill.className = 'fc-dot-pill';
                     const dot = document.createElement('span');
                     dot.className = 'fc-dot-circle';
-                    dot.style.background = color;
+                    dot.style.background = eventColor(status, start, end);
                     pill.appendChild(dot);
                     return { domNodes: [pill] };
                 }
-                // Desktop: single-line pill
+                // Desktop: single-line pill — colors applied directly so they
+                // match timeGrid regardless of FC dot-event / block-event wrapper.
+                const s = eventStyle(status, start, end);
                 const pill = document.createElement('div');
                 pill.className = 'fc-month-pill';
+                pill.style.backgroundColor = s.bg;
+                pill.style.borderLeft      = '3px solid ' + s.border;
+                pill.style.borderRadius    = '3px';
+                pill.style.padding         = '0 4px';
                 if (arg.timeText) {
                     const t = document.createElement('span');
-                    t.className = 'fc-month-pill-time';
+                    t.className   = 'fc-month-pill-time';
+                    t.style.color = s.text;
                     t.textContent = arg.timeText;
                     pill.appendChild(t);
                 }
                 const title = document.createElement('span');
-                title.className = 'fc-month-pill-title';
+                title.className   = 'fc-month-pill-title';
+                title.style.color = s.text;
                 title.textContent = arg.event.title || '';
                 pill.appendChild(title);
                 return { domNodes: [pill] };
@@ -568,31 +589,16 @@
                 eventContent: buildEventContent,
 
                 eventDidMount: function (info) {
-                    const status = info.event.extendedProps.status;
-                    const start  = info.event.start;
-                    const end    = info.event.end;
-
-                    let bg, border, text;
-                    if (isInProgress(status, start, end)) {
-                        bg = IN_PROGRESS_BG; border = IN_PROGRESS_BORDER; text = IN_PROGRESS_TEXT;
-                    } else if (isOverdue(status, start, end)) {
-                        bg = OVERDUE_BG;   border = OVERDUE_BORDER;   text = OVERDUE_TEXT;
-                    } else if (status === 'PLANNED') {
-                        bg = PLANNED_BG;   border = PLANNED_BORDER;   text = PLANNED_TEXT;
-                    } else if (status === 'COMPLETED') {
-                        bg = COMPLETED_BG; border = COMPLETED_BORDER; text = COMPLETED_TEXT;
-                    } else {
-                        const color = STATUS_COLORS[status] || '#adb5bd';
-                        info.el.style.backgroundColor = color;
-                        info.el.style.borderColor     = color;
-                        return;
-                    }
-
-                    info.el.style.backgroundColor = bg;
-                    info.el.style.borderColor     = border;
-                    info.el.style.setProperty('--fc-event-text-color', text);
+                    const s = eventStyle(
+                        info.event.extendedProps.status,
+                        info.event.start,
+                        info.event.end
+                    );
+                    info.el.style.backgroundColor = s.bg;
+                    info.el.style.borderColor     = s.border;
+                    info.el.style.setProperty('--fc-event-text-color', s.text);
                     info.el.querySelectorAll('div, span').forEach(function(el) {
-                        el.style.color      = text;
+                        el.style.color      = s.text;
                         el.style.fontWeight = '700';
                     });
                 },

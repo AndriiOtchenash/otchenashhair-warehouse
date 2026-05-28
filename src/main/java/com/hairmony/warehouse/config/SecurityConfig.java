@@ -28,12 +28,15 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .ignoringRequestMatchers("/telegram/webhook")
                 )
                 .authenticationProvider(provider)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/logout", "/error").permitAll()
                         .requestMatchers("/favicon.svg", "/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                         .requestMatchers("/manifest.webmanifest", "/icons/**").permitAll()
+                        .requestMatchers("/telegram/webhook").permitAll()
+                        .requestMatchers("/internal/reminders").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

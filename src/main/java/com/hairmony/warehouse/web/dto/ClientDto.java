@@ -26,4 +26,6 @@ public class ClientDto {
 
     private String driveFolderUrl;
     private String driveFolderId;
+
+    private Long telegramChatId;
 }
