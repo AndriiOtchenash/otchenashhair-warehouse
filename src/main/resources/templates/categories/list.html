@@ -5,7 +5,8 @@
 <div th:fragment="content">
     <style>
         .table { min-width: 0 !important; }
-        #saveNewCategoryBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+        #saveNewCategoryBtn:disabled,
+        #saveCategoryBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{category.list.title}">Категорії</h1>
@@ -128,7 +129,7 @@
                         <button type="button" class="btn btn-outline-secondary btn-sm"
                                 data-bs-dismiss="modal"
                                 th:text="#{btn.cancel}">Скасувати</button>
-                        <button type="submit" class="btn btn-primary btn-sm"
+                        <button type="submit" id="saveCategoryBtn" class="btn btn-primary btn-sm" disabled
                                 th:text="#{btn.save}">Зберегти</button>
                     </div>
                 </form>
@@ -170,10 +171,18 @@
 
             const editModal = document.getElementById('editCategoryModal');
             if (editModal) {
+                let originalName = '';
                 editModal.addEventListener('show.bs.modal', function(event) {
                     const btn = event.relatedTarget;
-                    document.getElementById('editCategoryName').value = btn.getAttribute('data-name');
+                    originalName = btn.getAttribute('data-name');
+                    const input = document.getElementById('editCategoryName');
+                    input.value = originalName;
                     document.getElementById('editCategoryForm').action = '/categories/' + btn.getAttribute('data-id') + '/rename';
+                    document.getElementById('saveCategoryBtn').disabled = true;
+                });
+                document.getElementById('editCategoryName').addEventListener('input', function() {
+                    const val = this.value.trim();
+                    document.getElementById('saveCategoryBtn').disabled = !(val.length > 0 && val !== originalName);
                 });
             }
 

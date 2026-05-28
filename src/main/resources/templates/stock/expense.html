@@ -4,6 +4,7 @@
 <body>
 <div th:fragment="content">
     <style>
+        #submitExpenseBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
         .card-body { overflow-x: visible !important; }
         .compact-fields .form-control { text-align: right; }
         .field-locked { cursor: not-allowed; }
@@ -101,7 +102,7 @@
                                                id="quantity"
                                                th:field="*{quantity}"
                                                th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"
-                                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"
+                                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max; syncFieldsLock();"
                                                onblur="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"/>
                                         <button type="button" id="clearQtyBtn"
                                                 class="btn btn-outline-secondary d-md-none px-1"
@@ -182,7 +183,7 @@
 
                         <!-- Buttons -->
                         <div class="col-12 d-flex flex-column flex-sm-row gap-2 justify-content-center">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" id="submitExpenseBtn" class="btn btn-primary" disabled>
                                 <i class="bi bi-arrow-up-circle me-1"></i>
                                 <span th:text="#{stock.expense.submit}">Зареєструвати витрату</span>
                             </button>
@@ -304,7 +305,7 @@
                                                id="quantity"
                                                th:field="*{quantity}"
                                                th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"
-                                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"
+                                               oninput="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max; syncFieldsLock();"
                                                onblur="if(this.max && parseFloat(this.value) > parseFloat(this.max)) this.value = this.max"/>
                                         <button type="button" id="clearQtyBtn"
                                                 class="btn btn-outline-secondary d-md-none px-1"
@@ -399,7 +400,7 @@
 
                         <!-- Buttons -->
                         <div class="col-12 d-flex flex-column flex-sm-row gap-2 justify-content-center">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" id="submitExpenseBtn" class="btn btn-primary" disabled>
                                 <i class="bi bi-arrow-up-circle me-1"></i>
                                 <span th:text="#{stock.expense.submit}">Зареєструвати витрату</span>
                             </button>
@@ -517,6 +518,12 @@
                 if (compactRow) compactRow.closest('.col-12').insertBefore(hint, compactRow);
             }
             hint.style.display = hasProduct ? 'none' : '';
+
+            const submitBtn = document.getElementById('submitExpenseBtn');
+            if (submitBtn) {
+                const qtyVal = (document.getElementById('quantity')?.value || '').trim();
+                submitBtn.disabled = !hasProduct || !qtyVal || parseFloat(qtyVal) <= 0;
+            }
         }
 
         const saleNoClientMsg = /*[[#{stock.expense.confirm.noClient}]]*/ 'Продаж без клієнта. Продовжити?';

@@ -8,6 +8,16 @@
         .compact-fields .form-select { text-align: right; }
         .compact-fields textarea.form-control { text-align: left; }
         #saveProductBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+        /* Dim labels and inputs of locked fields */
+        .compact-fields > label.col-form-label:has(+ div input:disabled),
+        .compact-fields > label.col-form-label:has(+ div select:disabled) {
+            opacity: 0.4;
+            font-weight: 400 !important;
+        }
+        .compact-fields select:disabled,
+        .compact-fields input:disabled {
+            color: #adb5bd !important;
+        }
     </style>
 
     <div class="page-header">
@@ -27,7 +37,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form th:action="${product.id != null} ? @{/products/{id}/edit(id=${product.id})} : @{/products/new}"
+            <form id="productForm" th:action="${product.id != null} ? @{/products/{id}/edit(id=${product.id})} : @{/products/new}"
                   th:object="${product}"
                   method="post">
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
@@ -39,7 +49,7 @@
                     <div class="col-12">
                         <label class="form-label fw-semibold" th:text="#{product.form.name}">Назва</label>
                         <input type="text" class="form-control" id="productName"
-                               th:field="*{name}"
+                               th:field="*{name}" maxlength="150"
                                th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
                                oninput="syncProductFormLock()" autocomplete="off"/>
                         <div class="invalid-feedback" th:errors="*{name}"></div>
@@ -52,7 +62,7 @@
                     <label class="col-4 col-form-label fw-semibold" th:text="#{product.form.brand}">Бренд</label>
                     <div class="col-6 offset-2">
                         <input type="text" class="form-control form-control-sm" id="brandInput"
-                               th:field="*{brand}"
+                               th:field="*{brand}" maxlength="100"
                                list="brandList" autocomplete="off"/>
                         <datalist id="brandList">
                             <option th:each="b : ${existingBrands}" th:value="${b}"/>
@@ -108,15 +118,16 @@
                     <label class="col-4 col-form-label fw-semibold" th:text="#{product.form.barcode}">Штрихкод</label>
                     <div class="col-6 offset-2">
                         <input type="text" class="form-control form-control-sm" id="barcodeInput"
-                               th:field="*{barcode}"
-                               th:classappend="${#fields.hasErrors('barcode')} ? 'is-invalid'"/>
+                               th:field="*{barcode}" maxlength="50"
+                               th:classappend="${#fields.hasErrors('barcode')} ? 'is-invalid'"
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
                         <div class="invalid-feedback" th:errors="*{barcode}"></div>
                     </div>
 
                     <!-- Unit Size -->
                     <label class="col-4 col-form-label fw-semibold" th:text="#{product.form.unitSize}">Обсяг</label>
                     <div class="col-6 offset-2">
-                        <input type="number" step="0.001" class="form-control form-control-sm" id="unitSizeInput"
+                        <input type="number" step="0.001" min="0.001" max="99999.999" class="form-control form-control-sm" id="unitSizeInput"
                                th:field="*{unitSize}"
                                th:classappend="${#fields.hasErrors('unitSize')} ? 'is-invalid'"
                                oninput="syncProductFormLock()"/>
@@ -132,7 +143,7 @@
                     <!-- Recommended Price -->
                     <label class="col-5 col-form-label fw-semibold" th:text="#{product.form.recommendedPrice}">Рекомендована ціна</label>
                     <div class="col-6 offset-1">
-                        <input type="number" step="0.01" min="0.01" class="form-control form-control-sm" id="recommendedPriceInput"
+                        <input type="number" step="0.01" min="0.01" max="99999.99" class="form-control form-control-sm" id="recommendedPriceInput"
                                th:field="*{recommendedPrice}"
                                th:classappend="${#fields.hasErrors('recommendedPrice')} ? 'is-invalid'"/>
                         <div class="invalid-feedback" th:errors="*{recommendedPrice}"></div>
@@ -141,7 +152,7 @@
                     <!-- Min Stock Level -->
                     <label class="col-4 col-form-label fw-semibold" th:text="#{product.form.minStockLevel}">Мін. залишок</label>
                     <div class="col-6 offset-2">
-                        <input type="number" step="0.001" class="form-control form-control-sm" id="minStockInput"
+                        <input type="number" step="0.001" min="0" max="99999.999" class="form-control form-control-sm" id="minStockInput"
                                th:field="*{minStockLevel}"
                                th:classappend="${#fields.hasErrors('minStockLevel')} ? 'is-invalid'"
                                oninput="syncProductFormLock()"/>
@@ -176,7 +187,7 @@
             </form>
         </div>
     </div>
-    <script>
+    <script th:inline="javascript">
     function syncProductFormLock() {
         var hasName     = (document.getElementById('productName')?.value     || '').trim().length > 0;
         var hasCat      = (document.getElementById('categorySelect')?.value  || '') !== '';
@@ -193,11 +204,11 @@
         setDisabled('recommendedPriceInput', !hasName || !hasCat || !hasUnit || !hasUnitSize);
         setDisabled('minStockInput',         !hasName || !hasCat || !hasUnit || !hasUnitSize);
         setDisabled('descriptionInput',      !hasName || !hasCat || !hasUnit || !hasUnitSize || !hasMinStock);
-        setDisabled('saveProductBtn',        !hasName || !hasCat || !hasUnit || !hasUnitSize || !hasMinStock);
+        if (!IS_EDIT) setDisabled('saveProductBtn', !hasName || !hasCat || !hasUnit || !hasUnitSize || !hasMinStock);
 
         // "Create category" link: hide while name not filled
         var createRow = document.getElementById('createCategoryRow');
-        if (createRow) createRow.style.display = hasName ? '' : 'none';
+        if (createRow) createRow.style.display = (hasName && !hasCat) ? '' : 'none';
 
         // Walking hint: show only the hint for the current blocking field
         var activeHint = !hasName     ? 'hint-name'     :
@@ -219,7 +230,30 @@
         if (el) el.disabled = disabled;
     }
 
-    document.addEventListener('DOMContentLoaded', syncProductFormLock);
+    const IS_EDIT = /*[[${product.id != null}]]*/ false;
+    var initialSnapshot = null;
+
+    function getFormSnapshot() {
+        var data = {};
+        document.querySelectorAll('#productForm input:not([type=hidden]), #productForm select, #productForm textarea')
+            .forEach(function(el) { data[el.name || el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+        return JSON.stringify(data);
+    }
+
+    function syncSaveBtnEdit() {
+        var btn = document.getElementById('saveProductBtn');
+        if (!btn || initialSnapshot === null) return;
+        btn.disabled = (getFormSnapshot() === initialSnapshot);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        syncProductFormLock();
+        if (IS_EDIT) {
+            initialSnapshot = getFormSnapshot();
+            document.getElementById('productForm').addEventListener('input',  syncSaveBtnEdit);
+            document.getElementById('productForm').addEventListener('change', syncSaveBtnEdit);
+        }
+    });
     </script>
 </div>
 </body>

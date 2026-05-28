@@ -34,16 +34,19 @@ public class ProductDto {
 
     @NotNull
     @DecimalMin(value = "0.001", message = "{validation.unitSize.positive}")
+    @DecimalMax(value = "99999.999", message = "{validation.unitSize.tooLarge}")
     private BigDecimal unitSize;
 
     @NotNull
     @DecimalMin(value = "0", message = "{validation.minStockLevel.positive}")
+    @DecimalMax(value = "99999.999", message = "{validation.minStockLevel.tooLarge}")
     private BigDecimal minStockLevel;
 
     @Size(max = 2000, message = "{validation.size.max2000}")
     private String description;
 
     @DecimalMin(value = "0.01", message = "{validation.price.positive}")
+    @DecimalMax(value = "99999.99", message = "{validation.price.tooLarge}")
     private BigDecimal recommendedPrice;
 
     @Size(max = 500, message = "{validation.size.max500}")

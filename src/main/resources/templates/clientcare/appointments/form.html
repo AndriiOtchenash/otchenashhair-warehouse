@@ -212,10 +212,10 @@
                 </div>
 
                 <!-- ── Status (edit only) ── -->
-                <div class="mb-3" th:if="${isEdit}">
-                    <label for="status" class="form-label fw-semibold"
+                <div class="d-flex align-items-center gap-2 mb-3" th:if="${isEdit}">
+                    <label for="status" class="form-label fw-semibold mb-0 flex-shrink-0"
                            th:text="#{appointment.form.status}">Статус</label>
-                    <select id="status" class="form-select" th:field="*{status}">
+                    <select id="status" class="form-select form-select-sm" th:field="*{status}">
                         <option th:each="s : ${statuses}"
                                 th:value="${s.name()}"
                                 th:text="#{appointments.status.__${s}__}">
@@ -432,7 +432,7 @@
             const startMs = new Date(startVal).getTime();
             const endMs   = endVal ? new Date(endVal).getTime() : 0;
             if (!endVal || endMs <= startMs) {
-                const newEnd = new Date(startMs + 60 * 60 * 1000);
+                const newEnd = new Date(startMs + 120 * 60 * 1000);
                 const pad = n => String(n).padStart(2, '0');
                 const t = pad(newEnd.getHours()) + ':' + pad(newEnd.getMinutes());
                 document.getElementById('endAt').value   = document.getElementById('startDate').value + 'T' + t;
