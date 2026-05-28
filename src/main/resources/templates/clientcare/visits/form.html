@@ -83,7 +83,8 @@
                            th:field="*{visitDate}"
                            th:classappend="${#fields.hasErrors('visitDate')} ? 'is-invalid'"
                            th:max="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
-                           onclick="this.showPicker&&this.showPicker()"/>
+                           onclick="this.showPicker&&this.showPicker()"
+                           oninput="syncVisitSaveBtn()"/>
                     <div class="invalid-feedback" th:if="${#fields.hasErrors('visitDate')}"
                          th:errors="*{visitDate}"></div>
                 </div>
@@ -255,16 +256,16 @@
                 </div>
 
                 <!-- ── Actions ── -->
-                <div class="form-actions d-flex gap-2 justify-content-center">
+                <div class="form-actions d-flex gap-2 justify-content-end">
+                    <a th:href="${returnTo != null ? returnTo : '/clientcare/clients/' + visit.clientId}"
+                       class="btn btn-outline-secondary btn-sm" th:text="#{btn.cancel}">Скасувати</a>
                     <button type="submit" name="action" value="save"
                             id="saveBtn"
-                            class="btn btn-primary"
-                            th:disabled="${visit.id != null}">
+                            class="btn btn-primary btn-sm"
+                            th:disabled="${visit.id != null or visit.visitDate == null}">
                         <i class="bi bi-check2 me-1"></i>
                         <span th:text="#{btn.save}">Зберегти</span>
                     </button>
-                    <a th:href="${returnTo != null ? returnTo : '/clientcare/clients/' + visit.clientId}"
-                       class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
                 </div>
             </form>
 
@@ -286,7 +287,7 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
         // ── i18n messages ─────────────────────────────────────────────────────
         const MSG_CERT_VALID     = /*[[#{visit.cert.valid}]]*/ 'Сертифікат дійсний';
         const MSG_CERT_INVALID   = /*[[#{visit.cert.invalid}]]*/ 'Сертифікат недійсний або вже використано';
@@ -389,15 +390,26 @@
             return JSON.stringify(data);
         }
 
+        const IS_EDIT_VISIT = /*[[${visit.id != null}]]*/ false;
+
         function syncSaveBtn() {
             var saveBtn = document.getElementById('saveBtn');
             if (!saveBtn || initialSnapshot === null) return;
             saveBtn.disabled = (getFormSnapshot() === initialSnapshot);
         }
 
+        function syncVisitSaveBtn() {
+            if (IS_EDIT_VISIT) return;
+            var saveBtn = document.getElementById('saveBtn');
+            if (!saveBtn) return;
+            var dateVal = document.getElementById('visitDate').value;
+            saveBtn.disabled = !dateVal;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             var form = document.getElementById('visitForm');
-            if (form) {
+            if (!form) return;
+            if (IS_EDIT_VISIT) {
                 initialSnapshot = getFormSnapshot();
                 form.addEventListener('input',  syncSaveBtn);
                 form.addEventListener('change', syncSaveBtn);

@@ -3,6 +3,14 @@
       th:replace="~{layout/main :: layout(${client.id == null} ? #{client.form.title.new} : #{client.form.title.edit}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        #saveBtn:disabled {
+            background-color: transparent;
+            border-color: #6c757d;
+            color: #6c757d;
+            opacity: 0.65;
+        }
+    </style>
     <div class="page-header">
         <h1 class="page-title"
             th:text="${client.id == null} ? #{client.form.title.new} : #{client.form.title.edit}">Клієнт</h1>
@@ -18,7 +26,7 @@
     </div>
     <div class="card">
         <div class="card-body">
-            <form th:action="${client.id == null}
+            <form id="clientForm" th:action="${client.id == null}
                               ? (${clientCareContext} ? @{/clientcare/clients/new} : @{/clients/new})
                               : (${clientCareContext} ? '/clientcare/clients/' + ${client.id} + '/edit' : '/clients/' + ${client.id} + '/edit')"
                   th:object="${client}" method="post">
@@ -43,23 +51,52 @@
                         <label class="form-label fw-semibold" th:text="#{client.form.notes}">Примітки</label>
                         <textarea class="form-control" rows="3" th:field="*{notes}"></textarea>
                     </div>
-                    <div class="col-12 d-flex gap-2 justify-content-center">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg me-1"></i>
-                            <span th:text="#{btn.save}">Зберегти</span>
-                        </button>
+                    <div class="col-12 d-flex gap-2 justify-content-end">
                         <a th:href="${returnTo == 'expense'} ? @{/movements/expense} :
                                    (${returnTo == 'history'} ? @{/movements/history} :
                                    (${returnTo == 'detail' and client.id != null} ? (${clientCareContext} ? '/clientcare/clients/' + ${client.id} : '/clients/' + ${client.id}) :
                                    (${returnTo == 'product' and productId != null} ? @{/products/{id}(id=${productId})} :
                                    (${clientCareContext} ? @{/clientcare/clients} : @{/clients}))))"
-                           class="btn btn-outline-secondary"
+                           class="btn btn-outline-secondary btn-sm"
                            th:text="#{btn.cancel}">Скасувати</a>
+                        <button type="submit" id="saveBtn" class="btn btn-primary btn-sm"
+                                th:disabled="${client.id != null}">
+                            <i class="bi bi-check-lg me-1"></i>
+                            <span th:text="#{btn.save}">Зберегти</span>
+                        </button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
+
+    <script>
+        var initialSnapshot = null;
+
+        function getFormSnapshot() {
+            var data = {};
+            document.querySelectorAll('#clientForm input:not([type=hidden]), #clientForm select, #clientForm textarea')
+                .forEach(function(el) {
+                    data[el.name || el.id] = el.type === 'checkbox' ? el.checked : el.value;
+                });
+            return JSON.stringify(data);
+        }
+
+        function syncSaveBtn() {
+            var btn = document.getElementById('saveBtn');
+            if (!btn || initialSnapshot === null) return;
+            btn.disabled = (getFormSnapshot() === initialSnapshot);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var btn = document.getElementById('saveBtn');
+            if (btn && btn.disabled) {
+                initialSnapshot = getFormSnapshot();
+                document.getElementById('clientForm').addEventListener('input',  syncSaveBtn);
+                document.getElementById('clientForm').addEventListener('change', syncSaveBtn);
+            }
+        });
+    </script>
 </div>
 </body>
 </html>

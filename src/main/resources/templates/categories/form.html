@@ -13,6 +13,9 @@
     </div>
     <div class="card">
         <div class="card-body">
+            <style>
+                #saveBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+            </style>
             <form th:action="@{/categories/new}" th:object="${newCategory}" method="post">
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <div class="row g-3">
@@ -20,17 +23,19 @@
                         <label class="form-label fw-semibold" th:text="#{category.form.name}">Назва</label>
                         <input type="text" class="form-control" th:field="*{name}"
                                th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                               oninput="document.getElementById('saveBtn').disabled = !this.value.trim()"
                                autofocus/>
                         <div class="invalid-feedback" th:errors="*{name}"></div>
                     </div>
-                    <div class="col-12 d-flex gap-2 justify-content-center">
-                        <button type="submit" class="btn btn-primary">
+                    <div class="col-12 d-flex gap-2 justify-content-end">
+                        <a th:href="${returnTo == 'product'} ? @{/products/new} : @{/categories}"
+                           class="btn btn-outline-secondary btn-sm"
+                           th:text="#{btn.cancel}">Скасувати</a>
+                        <button type="submit" id="saveBtn" class="btn btn-primary btn-sm"
+                                th:disabled="${newCategory.name == null or newCategory.name.isEmpty()}">
                             <i class="bi bi-check-lg me-1"></i>
                             <span th:text="#{btn.save}">Зберегти</span>
                         </button>
-                        <a th:href="${returnTo == 'product'} ? @{/products/new} : @{/categories}"
-                           class="btn btn-outline-secondary"
-                           th:text="#{btn.cancel}">Скасувати</a>
                     </div>
                 </div>
             </form>

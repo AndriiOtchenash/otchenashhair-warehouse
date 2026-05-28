@@ -170,6 +170,9 @@ Migrations:
 |----------------------|-----------|
 | btn-primary bg       | `#4a7c59` (accent) |
 | btn-primary hover    | `#3d6b4a` |
+| btn-outline-primary  | accent (border + text); hover/active = accent bg, white text |
+
+`btn-outline-primary` is overridden in both layouts via Bootstrap 5 CSS variables (`--bs-btn-color`, `--bs-btn-border-color`, `--bs-btn-hover-*`, `--bs-btn-active-*`, `--bs-btn-focus-shadow-rgb`) — covers all states without flash. Do NOT use `btn-outline-success` for action buttons — use `btn-outline-primary` for consistency.
 
 ### Signal / status badges (`.days-*` — defined in `followups.html`, reused inline elsewhere)
 | Class / usage              | Background | Text      | Semantic meaning                  |
@@ -238,6 +241,11 @@ to avoid `.fc-daygrid-dot-event` transparent-background issue.
   link href built dynamically via JS so it captures current client-side field values
   (not server-rendered DTO which may be stale);
   "Створити новий X →" link hidden via JS when entity is already selected (syncCreateXxxLink pattern)
+- **Edit form action bar:** buttons right-aligned (`justify-content-end`); order: Cancel (btn-outline-secondary btn-sm) → Save (btn-primary btn-sm); Save button starts `disabled`.
+  - **Edit forms:** dirty detection via `initialSnapshot` / `getFormSnapshot()` / `syncSaveBtn()` pattern — snapshot taken on `DOMContentLoaded`, Save enabled when current state ≠ snapshot; use `const IS_EDIT = /*[[${entity.id != null}]]*/ false;` with `th:inline="javascript"` to branch logic.
+  - **New-entity forms:** Save disabled until all required fields filled — check via JS `syncSaveBtn()` on `input`/`change` events.
+  - Disabled Save must NOT look blue: `#saveBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }` in page `<style>`.
+  - Script must be INSIDE the `th:fragment="content"` div; target form by `id` (not `querySelector('form')` — layout logout form comes first).
 - Flash messages: successMessage (alert-success) and errorMessage (alert-danger),
   rendered inline in each template (not in layout); dismissible;
   always resolved through messageSource.getMessage() — no hardcoded strings in controllers
@@ -371,10 +379,22 @@ to avoid `.fc-daygrid-dot-event` transparent-background issue.
   - test.yml — triggers on push to develop and PRs to master; runs ./mvnw test (unit tests only, no DB required)
   - deploy.yml — triggers on push to master; runs unit tests first, then builds Docker image and deploys to Fly.io
   - deploy-on-comment.yml — triggers on PR comment "/deploy" by repo owner, same deploy flow
-- Secrets managed via Fly.io secrets (DB_URL, DB_USERNAME, DB_PASSWORD, SPRING_PROFILES_ACTIVE, GEMINI_API_KEY,
-  TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_MASTER_CHAT_ID, TELEGRAM_WEBHOOK_SECRET,
-  INTERNAL_SECRET, TELEGRAM_HOW_TO_FIND_VIDEO_ID, TELEGRAM_CHECKLIST_PHOTO_ID)
-- GitHub Secrets: INTERNAL_SECRET (used by reminders.yml cron to call /internal/reminders)
+- Secrets managed via Fly.io secrets:
+  | Secret | Description |
+  |--------|-------------|
+  | `DB_URL` | Neon PostgreSQL JDBC URL |
+  | `DB_USERNAME` | DB user |
+  | `DB_PASSWORD` | DB password |
+  | `SPRING_PROFILES_ACTIVE` | `prod` |
+  | `GEMINI_API_KEY` | Google Gemini API key (AI Assistant) |
+  | `TELEGRAM_BOT_TOKEN` | Token from @BotFather |
+  | `TELEGRAM_BOT_USERNAME` | Bot username without @ |
+  | `TELEGRAM_MASTER_CHAT_ID` | Master's personal Telegram chat_id (receives manual reminder alerts) |
+  | `TELEGRAM_WEBHOOK_SECRET` | Random string; validated via `X-Telegram-Bot-Api-Secret-Token` header |
+  | `INTERNAL_SECRET` | Shared token for `/internal/reminders`; validated via `X-Internal-Token` header |
+  | `TELEGRAM_HOW_TO_FIND_VIDEO_ID` | Telegram file_id of "how to find us" video (permanent, free hosting) |
+  | `TELEGRAM_CHECKLIST_PHOTO_ID` | Telegram file_id of pre-consultation checklist photo |
+- GitHub Secrets: `INTERNAL_SECRET` (used by reminders.yml cron to call `/internal/reminders`; must match Fly.io value)
 
 ## Local development
 Run with VM option: -Dspring.profiles.active=dev
@@ -588,13 +608,15 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
    - `POST /clientcare/clients/{id}/telegram/remove` → clears chatId + token (`@Transactional` required for dirty checking)
 
 ### Reminder flow (day-based)
-- **Trigger:** GitHub Actions cron (`reminders.yml`, `*/15 * * * *`) calls `GET /internal/reminders`
-  with `X-Internal-Token` header. Fly.io uses `auto_stop_machines = 'suspend'` — `@Scheduled` won't fire.
+- **Trigger:** GitHub Actions cron (`reminders.yml`, `0 7 * * *` + `0 8 * * *`) calls `GET /internal/reminders`
+  with `X-Internal-Token` header. Two schedules = 09:00 Wrocław year-round (CEST/CET). `reminder24hSentAt IS NULL` guard prevents duplicates.
+  Fly.io uses `auto_stop_machines = 'suspend'` — `@Scheduled` won't fire.
 - **Window:** all appointments tomorrow (dayStart..dayEnd), status IN (PLANNED, CONFIRMED), `reminder24hSentAt IS NULL`
 - **With chatId:** sends message with ✅/❌ inline buttons; sets `reminder24hSentAt = now()`
 - **Without chatId:** notifies master to remind manually
 - **Message text:** `🌿 Нагадуємо: завтра ваш візит!\n📅 {date}\n🕐 {time}\n✂️ {service}\n📍 Jana Sebastiana Bacha 11, 50-305 Wrocław`
 - Rate limit guard: `Thread.sleep(50)` between sends
+- **Local test:** `curl -H "X-Internal-Token: dev-secret" http://localhost:8080/internal/reminders`
 
 ### Confirmation / cancellation flow (`TelegramWebhookController.handleCallbackQuery`)
 - `confirm:{id}` → status CONFIRMED; edits original message (keeps full info + address); notifies master
@@ -637,7 +659,6 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
 ### Infrastructure
-- **Deploy Telegram Bot to prod** — set Fly.io secrets (TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_MASTER_CHAT_ID, TELEGRAM_WEBHOOK_SECRET, INTERNAL_SECRET, TELEGRAM_HOW_TO_FIND_VIDEO_ID, TELEGRAM_CHECKLIST_PHOTO_ID) + GitHub Secret INTERNAL_SECRET
 - **Google Calendar sync** — OAuth2 two-way sync; main complexity: token storage per user + conflict resolution
 - **PostgreSQL backup** — pg_dump @Scheduled or Neon point-in-time recovery (check if sufficient before custom solution)
 - Spring Session (if scaling beyond 1 machine)

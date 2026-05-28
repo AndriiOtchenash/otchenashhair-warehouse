@@ -4,6 +4,7 @@
 <body>
 <div th:fragment="content">
     <style>
+        #submitIncomeBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
         .card-body { overflow-x: visible !important; }
         .compact-fields .form-control { text-align: right; }
         .compact-fields input[type="date"] { text-align: center; }
@@ -117,7 +118,8 @@
                                     <input type="number" step="1" class="form-control"
                                            id="quantity"
                                            th:field="*{quantity}"
-                                           th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"/>
+                                           th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'"
+                                           oninput="syncFieldsLock()"/>
                                     <button type="button" id="clearQtyBtn"
                                             class="btn btn-outline-secondary d-md-none px-1"
                                             onclick="document.getElementById('quantity').value=''; syncClearBtns();"
@@ -204,7 +206,7 @@
 
                     <!-- Buttons -->
                     <div class="col-12 d-flex flex-column flex-sm-row gap-2 justify-content-center">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" id="submitIncomeBtn" class="btn btn-primary" disabled>
                             <i class="bi bi-arrow-down-circle me-1"></i>
                             <span th:text="#{stock.income.submit}">Зареєструвати прихід</span>
                         </button>
@@ -250,6 +252,12 @@
                 if (compactRow) compactRow.closest('.col-12').insertBefore(hint, compactRow);
             }
             hint.style.display = hasProduct ? 'none' : '';
+
+            var submitBtn = document.getElementById('submitIncomeBtn');
+            if (submitBtn) {
+                var qtyVal = (document.getElementById('quantity')?.value || '').trim();
+                submitBtn.disabled = !hasProduct || !qtyVal || parseFloat(qtyVal) <= 0;
+            }
         }
 
         function onProductChange(select) {

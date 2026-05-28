@@ -3,6 +3,9 @@
       th:replace="~{layout/clientcare :: layout(${photo.id != null} ? #{scalp.photo.form.title.edit} : #{scalp.photo.form.title}, ~{::content})}">
 <body>
 <div th:fragment="content">
+    <style>
+        #savePhotoBtn:disabled { background-color: transparent; border-color: #6c757d; color: #6c757d; opacity: 0.65; }
+    </style>
 
     <div class="page-header">
         <div>
@@ -23,7 +26,8 @@
 
     <div class="card" style="max-width: 520px;">
         <div class="card-body">
-            <form th:action="${photo.id != null}
+            <form id="photoForm"
+                  th:action="${photo.id != null}
                               ? @{/clientcare/photos/{id}/edit(id=${photo.id})}
                               : @{/clientcare/photos/new}"
                   th:object="${photo}" method="post">
@@ -71,16 +75,50 @@
                     <textarea class="form-control" th:field="*{notes}" rows="2"></textarea>
                 </div>
 
-                <div class="d-flex gap-2 justify-content-center">
-                    <button type="submit" class="btn btn-primary" th:text="#{btn.save}">Зберегти</button>
+                <div class="d-flex gap-2 justify-content-end">
                     <a th:href="${returnTo == 'gallery'}
                                 ? @{/clientcare/clients/{id}/photos(id=${photo.clientId})}
                                 : @{/clientcare/clients/{id}(id=${photo.clientId})}"
-                       class="btn btn-outline-secondary" th:text="#{btn.cancel}">Скасувати</a>
+                       class="btn btn-outline-secondary btn-sm" th:text="#{btn.cancel}">Скасувати</a>
+                    <button type="submit" id="savePhotoBtn" class="btn btn-primary btn-sm" disabled
+                            th:text="#{btn.save}">Зберегти</button>
                 </div>
             </form>
         </div>
     </div>
+    <script th:inline="javascript">
+    const IS_EDIT = /*[[${photo.id != null}]]*/ false;
+    var initialSnapshot = null;
+
+    function getFormSnapshot() {
+        var data = {};
+        document.querySelectorAll('#photoForm input:not([type=hidden]), #photoForm select, #photoForm textarea')
+            .forEach(function(el) { data[el.name || el.id] = el.value; });
+        return JSON.stringify(data);
+    }
+
+    function syncSaveBtn() {
+        var btn = document.getElementById('savePhotoBtn');
+        if (!btn) return;
+        if (IS_EDIT) {
+            btn.disabled = (initialSnapshot === null || getFormSnapshot() === initialSnapshot);
+        } else {
+            var hasUrl  = (document.querySelector('#photoForm input[name="driveUrl"]')?.value  || '').trim().length > 0;
+            var hasDate = (document.querySelector('#photoForm input[name="takenAt"]')?.value   || '').trim().length > 0;
+            var hasZone = (document.querySelector('#photoForm select[name="zone"]')?.value     || '') !== '';
+            btn.disabled = !(hasUrl && hasDate && hasZone);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (IS_EDIT) {
+            initialSnapshot = getFormSnapshot();
+        }
+        document.getElementById('photoForm').addEventListener('input',  syncSaveBtn);
+        document.getElementById('photoForm').addEventListener('change', syncSaveBtn);
+        syncSaveBtn();
+    });
+    </script>
 
 </div>
 </body>
