@@ -198,7 +198,9 @@
         function getStockUrl(productId) {
             const base = selectedMode === 'income' ? incomeUrl : expenseUrl;
             let url = base + '?productId=' + productId;
-            if (selectedMode === 'expense') {
+            if (selectedMode === 'income') {
+                url += '&returnTo=' + encodeURIComponent('/scan?mode=income');
+            } else {
                 if (contextClientId) url += '&clientId=' + encodeURIComponent(contextClientId);
                 if (contextReturnTo) url += '&returnTo=' + encodeURIComponent(contextReturnTo);
             }
@@ -208,7 +210,9 @@
         function updateManualLink() {
             const base = selectedMode === 'income' ? incomeUrl : expenseUrl;
             let url = base;
-            if (selectedMode === 'expense') {
+            if (selectedMode === 'income') {
+                url += '?returnTo=' + encodeURIComponent('/scan?mode=income');
+            } else {
                 if (contextClientId) url += '?clientId=' + encodeURIComponent(contextClientId) + (contextReturnTo ? '&returnTo=' + encodeURIComponent(contextReturnTo) : '');
                 else if (contextReturnTo) url += '?returnTo=' + encodeURIComponent(contextReturnTo);
             }

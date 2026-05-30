@@ -36,6 +36,7 @@ public class StockController {
         model.addAttribute("dto", dto);
         model.addAttribute("products", productService.findAllActive());
         model.addAttribute("suppliers", supplierService.findAll());
+        model.addAttribute("lastPurchaseInfo", stockService.getLastPurchaseInfoPerProduct());
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "stock/income";
     }

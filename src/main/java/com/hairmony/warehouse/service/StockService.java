@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -129,6 +130,20 @@ public class StockService {
     }
 
     @Transactional(readOnly = true)
+    public Map<Long, LastPurchaseInfo> getLastPurchaseInfoPerProduct() {
+        Map<Long, LastPurchaseInfo> map = new HashMap<>();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+        stockItemRepository.findLastPurchaseInfoPerProduct()
+                .forEach(row -> {
+                    Long productId = (Long) row[0];
+                    BigDecimal price = (BigDecimal) row[1];
+                    LocalDateTime createdAt = (LocalDateTime) row[2];
+                    map.putIfAbsent(productId, new LastPurchaseInfo(price, createdAt.format(fmt)));
+                });
+        return map;
+    }
+
+    @Transactional(readOnly = true)
     public Map<Long, BigDecimal> getFifoPricesPerProduct() {
         Map<Long, BigDecimal> map = new HashMap<>();
         stockItemRepository.findFifoPricePerProduct()
@@ -178,6 +193,8 @@ public class StockService {
             item.setPurchasePrice(purchasePrice);
         }
     }
+
+    public record LastPurchaseInfo(BigDecimal price, String date) {}
 
     public record CancelResult(String productName, String qtyFormatted, String unitLabel,
                                String newStockFormatted, boolean isPurchase) {}
