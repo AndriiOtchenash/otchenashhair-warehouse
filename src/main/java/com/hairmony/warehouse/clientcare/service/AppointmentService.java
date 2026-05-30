@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -103,13 +104,13 @@ public class AppointmentService {
     /** Client IDs with any future PLANNED/CONFIRMED appointment (no upper bound, for list icons). */
     @Transactional(readOnly = true)
     public Set<Long> getClientIdsWithUpcomingAppointments() {
-        return appointmentRepository.findClientIdsWithAnyUpcomingFrom(LocalDateTime.now(), ACTIVE_STATUSES);
+        return appointmentRepository.findClientIdsWithAnyUpcomingFrom(LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES);
     }
 
     /** Client IDs with a PLANNED/CONFIRMED appointment that is past (overdue, for list icons). */
     @Transactional(readOnly = true)
     public Set<Long> getClientIdsWithOverdueAppointments() {
-        return appointmentRepository.findClientIdsWithOverdueBefore(LocalDateTime.now(), ACTIVE_STATUSES);
+        return appointmentRepository.findClientIdsWithOverdueBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES);
     }
 
     // ── Detail-page indicators ───────────────────────────────────────────────
@@ -118,7 +119,7 @@ public class AppointmentService {
     @Transactional(readOnly = true)
     public Optional<AppointmentDto> getNextUpcomingForClient(Long clientId) {
         return appointmentRepository
-                .findUpcomingByClientId(clientId, LocalDateTime.now(), ACTIVE_STATUSES)
+                .findUpcomingByClientId(clientId, LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES)
                 .stream().findFirst().map(this::toDto);
     }
 
@@ -126,7 +127,7 @@ public class AppointmentService {
     @Transactional(readOnly = true)
     public Optional<AppointmentDto> getLatestOverdueForClient(Long clientId) {
         return appointmentRepository
-                .findOverdueByClientId(clientId, LocalDateTime.now(), ACTIVE_STATUSES)
+                .findOverdueByClientId(clientId, LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES)
                 .stream().findFirst().map(this::toDto);
     }
 
@@ -136,7 +137,7 @@ public class AppointmentService {
         if (a.getStatus() != AppointmentStatus.PLANNED && a.getStatus() != AppointmentStatus.CONFIRMED) {
             throw new IllegalStateException("Cannot reschedule appointment in status: " + a.getStatus());
         }
-        if (newStart.isBefore(LocalDateTime.now().minusMinutes(5))) {
+        if (newStart.isBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")).minusMinutes(5))) {
             throw new IllegalStateException("Cannot reschedule appointment to a past time");
         }
         a.setStartAt(newStart);
