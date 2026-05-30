@@ -659,6 +659,7 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
 ### Infrastructure
+- **GitHub Actions cron reliability** — cron для `/internal/reminders` имел задержку ~3 часа (2026-05-29); если задержки продолжатся — мигрировать триггер на **cron-job.org** (бесплатный HTTP cron, задержка < 1 мин); настройка: URL + заголовок `X-Internal-Token`; GitHub Actions workflow оставить как ручной резерв
 - **Google Calendar sync** — OAuth2 two-way sync; main complexity: token storage per user + conflict resolution
 - **PostgreSQL backup** — pg_dump @Scheduled or Neon point-in-time recovery (check if sufficient before custom solution)
 - Spring Session (if scaling beyond 1 machine)

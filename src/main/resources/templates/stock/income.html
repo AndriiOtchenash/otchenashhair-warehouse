@@ -30,7 +30,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form th:action="@{/movements/income}" th:object="${dto}" method="post">
+            <form id="incomeForm" th:action="@{/movements/income}" th:object="${dto}" method="post">
                 <input th:if="${returnTo != null}" type="hidden" name="returnTo" th:value="${returnTo}"/>
                 <div class="row g-3">
 
@@ -46,7 +46,7 @@
                                 <option th:each="p : ${products}"
                                         th:value="${p.id}"
                                         th:text="${p.name} + ' (' + #{unit.__${p.unit}__} + ')'"
-                                        th:attr="data-unit=${p.unit}">
+                                        th:attr="data-unit=${p.unit},data-last-price=${lastPurchaseInfo[p.id]?.price},data-last-price-date=${lastPurchaseInfo[p.id]?.date}">
                                 </option>
                             </select>
                             <button th:if="${dto.productId == null}" type="button" id="clearProductBtn"
@@ -141,12 +141,18 @@
                                     <span class="input-group-text">zł</span>
                                     <button type="button" id="clearPriceBtn"
                                             class="btn btn-outline-secondary d-md-none px-1"
-                                            onclick="document.getElementById('purchasePriceInput').value=''; syncClearBtns();"
+                                            onclick="document.getElementById('purchasePriceInput').value=''; onPriceInput();"
                                             tabindex="-1" style="display:none">
                                         <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
                                     </button>
                                 </div>
                                 <div class="invalid-feedback" th:errors="*{purchasePrice}"></div>
+                            </div>
+                            <div class="col-12" id="lastPriceHint" style="display:none">
+                                <div class="alert mb-0 py-1 px-2 small"
+                                     style="background:var(--accent-light); border-left:3px solid var(--accent); border-radius:4px; border-top:none; border-right:none; border-bottom:none">
+                                    <i class="bi bi-info-circle-fill me-1" style="color:var(--accent)"></i><span id="lastPriceHintText"></span>
+                                </div>
                             </div>
 
                             <!-- Expiry date -->
@@ -219,6 +225,33 @@
     </div>
     <script th:inline="javascript">
         const selectProductFirst = /*[[#{stock.expense.selectProductFirst}]]*/ 'Для початку операції оберіть товар';
+        const lastPriceHintLabel = /*[[#{stock.income.lastPriceHint}]]*/ 'Last purchase price:';
+        const lastPriceConfirmTpl = /*[[#{stock.income.lastPriceConfirm}]]*/ 'Last purchase price set ({0}, {1} zł). Continue?';
+
+        var priceIsDefault = false;
+        var lastPriceDate = '';
+
+        function showLastPriceHint(date, price) {
+            var hint = document.getElementById('lastPriceHint');
+            var hintText = document.getElementById('lastPriceHintText');
+            if (!hint || !hintText) return;
+            hintText.textContent = lastPriceHintLabel + ' ' + date + ' \u2013 ' + price + ' z\u0142';
+            hint.style.display = '';
+        }
+
+        function hideLastPriceHint() {
+            var hint = document.getElementById('lastPriceHint');
+            if (hint) hint.style.display = 'none';
+        }
+
+        function onPriceInput() {
+            if (priceIsDefault) {
+                priceIsDefault = false;
+                lastPriceDate = '';
+                hideLastPriceHint();
+            }
+            syncClearBtns();
+        }
 
         function syncFieldsLock() {
             var productSelect = document.getElementById('productSelect');
@@ -265,6 +298,21 @@
             var quantityInput = document.getElementById('quantity');
             var barcodeBlock = document.getElementById('barcodeBlock');
             var clearProductBtn = document.getElementById('clearProductBtn');
+            var priceInput = document.getElementById('purchasePriceInput');
+
+            var lastPrice = option ? option.dataset.lastPrice : null;
+            var lastDate = option ? option.dataset.lastPriceDate : null;
+            if (lastPrice && priceInput) {
+                priceInput.value = lastPrice;
+                priceIsDefault = true;
+                lastPriceDate = lastDate || '';
+                showLastPriceHint(lastDate, lastPrice);
+            } else {
+                priceIsDefault = false;
+                lastPriceDate = '';
+                hideLastPriceHint();
+            }
+
             if (option && option.dataset.unit) {
                 var unit = option.dataset.unit;
                 if (quantityInput) {
@@ -281,6 +329,7 @@
                 if (clearProductBtn) clearProductBtn.style.display = 'none';
             }
             syncFieldsLock();
+            syncClearBtns();
         }
 
         function clearProduct() {
@@ -291,6 +340,9 @@
             productSelect.disabled = false;
             var hidden = document.getElementById('productIdHidden');
             if (hidden) hidden.disabled = true;
+            priceIsDefault = false;
+            lastPriceDate = '';
+            hideLastPriceHint();
             onProductChange(productSelect);
         }
 
@@ -339,7 +391,7 @@
             var amountEl = document.getElementById('incomeTotalAmount');
             if (!box || !amountEl) return;
             if (qty > 0 && price > 0) {
-                amountEl.textContent = (qty * price).toFixed(2) + ' zł';
+                amountEl.textContent = (qty * price).toFixed(2) + ' z\u0142';
                 box.style.display = '';
             } else {
                 box.style.display = 'none';
@@ -355,12 +407,28 @@
             if (supplierSel) supplierSel.addEventListener('change', syncCreateSupplierLink);
             syncCreateSupplierLink();
 
-            ['quantity', 'purchasePriceInput', 'expiryDateInput', 'batchNumberInput', 'barcodeInput'].forEach(function (id) {
+            ['quantity', 'expiryDateInput', 'batchNumberInput', 'barcodeInput'].forEach(function (id) {
                 var el = document.getElementById(id);
                 if (el) el.addEventListener('input', syncClearBtns);
             });
+            var priceInput = document.getElementById('purchasePriceInput');
+            if (priceInput) priceInput.addEventListener('input', onPriceInput);
+
             syncClearBtns();
             updateTotal();
+
+            var incomeForm = document.getElementById('incomeForm');
+            if (incomeForm) {
+                incomeForm.addEventListener('submit', function (e) {
+                    if (priceIsDefault) {
+                        var price = document.getElementById('purchasePriceInput').value;
+                        var msg = lastPriceConfirmTpl.replace('{0}', lastPriceDate).replace('{1}', price);
+                        if (!window.confirm(msg)) {
+                            e.preventDefault();
+                        }
+                    }
+                });
+            }
         });
 
         (function () {
