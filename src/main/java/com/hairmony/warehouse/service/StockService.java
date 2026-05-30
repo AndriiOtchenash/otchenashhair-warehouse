@@ -144,6 +144,19 @@ public class StockService {
     }
 
     @Transactional(readOnly = true)
+    public Map<Long, LastSupplierInfo> getLastSupplierPerProduct() {
+        Map<Long, LastSupplierInfo> map = new HashMap<>();
+        stockMovementRepository.findLastSupplierPerProduct()
+                .forEach(row -> {
+                    Long productId   = (Long) row[0];
+                    Long supplierId  = (Long) row[1];
+                    String supplierName = (String) row[2];
+                    map.putIfAbsent(productId, new LastSupplierInfo(supplierId, supplierName));
+                });
+        return map;
+    }
+
+    @Transactional(readOnly = true)
     public Map<Long, BigDecimal> getFifoPricesPerProduct() {
         Map<Long, BigDecimal> map = new HashMap<>();
         stockItemRepository.findFifoPricePerProduct()
@@ -195,6 +208,8 @@ public class StockService {
     }
 
     public record LastPurchaseInfo(BigDecimal price, String date) {}
+
+    public record LastSupplierInfo(Long supplierId, String supplierName) {}
 
     public record CancelResult(String productName, String qtyFormatted, String unitLabel,
                                String newStockFormatted, boolean isPurchase) {}

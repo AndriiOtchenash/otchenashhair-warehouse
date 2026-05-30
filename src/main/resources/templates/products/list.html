@@ -13,10 +13,19 @@
             min-width: 0 !important;
             width: 100%;
         }
-        .product-table .col-name  { width: auto; }
-        .product-table .col-cat   { width: 30%; }
-        .product-table .col-status { width: 7rem; }
+        .product-table .col-name    { width: auto; }
+        .product-table .col-cat     { width: 30%; }
+        .product-table .col-status  { width: 7rem; }
         .product-table .col-actions { width: 5.5rem; }
+        @media (min-width: 768px) {
+            /* restore correct display so width rules apply (Bootstrap d-md-table-cell sets table-cell on <col>) */
+            .product-table col { display: table-column !important; }
+            .product-table .col-status  { width: 9rem; }
+            .product-table .col-cat     { width: 20%; }
+            .product-table .col-brand   { width: 14%; }
+            .product-table .col-unit    { width: 8rem; }
+            .product-table .col-minstock{ width: 9rem; }
+        }
         @media (max-width: 767.98px) {
             .product-table th { font-size: 0.75rem; text-align: center; }
             .product-table .col-cat { width: 6.9rem; }
@@ -91,9 +100,9 @@
                     <col class="col-name"/>
                     <col class="col-status d-none d-md-table-cell"/>
                     <col class="col-cat"/>
-                    <col class="d-none d-md-table-cell"/>
-                    <col class="d-none d-md-table-cell"/>
-                    <col class="d-none d-md-table-cell"/>
+                    <col class="col-brand d-none d-md-table-cell"/>
+                    <col class="col-unit d-none d-md-table-cell"/>
+                    <col class="col-minstock d-none d-md-table-cell"/>
                     <col class="col-actions"/>
                 </colgroup>
                 <thead style="--bs-table-bg: var(--accent-light)">

@@ -10,6 +10,7 @@
         .compact-fields input[type="date"] { text-align: center; }
         .filter-select-wrap > .ts-wrapper { flex: 1; min-width: 0; }
         .filter-select-wrap .ts-wrapper.has-items .ts-control > input { width: 0 !important; min-width: 0 !important; }
+        .ts-control .placeholder { font-size: 0.875em; }
     </style>
     <div class="page-header">
         <h1 class="page-title" th:text="#{stock.income.title}">Прихід товару</h1>
@@ -46,7 +47,7 @@
                                 <option th:each="p : ${products}"
                                         th:value="${p.id}"
                                         th:text="${p.name} + ' (' + #{unit.__${p.unit}__} + ')'"
-                                        th:attr="data-unit=${p.unit},data-last-price=${lastPurchaseInfo[p.id]?.price},data-last-price-date=${lastPurchaseInfo[p.id]?.date}">
+                                        th:attr="data-unit=${p.unit},data-last-price=${lastPurchaseInfo[p.id]?.price},data-last-price-date=${lastPurchaseInfo[p.id]?.date},data-last-supplier-id=${lastSupplierInfo[p.id]?.supplierId},data-last-supplier-name=${lastSupplierInfo[p.id]?.supplierName}">
                                 </option>
                             </select>
                             <button th:if="${dto.productId == null}" type="button" id="clearProductBtn"
@@ -83,8 +84,15 @@
                     <div class="col-12">
                         <div class="row gy-2 gx-0 align-items-center compact-fields">
 
+                            <!-- Step hint: select supplier -->
+                            <div class="col-12" id="stepHintSupplier" style="display:none">
+                                <div class="alert alert-warning py-1 px-2 mb-0 small text-center">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i><span th:text="#{stock.income.hint.selectSupplier}">Оберіть постачальника</span><i class="bi bi-arrow-down ms-1"></i>
+                                </div>
+                            </div>
+
                             <!-- Supplier -->
-                            <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.supplier}">Постачальник</label>
+                            <label class="col-4 col-form-label fw-semibold align-self-start" th:text="#{stock.form.supplier}">Постачальник</label>
                             <div class="col-8">
                                 <div class="filter-select-wrap">
                                     <select class="form-select ts-client" th:field="*{supplierId}"
@@ -110,6 +118,12 @@
                                        th:text="#{supplier.createNew}">Створити нового постачальника →</a>
                                 </div>
                             </div>
+                            <div class="col-12" id="lastSupplierHint" style="display:none">
+                                <div class="alert mb-0 py-1 px-2"
+                                     style="background:var(--accent-light); border-left:3px solid var(--accent); border-radius:4px; border-top:none; border-right:none; border-bottom:none; font-size:0.78rem">
+                                    <i class="bi bi-info-circle-fill me-1" style="color:var(--accent)"></i><span id="lastSupplierHintText"></span>
+                                </div>
+                            </div>
 
                             <!-- Quantity -->
                             <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.quantity}">Кількість</label>
@@ -122,7 +136,7 @@
                                            oninput="syncFieldsLock()"/>
                                     <button type="button" id="clearQtyBtn"
                                             class="btn btn-outline-secondary d-md-none px-1"
-                                            onclick="document.getElementById('quantity').value=''; syncClearBtns();"
+                                            onclick="document.getElementById('quantity').value=''; syncClearBtns(); syncFieldsLock();"
                                             tabindex="-1" style="display:none">
                                         <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
                                     </button>
@@ -130,11 +144,18 @@
                                 <div class="invalid-feedback" th:errors="*{quantity}"></div>
                             </div>
 
+                            <!-- Step hint: enter quantity -->
+                            <div class="col-12" id="stepHintQty" style="display:none">
+                                <div class="alert alert-warning py-1 px-2 mb-0 small text-center">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i><span th:text="#{stock.income.hint.enterQty}">Введіть кількість</span>
+                                </div>
+                            </div>
+
                             <!-- Purchase price -->
                             <label class="col-4 col-form-label fw-semibold" th:text="#{stock.form.purchasePrice}">Ціна закупки</label>
                             <div class="col-8">
                                 <div class="input-group">
-                                    <input type="number" step="0.01" min="0.01" max="99999.99" class="form-control"
+                                    <input type="number" step="0.01" min="0" max="99999.99" class="form-control"
                                            id="purchasePriceInput"
                                            th:field="*{purchasePrice}"
                                            th:classappend="${#fields.hasErrors('purchasePrice')} ? 'is-invalid'"/>
@@ -227,9 +248,14 @@
         const selectProductFirst = /*[[#{stock.expense.selectProductFirst}]]*/ 'Для початку операції оберіть товар';
         const lastPriceHintLabel = /*[[#{stock.income.lastPriceHint}]]*/ 'Last purchase price:';
         const lastPriceConfirmTpl = /*[[#{stock.income.lastPriceConfirm}]]*/ 'Last purchase price set ({0}, {1} zł). Continue?';
+        const zeroPriceConfirm = /*[[#{stock.income.zeroPriceConfirm}]]*/ 'Purchase price is 0. Register as a free receipt?';
+        const lastSupplierHintLabel = /*[[#{stock.income.lastSupplierHint}]]*/ 'Supplier from last purchase';
+        const hintSelectSupplier = /*[[#{stock.income.hint.selectSupplier}]]*/ 'Select supplier';
+        const hintEnterQty = /*[[#{stock.income.hint.enterQty}]]*/ 'Enter quantity';
 
         var priceIsDefault = false;
         var lastPriceDate = '';
+        var suppressNextSupplierChange = false;
 
         function showLastPriceHint(date, price) {
             var hint = document.getElementById('lastPriceHint');
@@ -244,6 +270,19 @@
             if (hint) hint.style.display = 'none';
         }
 
+        function showLastSupplierHint(name) {
+            var hint = document.getElementById('lastSupplierHint');
+            var hintText = document.getElementById('lastSupplierHintText');
+            if (!hint || !hintText) return;
+            hintText.textContent = lastSupplierHintLabel;
+            hint.style.display = '';
+        }
+
+        function hideLastSupplierHint() {
+            var hint = document.getElementById('lastSupplierHint');
+            if (hint) hint.style.display = 'none';
+        }
+
         function onPriceInput() {
             if (priceIsDefault) {
                 priceIsDefault = false;
@@ -251,46 +290,69 @@
                 hideLastPriceHint();
             }
             syncClearBtns();
+            syncFieldsLock();
         }
 
         function syncFieldsLock() {
             var productSelect = document.getElementById('productSelect');
             var hasProduct = !!(productSelect && productSelect.value);
 
-            ['quantity', 'purchasePriceInput', 'expiryDateInput', 'batchNumberInput'].forEach(function (id) {
-                var el = document.getElementById(id);
-                if (el) el.disabled = !hasProduct;
-            });
-            var notes = document.querySelector('textarea[name="notes"]');
-            if (notes) notes.disabled = !hasProduct;
-
             var supplierSel = document.querySelector('[name="supplierId"]');
+            var hasSupplier = !!(supplierSel && supplierSel.value);
+
+            var qtyInput = document.getElementById('quantity');
+            var hasQty = !!(qtyInput && qtyInput.value && parseFloat(qtyInput.value) > 0);
+
+            var priceInput2 = document.getElementById('purchasePriceInput');
+            var hasPrice = !!(priceInput2 && priceInput2.value !== '');
+
+            // step 0: no product | 1: need supplier | 2: need qty | 3: all good
+            var step = !hasProduct ? 0 : !hasSupplier ? 1 : !hasQty ? 2 : 3;
+
+            // Supplier — enabled from step 1
             if (supplierSel) {
+                var supplierOn = step >= 1;
                 if (supplierSel.tomselect) {
-                    hasProduct ? supplierSel.tomselect.enable() : supplierSel.tomselect.disable();
+                    supplierOn ? supplierSel.tomselect.enable() : supplierSel.tomselect.disable();
                 } else {
-                    supplierSel.disabled = !hasProduct;
+                    supplierSel.disabled = !supplierOn;
                 }
             }
-            var createSupplierRow = document.getElementById('createSupplierRow');
-            if (createSupplierRow) createSupplierRow.style.display = hasProduct ? '' : 'none';
 
-            var hint = document.getElementById('noProductHint');
-            if (!hint) {
-                hint = document.createElement('div');
-                hint.id = 'noProductHint';
-                hint.className = 'alert alert-warning py-2 px-3 mb-2 small text-center';
-                hint.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>' + selectProductFirst;
+            // Quantity — enabled from step 2
+            if (qtyInput) qtyInput.disabled = step < 2;
+
+            // Price, expiry, batch, notes — enabled from step 3
+            ['purchasePriceInput', 'expiryDateInput', 'batchNumberInput'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.disabled = step < 3;
+            });
+            var notes = document.querySelector('textarea[name="notes"]');
+            if (notes) notes.disabled = step < 3;
+
+            syncCreateSupplierLink();
+
+            // noProductHint — step 0 only
+            var noHint = document.getElementById('noProductHint');
+            if (!noHint) {
+                noHint = document.createElement('div');
+                noHint.id = 'noProductHint';
+                noHint.className = 'alert alert-warning py-2 px-3 mb-2 small text-center';
+                noHint.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>' + selectProductFirst;
                 var compactRow = document.querySelector('.compact-fields');
-                if (compactRow) compactRow.closest('.col-12').insertBefore(hint, compactRow);
+                if (compactRow) compactRow.closest('.col-12').insertBefore(noHint, compactRow);
             }
-            hint.style.display = hasProduct ? 'none' : '';
+            noHint.style.display = step === 0 ? '' : 'none';
 
+            // step hints — static elements in correct positions
+            var stepHintSupplier = document.getElementById('stepHintSupplier');
+            var stepHintQty = document.getElementById('stepHintQty');
+            if (stepHintSupplier) stepHintSupplier.style.display = step === 1 ? '' : 'none';
+            if (stepHintQty) stepHintQty.style.display = step === 2 ? '' : 'none';
+
+            // Submit — enabled only at step 3 AND price filled
             var submitBtn = document.getElementById('submitIncomeBtn');
-            if (submitBtn) {
-                var qtyVal = (document.getElementById('quantity')?.value || '').trim();
-                submitBtn.disabled = !hasProduct || !qtyVal || parseFloat(qtyVal) <= 0;
-            }
+            if (submitBtn) submitBtn.disabled = step < 3 || !hasPrice;
         }
 
         function onProductChange(select) {
@@ -308,18 +370,41 @@
                 lastPriceDate = lastDate || '';
                 showLastPriceHint(lastDate, lastPrice);
             } else {
+                if (priceInput) priceInput.value = '';
                 priceIsDefault = false;
                 lastPriceDate = '';
                 hideLastPriceHint();
             }
 
+            var lastSupplierId = option ? option.dataset.lastSupplierId : null;
+            var lastSupplierName = option ? option.dataset.lastSupplierName : null;
+            var supplierSel = document.querySelector('[name="supplierId"]');
+            if (lastSupplierId && supplierSel) {
+                suppressNextSupplierChange = true;
+                if (supplierSel.tomselect) {
+                    supplierSel.tomselect.setValue(lastSupplierId);
+                    supplierSel.tomselect.blur();
+                } else {
+                    supplierSel.value = lastSupplierId;
+                }
+                suppressNextSupplierChange = false;
+                showLastSupplierHint(lastSupplierName);
+            } else {
+                if (supplierSel) {
+                    if (supplierSel.tomselect) supplierSel.tomselect.clear();
+                    else supplierSel.value = '';
+                }
+                hideLastSupplierHint();
+            }
+
+            var notes = document.querySelector('textarea[name="notes"]');
+            if (notes) notes.value = '';
+
             if (option && option.dataset.unit) {
                 var unit = option.dataset.unit;
                 if (quantityInput) {
+                    quantityInput.value = '';
                     quantityInput.step = unit === 'PCS' ? '1' : '0.001';
-                    if (unit === 'PCS' && quantityInput.value) {
-                        quantityInput.value = Math.floor(parseFloat(quantityInput.value));
-                    }
                 }
                 if (barcodeBlock) barcodeBlock.style.display = 'none';
                 if (clearProductBtn) clearProductBtn.style.display = '';
@@ -340,9 +425,28 @@
             productSelect.disabled = false;
             var hidden = document.getElementById('productIdHidden');
             if (hidden) hidden.disabled = true;
+
+            // Clear all dependent fields
+            var supplierSel = document.querySelector('[name="supplierId"]');
+            if (supplierSel) {
+                if (supplierSel.tomselect) supplierSel.tomselect.clear();
+                else supplierSel.value = '';
+            }
+            var qty = document.getElementById('quantity');
+            if (qty) qty.value = '';
+            var price = document.getElementById('purchasePriceInput');
+            if (price) price.value = '';
+            var expiry = document.getElementById('expiryDateInput');
+            if (expiry) expiry.value = '';
+            var batch = document.getElementById('batchNumberInput');
+            if (batch) batch.value = '';
+            var notes = document.querySelector('textarea[name="notes"]');
+            if (notes) notes.value = '';
+
             priceIsDefault = false;
             lastPriceDate = '';
             hideLastPriceHint();
+            hideLastSupplierHint();
             onProductChange(productSelect);
         }
 
@@ -362,7 +466,8 @@
             if (!supplierSel) return;
             if (supplierSel.tomselect) supplierSel.tomselect.clear();
             else supplierSel.value = '';
-            syncCreateSupplierLink();
+            hideLastSupplierHint();
+            syncFieldsLock();
         }
 
         function syncClearBtns() {
@@ -377,6 +482,7 @@
             if (clearQty) clearQty.style.display = (qty && qty.value) ? '' : 'none';
             if (clearPrice) clearPrice.style.display = (price && price.value) ? '' : 'none';
             if (clearExpiry) clearExpiry.style.display = (expiry && expiry.value) ? '' : 'none';
+            if (expiry) expiry.style.color = expiry.value ? '' : '#6c757d';
             if (clearBatch) clearBatch.style.display = (batch && batch.value) ? '' : 'none';
             var barcode = document.getElementById('barcodeInput');
             var clearBarcode = document.getElementById('clearBarcodeBtn');
@@ -399,12 +505,18 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            var expiryInput = document.getElementById('expiryDateInput');
+            if (expiryInput) expiryInput.min = new Date().toISOString().split('T')[0];
+
             var productSelect = document.getElementById('productSelect');
             if (productSelect && productSelect.value) onProductChange(productSelect);
             syncFieldsLock();
 
             var supplierSel = document.querySelector('[name="supplierId"]');
-            if (supplierSel) supplierSel.addEventListener('change', syncCreateSupplierLink);
+            if (supplierSel) supplierSel.addEventListener('change', function () {
+                if (!suppressNextSupplierChange) hideLastSupplierHint();
+                syncFieldsLock();
+            });
             syncCreateSupplierLink();
 
             ['quantity', 'expiryDateInput', 'batchNumberInput', 'barcodeInput'].forEach(function (id) {
@@ -420,12 +532,14 @@
             var incomeForm = document.getElementById('incomeForm');
             if (incomeForm) {
                 incomeForm.addEventListener('submit', function (e) {
+                    var priceVal = parseFloat(document.getElementById('purchasePriceInput').value);
                     if (priceIsDefault) {
                         var price = document.getElementById('purchasePriceInput').value;
                         var msg = lastPriceConfirmTpl.replace('{0}', lastPriceDate).replace('{1}', price);
-                        if (!window.confirm(msg)) {
-                            e.preventDefault();
-                        }
+                        if (!window.confirm(msg)) { e.preventDefault(); return; }
+                    }
+                    if (priceVal === 0) {
+                        if (!window.confirm(zeroPriceConfirm)) { e.preventDefault(); }
                     }
                 });
             }
