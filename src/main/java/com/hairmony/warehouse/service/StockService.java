@@ -133,7 +133,7 @@ public class StockService {
     public Map<Long, LastPurchaseInfo> getLastPurchaseInfoPerProduct() {
         Map<Long, LastPurchaseInfo> map = new HashMap<>();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-        stockItemRepository.findLastPurchaseInfoPerProduct()
+        stockMovementRepository.findLastPurchasePricePerProduct()
                 .forEach(row -> {
                     Long productId = (Long) row[0];
                     BigDecimal price = (BigDecimal) row[1];

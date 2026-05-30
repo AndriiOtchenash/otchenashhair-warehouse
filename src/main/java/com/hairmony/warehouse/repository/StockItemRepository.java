@@ -38,9 +38,9 @@ public interface StockItemRepository extends JpaRepository<StockItem, Long> {
     List<Object[]> findFifoPricePerProduct();
 
     @Query("SELECT si.product.id, si.purchasePrice, si.createdAt FROM StockItem si " +
-           "WHERE si.purchasePrice IS NOT NULL AND si.quantity > 0 " +
+           "WHERE si.purchasePrice IS NOT NULL " +
            "AND si.createdAt = (SELECT MAX(si2.createdAt) FROM StockItem si2 " +
-           "WHERE si2.product.id = si.product.id AND si2.purchasePrice IS NOT NULL AND si2.quantity > 0)")
+           "WHERE si2.product.id = si.product.id AND si2.purchasePrice IS NOT NULL)")
     List<Object[]> findLastPurchaseInfoPerProduct();
 
     @Query("SELECT si.product.id, si.product.name, si.product.unit, COALESCE(SUM(si.quantity), 0) " +

@@ -45,6 +45,15 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     @Query("SELECT DISTINCT m.product.id FROM StockMovement m WHERE m.movementType = 'SALE' AND m.createdAt >= :from AND m.createdAt <= :to")
     Set<Long> findProductIdsWithSalesBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
+    /** Last non-cancelled PURCHASE price per product (for income form pre-fill). */
+    @Query("SELECT m.product.id, m.unitPrice, m.createdAt FROM StockMovement m " +
+           "WHERE m.movementType = 'PURCHASE' AND m.unitPrice IS NOT NULL " +
+           "AND NOT EXISTS (SELECT 1 FROM StockMovement c WHERE c.movementType = 'CANCELLATION' AND c.originalMovementId = m.id) " +
+           "AND m.createdAt = (SELECT MAX(m2.createdAt) FROM StockMovement m2 " +
+           "WHERE m2.product.id = m.product.id AND m2.movementType = 'PURCHASE' AND m2.unitPrice IS NOT NULL " +
+           "AND NOT EXISTS (SELECT 1 FROM StockMovement c2 WHERE c2.movementType = 'CANCELLATION' AND c2.originalMovementId = m2.id))")
+    List<Object[]> findLastPurchasePricePerProduct();
+
     /** Last non-cancelled PURCHASE supplier per product (for income form pre-fill). */
     @Query("SELECT m.product.id, m.supplier.id, m.supplier.name FROM StockMovement m " +
            "WHERE m.movementType = 'PURCHASE' AND m.supplier IS NOT NULL " +
