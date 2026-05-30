@@ -235,7 +235,7 @@
             var hint = document.getElementById('lastPriceHint');
             var hintText = document.getElementById('lastPriceHintText');
             if (!hint || !hintText) return;
-            hintText.textContent = lastPriceHintLabel + ' ' + date + ' \u2013 ' + price + ' z\u0142';
+            hintText.innerHTML = lastPriceHintLabel + ' ' + date + ':  <strong>' + price + ' z\u0142</strong>';
             hint.style.display = '';
         }
 
