@@ -49,8 +49,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     Set<Long> findClientIdsWithOverdueBefore(@Param("before") LocalDateTime before,
                                              @Param("statuses") Collection<AppointmentStatus> statuses);
 
-    /** Earliest upcoming appointment for a single client (limit 1). */
-    @Query("SELECT a FROM Appointment a WHERE a.client.id = :clientId AND a.startAt >= :from AND a.status IN :statuses ORDER BY a.startAt ASC")
+    /** Earliest upcoming or in-progress appointment for a single client (limit 1). */
+    @Query("SELECT a FROM Appointment a WHERE a.client.id = :clientId AND a.endAt >= :from AND a.status IN :statuses ORDER BY a.startAt ASC")
     List<Appointment> findUpcomingByClientId(@Param("clientId") Long clientId,
                                              @Param("from") LocalDateTime from,
                                              @Param("statuses") Collection<AppointmentStatus> statuses);
