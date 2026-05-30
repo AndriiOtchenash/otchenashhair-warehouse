@@ -20,7 +20,7 @@ public class StockIncomeDto {
     private BigDecimal quantity;
 
     @NotNull
-    @DecimalMin(value = "0.00", inclusive = false, message = "{validation.price.positive}")
+    @DecimalMin(value = "0.00", inclusive = true, message = "{validation.price.positive}")
     private BigDecimal purchasePrice;
 
     @NotNull

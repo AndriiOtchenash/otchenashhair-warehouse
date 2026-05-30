@@ -133,12 +133,25 @@ public class StockService {
     public Map<Long, LastPurchaseInfo> getLastPurchaseInfoPerProduct() {
         Map<Long, LastPurchaseInfo> map = new HashMap<>();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-        stockItemRepository.findLastPurchaseInfoPerProduct()
+        stockMovementRepository.findLastPurchasePricePerProduct()
                 .forEach(row -> {
                     Long productId = (Long) row[0];
                     BigDecimal price = (BigDecimal) row[1];
                     LocalDateTime createdAt = (LocalDateTime) row[2];
                     map.putIfAbsent(productId, new LastPurchaseInfo(price, createdAt.format(fmt)));
+                });
+        return map;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, LastSupplierInfo> getLastSupplierPerProduct() {
+        Map<Long, LastSupplierInfo> map = new HashMap<>();
+        stockMovementRepository.findLastSupplierPerProduct()
+                .forEach(row -> {
+                    Long productId   = (Long) row[0];
+                    Long supplierId  = (Long) row[1];
+                    String supplierName = (String) row[2];
+                    map.putIfAbsent(productId, new LastSupplierInfo(supplierId, supplierName));
                 });
         return map;
     }
@@ -195,6 +208,8 @@ public class StockService {
     }
 
     public record LastPurchaseInfo(BigDecimal price, String date) {}
+
+    public record LastSupplierInfo(Long supplierId, String supplierName) {}
 
     public record CancelResult(String productName, String qtyFormatted, String unitLabel,
                                String newStockFormatted, boolean isPurchase) {}
