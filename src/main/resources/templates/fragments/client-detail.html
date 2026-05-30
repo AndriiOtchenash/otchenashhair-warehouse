@@ -94,8 +94,8 @@
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <h1 class="page-title mb-0" th:text="${client.name}"></h1>
-                <!-- Telegram icon (clientcare context only) -->
-                <th:block th:if="${currentPageUrl != null and #strings.contains(currentPageUrl, '/clientcare/')}">
+                <!-- Telegram icon -->
+                <th:block>
                     <!-- Not connected -->
                     <a th:if="${client.telegramChatId == null}"
                        th:href="@{/clientcare/clients/{id}/telegram(id=${client.id})}"
@@ -706,7 +706,7 @@
     </div>
 
     <!-- Telegram disconnect modal -->
-    <div th:if="${currentPageUrl != null and #strings.contains(currentPageUrl, '/clientcare/') and client.telegramChatId != null}"
+    <div th:if="${client.telegramChatId != null}"
          class="modal fade" id="tgDisconnectModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content">
