@@ -58,9 +58,10 @@ public class ClientCareService {
         // 2. Appointment-based signals
         //    Upcoming: earliest PLANNED/CONFIRMED appointment from now onward per client
         //    Overdue:  most recent past PLANNED/CONFIRMED/NO_SHOW appointment per client (if no upcoming)
-        Map<Long, LocalDate> apptSignalDate  = new LinkedHashMap<>();
-        Map<Long, Long>      apptSignalDays  = new LinkedHashMap<>(); // negative = overdue
-        Map<Long, Client>    apptClient      = new LinkedHashMap<>();
+        Map<Long, LocalDate> apptSignalDate    = new LinkedHashMap<>();
+        Map<Long, Long>      apptSignalDays    = new LinkedHashMap<>(); // negative = overdue
+        Map<Long, Boolean>   apptPastToday     = new LinkedHashMap<>(); // true = today but already started
+        Map<Long, Client>    apptClient        = new LinkedHashMap<>();
 
         // Upcoming — ordered ASC, putIfAbsent gives earliest per client
         List<Appointment> upcoming = appointmentRepository.findUpcomingForClients(now, UPCOMING_STATUSES);
@@ -70,6 +71,7 @@ public class ClientCareService {
                 LocalDate d = a.getStartAt().toLocalDate();
                 apptSignalDate.put(clientId, d);
                 apptSignalDays.put(clientId, ChronoUnit.DAYS.between(today, d));
+                apptPastToday.put(clientId, false);
                 apptClient.put(clientId, a.getClient());
             }
         }
@@ -82,33 +84,33 @@ public class ClientCareService {
                 LocalDate d = a.getStartAt().toLocalDate();
                 apptSignalDate.put(clientId, d);
                 long days = ChronoUnit.DAYS.between(today, d);
-                // Appointment is confirmed past (startAt < now) — force negative so visitOverdue() = true
-                // even when startAt is earlier today (days == 0 by date but time has already passed)
-                apptSignalDays.put(clientId, days == 0 ? -1 : days);
+                apptSignalDays.put(clientId, days);
+                apptPastToday.put(clientId, days == 0); // today's appointment that already started
                 apptClient.put(clientId, a.getClient());
             }
         }
 
         // Merge appointment signals into the map
         for (Map.Entry<Long, LocalDate> entry : apptSignalDate.entrySet()) {
-            Long clientId   = entry.getKey();
+            Long clientId      = entry.getKey();
             LocalDate apptDate = entry.getValue();
-            long daysUntil  = apptSignalDays.get(clientId);
-            Client c        = apptClient.get(clientId);
+            long daysUntil     = apptSignalDays.get(clientId);
+            boolean pastToday  = apptPastToday.getOrDefault(clientId, false);
+            Client c           = apptClient.get(clientId);
 
             ClientFollowupDto existing = byClientId.get(clientId);
             if (existing != null) {
                 byClientId.put(clientId, new ClientFollowupDto(
                         existing.clientId(), existing.clientName(), existing.clientPhone(),
                         existing.lastPurchaseAt(), existing.daysSinceLastPurchase(), existing.totalSpent(),
-                        apptDate, daysUntil
+                        apptDate, daysUntil, pastToday
                 ));
             } else {
                 // Appointment-only client (no purchases yet)
                 byClientId.put(clientId, new ClientFollowupDto(
                         clientId, c.getName(), c.getPhone(),
                         null, 0, BigDecimal.ZERO,
-                        apptDate, daysUntil
+                        apptDate, daysUntil, pastToday
                 ));
             }
         }
@@ -180,6 +182,6 @@ public class ClientCareService {
         LocalDateTime lastPurchase = (LocalDateTime) row[3];
         BigDecimal totalSpent  = row[4] != null ? (BigDecimal) row[4] : BigDecimal.ZERO;
         long days = ChronoUnit.DAYS.between(lastPurchase, now);
-        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0);
+        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0, false);
     }
 }
