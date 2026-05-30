@@ -149,8 +149,8 @@
                                 <div class="invalid-feedback" th:errors="*{purchasePrice}"></div>
                             </div>
                             <div class="col-12" id="lastPriceHint" style="display:none">
-                                <div class="alert mb-0 py-1 px-2 small"
-                                     style="background:var(--accent-light); border-left:3px solid var(--accent); border-radius:4px; border-top:none; border-right:none; border-bottom:none">
+                                <div class="alert mb-0 py-1 px-2"
+                                     style="background:var(--accent-light); border-left:3px solid var(--accent); border-radius:4px; border-top:none; border-right:none; border-bottom:none; font-size:0.78rem">
                                     <i class="bi bi-info-circle-fill me-1" style="color:var(--accent)"></i><span id="lastPriceHintText"></span>
                                 </div>
                             </div>
@@ -235,7 +235,7 @@
             var hint = document.getElementById('lastPriceHint');
             var hintText = document.getElementById('lastPriceHintText');
             if (!hint || !hintText) return;
-            hintText.textContent = lastPriceHintLabel + ' ' + date + ' \u2013 ' + price + ' z\u0142';
+            hintText.innerHTML = lastPriceHintLabel + ' ' + date + ':  <strong>' + price + ' z\u0142</strong>';
             hint.style.display = '';
         }
 
