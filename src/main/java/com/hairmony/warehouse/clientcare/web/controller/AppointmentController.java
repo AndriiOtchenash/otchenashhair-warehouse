@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -123,7 +124,7 @@ public class AppointmentController {
             addMissedAppointmentBanner(rebookedFromId, model);
             return "clientcare/appointments/form";
         }
-        if (dto.getStartAt() != null && dto.getStartAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
+        if (dto.getStartAt() != null && dto.getStartAt().isBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")).minusMinutes(5))) {
             result.rejectValue("startAt", "appointment.pastTime", "Неможливо створити запис у минулому");
             populateFormModel(model);
             model.addAttribute("formDate", formDate);
@@ -156,7 +157,7 @@ public class AppointmentController {
         boolean canComplete = dto.getClientId() != null
                 && (dto.getStatus() == AppointmentStatus.PLANNED
                     || dto.getStatus() == AppointmentStatus.CONFIRMED);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Warsaw"));
         boolean isInProgress = canComplete
                 && dto.getStartAt() != null && dto.getEndAt() != null
                 && dto.getStartAt().isBefore(now) && dto.getEndAt().isAfter(now);
@@ -205,7 +206,7 @@ public class AppointmentController {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             return "clientcare/appointments/form";
         }
-        if (dto.getStartAt() != null && dto.getStartAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
+        if (dto.getStartAt() != null && dto.getStartAt().isBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")).minusMinutes(5))) {
             result.rejectValue("startAt", "appointment.pastTime", "Неможливо зберегти запис у минулому");
             populateFormModel(model);
             model.addAttribute("isEdit", true);
@@ -264,7 +265,7 @@ public class AppointmentController {
     private Map<String, Object> toCalendarEvent(AppointmentDto dto) {
         boolean overdue = (dto.getStatus() == AppointmentStatus.PLANNED
                         || dto.getStatus() == AppointmentStatus.CONFIRMED)
-                       && dto.getStartAt().isBefore(LocalDateTime.now());
+                       && dto.getStartAt().isBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")));
         boolean movable = !overdue
                        && (dto.getStatus() == AppointmentStatus.PLANNED
                         || dto.getStatus() == AppointmentStatus.CONFIRMED);
