@@ -88,7 +88,7 @@ public class AppointmentController {
         LocalTime lt = parseStartTime(startTime);
         AppointmentDto dto = new AppointmentDto();
         dto.setStartAt(formDate.atTime(lt));
-        dto.setEndAt(formDate.atTime(lt.plusHours(1)));
+        dto.setEndAt(formDate.atTime(lt.plusHours(2)));
         dto.setStatus(AppointmentStatus.PLANNED);
         if (serviceId != null) dto.setServiceId(serviceId);
         if (notes != null && !notes.isBlank()) dto.setNotes(notes);
