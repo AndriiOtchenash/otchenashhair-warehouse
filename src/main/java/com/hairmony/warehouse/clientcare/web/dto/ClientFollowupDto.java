@@ -14,7 +14,8 @@ public record ClientFollowupDto(
         BigDecimal totalSpent,
         // Visit signal
         LocalDate nextVisitDate,
-        long daysUntilNextVisit   // negative = overdue, positive = upcoming
+        long daysUntilNextVisit,  // negative = overdue, 0 = today, positive = upcoming
+        boolean visitPastToday    // true when appointment was today but already started (shows as overdue)
 ) {
     public boolean hasPhone() {
         return clientPhone != null && !clientPhone.isBlank();
@@ -32,8 +33,13 @@ public record ClientFollowupDto(
         return nextVisitDate != null && daysUntilNextVisit < 0;
     }
 
+    /** Appointment was today but has already started — shows "сьогодні" with overdue styling. */
+    public boolean visitTodayOverdue() {
+        return nextVisitDate != null && daysUntilNextVisit == 0 && visitPastToday;
+    }
+
     public boolean visitToday() {
-        return nextVisitDate != null && daysUntilNextVisit == 0;
+        return nextVisitDate != null && daysUntilNextVisit == 0 && !visitPastToday;
     }
 
     public boolean visitUpcoming() {
@@ -42,7 +48,7 @@ public record ClientFollowupDto(
 
     /** Priority for sorting: lower = more urgent */
     public int signalPriority() {
-        if (visitOverdue())  return 0;
+        if (visitOverdue() || visitTodayOverdue()) return 0;
         if (visitToday())    return 1;
         if (visitUpcoming()) return 2;
         return 3;

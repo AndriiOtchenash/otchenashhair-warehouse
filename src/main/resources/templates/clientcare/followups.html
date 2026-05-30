@@ -179,6 +179,9 @@
                                     <span th:if="${c.visitOverdue()}"
                                           class="days-badge days-urgent"
                                           th:text="#{followup.signal.visit.overdue(${-c.daysUntilNextVisit()})}">Візит: N дн тому</span>
+                                    <span th:if="${c.visitTodayOverdue()}"
+                                          class="days-badge days-urgent"
+                                          th:text="#{followup.signal.visit.today}">Візит: сьогодні</span>
                                     <span th:if="${c.visitToday()}"
                                           class="days-badge days-warn"
                                           th:text="#{followup.signal.visit.today}">Візит: сьогодні</span>
