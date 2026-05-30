@@ -61,6 +61,7 @@ All DTOs use Jakarta Bean Validation. Rules:
 - Stock availability (insufficientStock)
 - SALE price > 0 (redundant after DTO @AssertTrue, kept as defense-in-depth)
 - purchasePrice > 0 in updateStockItem (IllegalArgumentException)
+- purchasePrice >= 0 in registerIncome (0 allowed — free gift/sample; JS confirm before submit)
 - movementType guard in registerExpense — blocks PURCHASE/CANCELLATION types
 - Movement cancellation guards (double-cancel, partially used batch)
 
@@ -126,7 +127,8 @@ Migrations:
 - **Categories** — CRUD, guarded delete (disabled with tooltip if has products assigned)
 - **Suppliers** — CRUD + detail page with purchase history; guarded delete
 - **Clients** — CRUD + detail page with transaction history; guarded delete
-- **Stock income** (/movements/income) — FIFO batches, barcode AJAX, create-supplier round-trip; compact mobile form with purchase total (qty × price); `returnTo` support (back to dashboard or product detail); all fields locked until product selected (`syncFieldsLock()`)
+- **Stock income** (/movements/income) — FIFO batches, barcode AJAX, create-supplier round-trip; compact mobile form with purchase total (qty × price); `returnTo` support (back to dashboard or product detail); all fields locked until product selected (`syncFieldsLock()`); submit button disabled until price field is filled (value `!== ''`, including 0); zero price allowed with JS `confirm()` before submit (`stock.income.zeroPriceConfirm`); on product change quantity is cleared
+  - **Last purchase price / supplier pre-fill**: `StockMovementRepository.findLastPurchasePricePerProduct()` and `findLastSupplierPerProduct()` — both exclude cancelled PURCHASEs via `NOT EXISTS (CANCELLATION with originalMovementId = m.id)`; price uses `StockMovement.unitPrice` (not StockItem) to avoid false zeros from sold-out batches
 - **Stock expense** (/movements/expense) — SALE/WRITE_OFF/ADJUSTMENT; below-cost JS warning + confirm(); create-client round-trip; WriteOffReason: GIFT/EXPIRED/DAMAGED/SAMPLE/INTERNAL_USE/OTHER; `returnTo` support; all fields + movement type locked until product selected; barcode scanner icon (`<a id="scannerLink">`) navigates to `/scan?mode=expense` with clientId/returnTo context
   - **productId pre-selected** (from dashboard/product detail): product shown as locked gray div (`field-locked`), hidden input for submit, hidden `<select id="productSelect">` (no `ts-client`) retains `data-*` attrs for JS; `lockedProductName` passed from controller; `syncFieldsLock()` detects via `input[type=hidden][name=productId]`
   - **clientId pre-selected** (`clientLocked=true`): separate layout block with client locked, movementType forced to SALE
