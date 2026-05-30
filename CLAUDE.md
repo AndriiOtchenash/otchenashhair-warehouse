@@ -396,6 +396,12 @@ to avoid `.fc-daygrid-dot-event` transparent-background issue.
   | `TELEGRAM_CHECKLIST_PHOTO_ID` | Telegram file_id of pre-consultation checklist photo |
 - GitHub Secrets: `INTERNAL_SECRET` (used by reminders.yml cron to call `/internal/reminders`; must match Fly.io value)
 
+## Timezone
+- Fly.io runs in **UTC** by default; all appointment `LocalDateTime` values are stored in **Europe/Warsaw** (CEST/CET)
+- All `LocalDateTime.now()` calls that compare against appointment times **must** use `LocalDateTime.now(ZoneId.of("Europe/Warsaw"))` — plain `LocalDateTime.now()` returns UTC on the server, causing off-by-2h bugs (e.g. "в процесі" banner showing 2 hours after appointment end)
+- Affected files: `AppointmentController`, `AppointmentService` — already fixed; any new time comparisons must follow the same rule
+- Do NOT rely on JVM default timezone for correctness — always pass `ZoneId.of("Europe/Warsaw")` explicitly
+
 ## Local development
 Run with VM option: -Dspring.profiles.active=dev
 DB credentials in application-dev.properties (gitignored)
