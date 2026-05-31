@@ -40,9 +40,9 @@ public class ClientCareService {
     /** For follow-up queue: NO_SHOW counts as overdue signal (client needs contact). */
     private static final List<AppointmentStatus> FOLLOWUP_OVERDUE_STATUSES =
             List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED, AppointmentStatus.NO_SHOW);
-    /** For KPI dashboard cards: only unresolved appointments (NO_SHOW already handled by user). */
+    /** For KPI dashboard cards: PLANNED/CONFIRMED past + NO_SHOW (all need follow-up action). */
     private static final List<AppointmentStatus> KPI_OVERDUE_STATUSES =
-            List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
+            List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED, AppointmentStatus.NO_SHOW);
 
     @Transactional(readOnly = true)
     public List<ClientFollowupDto> getFollowupQueue() {
@@ -61,6 +61,7 @@ public class ClientCareService {
         Map<Long, LocalDate> apptSignalDate    = new LinkedHashMap<>();
         Map<Long, Long>      apptSignalDays    = new LinkedHashMap<>(); // negative = overdue
         Map<Long, Boolean>   apptPastToday     = new LinkedHashMap<>(); // true = today but already started
+        Map<Long, Boolean>   apptIsNoShow      = new LinkedHashMap<>(); // true = NO_SHOW appointment
         Map<Long, Client>    apptClient        = new LinkedHashMap<>();
 
         // Upcoming — ordered ASC, putIfAbsent gives earliest per client
@@ -86,6 +87,7 @@ public class ClientCareService {
                 long days = ChronoUnit.DAYS.between(today, d);
                 apptSignalDays.put(clientId, days);
                 apptPastToday.put(clientId, days == 0); // today's appointment that already started
+                apptIsNoShow.put(clientId, a.getStatus() == AppointmentStatus.NO_SHOW);
                 apptClient.put(clientId, a.getClient());
             }
         }
@@ -96,6 +98,7 @@ public class ClientCareService {
             LocalDate apptDate = entry.getValue();
             long daysUntil     = apptSignalDays.get(clientId);
             boolean pastToday  = apptPastToday.getOrDefault(clientId, false);
+            boolean isNoShow   = apptIsNoShow.getOrDefault(clientId, false);
             Client c           = apptClient.get(clientId);
 
             ClientFollowupDto existing = byClientId.get(clientId);
@@ -103,14 +106,14 @@ public class ClientCareService {
                 byClientId.put(clientId, new ClientFollowupDto(
                         existing.clientId(), existing.clientName(), existing.clientPhone(),
                         existing.lastPurchaseAt(), existing.daysSinceLastPurchase(), existing.totalSpent(),
-                        apptDate, daysUntil, pastToday
+                        apptDate, daysUntil, pastToday, isNoShow
                 ));
             } else {
                 // Appointment-only client (no purchases yet)
                 byClientId.put(clientId, new ClientFollowupDto(
                         clientId, c.getName(), c.getPhone(),
                         null, 0, BigDecimal.ZERO,
-                        apptDate, daysUntil, pastToday
+                        apptDate, daysUntil, pastToday, isNoShow
                 ));
             }
         }
@@ -182,6 +185,6 @@ public class ClientCareService {
         LocalDateTime lastPurchase = (LocalDateTime) row[3];
         BigDecimal totalSpent  = row[4] != null ? (BigDecimal) row[4] : BigDecimal.ZERO;
         long days = ChronoUnit.DAYS.between(lastPurchase, now);
-        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0, false);
+        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0, false, false);
     }
 }

@@ -213,11 +213,20 @@
                         <div th:if="${overdueAppointment != null}">
                             <a th:href="@{/clientcare/appointments(date=${#temporals.format(overdueAppointment.startAt, 'yyyy-MM-dd')})}"
                                class="text-decoration-none">
-                                <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#f8d7da;color:#842029">
-                                    <i class="bi bi-calendar-x-fill"></i>
-                                    <span th:text="#{appointment.badge.overdue}">Прострочений</span>:
-                                    <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
-                                </span>
+                                <th:block th:if="${overdueAppointment.status?.name() == 'NO_SHOW'}">
+                                    <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#ffe8d6;color:#7d3a00">
+                                        <i class="bi bi-person-x-fill"></i>
+                                        <span th:text="#{appointment.badge.noshow}">Не прийшов</span>:
+                                        <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
+                                    </span>
+                                </th:block>
+                                <th:block th:unless="${overdueAppointment.status?.name() == 'NO_SHOW'}">
+                                    <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#f8d7da;color:#842029">
+                                        <i class="bi bi-calendar-x-fill"></i>
+                                        <span th:text="#{appointment.badge.overdue}">Прострочений</span>:
+                                        <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
+                                    </span>
+                                </th:block>
                             </a>
                         </div>
                     </div>

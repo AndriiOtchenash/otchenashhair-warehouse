@@ -101,16 +101,20 @@ public class AppointmentService {
     private static final Collection<AppointmentStatus> ACTIVE_STATUSES =
             EnumSet.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
 
+    /** For detail-page overdue badge: also includes NO_SHOW so it stays visible after marking. */
+    private static final Collection<AppointmentStatus> OVERDUE_DETAIL_STATUSES =
+            EnumSet.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED, AppointmentStatus.NO_SHOW);
+
     /** Client IDs with any future PLANNED/CONFIRMED appointment (no upper bound, for list icons). */
     @Transactional(readOnly = true)
     public Set<Long> getClientIdsWithUpcomingAppointments() {
         return appointmentRepository.findClientIdsWithAnyUpcomingFrom(LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES);
     }
 
-    /** Client IDs with a PLANNED/CONFIRMED appointment that is past (overdue, for list icons). */
+    /** Client IDs with a past PLANNED/CONFIRMED/NO_SHOW appointment (overdue, for list icons). */
     @Transactional(readOnly = true)
     public Set<Long> getClientIdsWithOverdueAppointments() {
-        return appointmentRepository.findClientIdsWithOverdueBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES);
+        return appointmentRepository.findClientIdsWithOverdueBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")), OVERDUE_DETAIL_STATUSES);
     }
 
     // ── Detail-page indicators ───────────────────────────────────────────────
@@ -123,11 +127,11 @@ public class AppointmentService {
                 .stream().findFirst().map(this::toDto);
     }
 
-    /** Most-recent overdue PLANNED/CONFIRMED appointment for a client, or empty. */
+    /** Most-recent overdue appointment (PLANNED/CONFIRMED/NO_SHOW) for a client, or empty. */
     @Transactional(readOnly = true)
     public Optional<AppointmentDto> getLatestOverdueForClient(Long clientId) {
         return appointmentRepository
-                .findOverdueByClientId(clientId, LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES)
+                .findOverdueByClientId(clientId, LocalDateTime.now(ZoneId.of("Europe/Warsaw")), OVERDUE_DETAIL_STATUSES)
                 .stream().findFirst().map(this::toDto);
     }
 

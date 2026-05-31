@@ -97,6 +97,54 @@
         <!-- ══ TAB 1: Purchase/booking queue ══ -->
         <div class="tab-pane fade show active" id="tab-queue" role="tabpanel">
 
+            <!-- ── Заплановані нагадування ── -->
+            <div th:unless="${upcomingSnoozes.isEmpty()}" class="card mb-3">
+                <div class="card-header d-flex align-items-center gap-2 py-2"
+                     style="background:var(--accent-light);cursor:pointer;user-select:none"
+                     data-bs-toggle="collapse" data-bs-target="#scheduledReminders">
+                    <i class="bi bi-alarm" style="color:var(--accent)"></i>
+                    <span class="fw-semibold" style="font-size:0.9rem" th:text="#{followup.scheduled.title}">Заплановані нагадування</span>
+                    <span class="badge rounded-pill ms-1"
+                          style="background:var(--accent);color:#fff;font-size:0.7rem"
+                          th:text="${upcomingSnoozes.size()}"></span>
+                    <i class="bi bi-chevron-down ms-auto" style="font-size:0.75rem;color:var(--accent)"></i>
+                </div>
+                <div id="scheduledReminders" class="collapse show">
+                    <table class="table table-sm mb-0" style="min-width:0">
+                        <tbody>
+                        <tr th:each="s : ${upcomingSnoozes}">
+                            <td style="vertical-align:middle">
+                                <a th:href="@{/clientcare/clients/{id}(id=${s.clientId})}"
+                                   class="text-decoration-none text-body fw-medium"
+                                   style="font-size:0.9rem"
+                                   th:text="${s.clientName}"></a>
+                                <div th:if="${s.note != null}" class="text-muted" style="font-size:0.75rem" th:text="${s.note}"></div>
+                            </td>
+                            <td style="vertical-align:middle;white-space:nowrap">
+                                <span class="days-badge"
+                                      th:classappend="${s.daysUntil <= 2} ? 'days-urgent' : (${s.daysUntil <= 7} ? 'days-warn' : 'days-ok')">
+                                    <th:block th:text="${#temporals.format(s.dueDate, 'dd.MM')}"></th:block>
+                                    <th:block th:text="${s.daysUntil == 1} ? ('(' + #{followup.scheduled.tomorrow} + ')') : ('(+' + s.daysUntil + ' дн.)')"></th:block>
+                                </span>
+                            </td>
+                            <td style="vertical-align:middle;text-align:right">
+                                <form th:action="@{/clientcare/followups/{id}/returnToQueue(id=${s.clientId})}"
+                                      method="post" class="d-inline">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                                    <input type="hidden" name="returnTo" value="/clientcare/followups"/>
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm"
+                                            style="padding:0.1rem 0.4rem"
+                                            th:title="#{followup.snoozed.cancel}">
+                                        <i class="bi bi-x-lg" style="font-size:0.75rem"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Filters -->
             <div class="d-flex flex-column gap-2 mb-3" style="row-gap: 0.6rem;">
                 <!-- Purchase activity -->
@@ -176,7 +224,10 @@
                             <td>
                                 <div class="d-flex flex-column gap-1">
                                     <!-- Visit signal -->
-                                    <span th:if="${c.visitOverdue()}"
+                                    <span th:if="${c.visitOverdue() and c.visitIsNoShow()}"
+                                          class="days-badge days-urgent"
+                                          th:text="#{followup.signal.visit.noshow(${-c.daysUntilNextVisit()})}">Не прийшов: N дн тому</span>
+                                    <span th:if="${c.visitOverdue() and !c.visitIsNoShow()}"
                                           class="days-badge days-urgent"
                                           th:text="#{followup.signal.visit.overdue(${-c.daysUntilNextVisit()})}">Візит: N дн тому</span>
                                     <span th:if="${c.visitTodayOverdue()}"
