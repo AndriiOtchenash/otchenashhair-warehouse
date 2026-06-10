@@ -5,7 +5,9 @@ import com.hairmony.warehouse.clientcare.service.GiftCertificateService;
 import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.ScalpPhotoService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
+import com.hairmony.warehouse.clientcare.web.dto.AppointmentDto;
 import com.hairmony.warehouse.clientcare.web.dto.SalonServiceDto;
+import com.hairmony.warehouse.domain.appointment.AppointmentStatus;
 import com.hairmony.warehouse.domain.stock.StockMovement;
 import com.hairmony.warehouse.service.ClientService;
 import com.hairmony.warehouse.service.StockService;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -45,18 +48,24 @@ public class ClientController {
 
     private void addAppointmentBadgeAttrs(Long clientId, Model model) {
         var upcoming = appointmentService.getAllUpcomingForClient(clientId);
-        if (!upcoming.isEmpty()) model.addAttribute("upcomingAppointments", upcoming);
-        if (upcoming.isEmpty()) {
-            appointmentService.getLatestOverdueForClient(clientId).ifPresent(a -> {
-                // Suppress badge if the client already has a visit on or after the overdue appointment date
-                // (means they came in afterwards — the missed record is no longer actionable)
-                boolean resolvedByVisit = visitService.hasVisitOnOrAfter(
-                        clientId, a.getStartAt().toLocalDate());
-                if (!resolvedByVisit) {
-                    model.addAttribute("overdueAppointment", a);
-                }
-            });
+        if (!upcoming.isEmpty()) {
+            model.addAttribute("upcomingAppointments", upcoming);
+            return;
         }
+        // NO_SHOW is an explicit master action — always show, never suppress by subsequent visits
+        Optional<AppointmentDto> noShow = appointmentService.getLatestNoShowForClient(clientId);
+        if (noShow.isPresent()) {
+            model.addAttribute("overdueAppointment", noShow.get());
+            return;
+        }
+        // PLANNED/CONFIRMED past — suppress if client came in on a later date
+        appointmentService.getLatestOverdueForClient(clientId)
+                .filter(a -> a.getStatus() != AppointmentStatus.NO_SHOW)
+                .ifPresent(a -> {
+                    if (!visitService.hasVisitOnOrAfter(clientId, a.getStartAt().toLocalDate())) {
+                        model.addAttribute("overdueAppointment", a);
+                    }
+                });
     }
 
     @GetMapping
