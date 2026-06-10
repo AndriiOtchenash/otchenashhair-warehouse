@@ -13,6 +13,7 @@
             --fc-highlight-color:    var(--accent-light);   /* slot hover / selection */
             --fc-more-link-text-color: var(--accent);
             --fc-now-indicator-color: #ff0000;
+            font-family: var(--bs-body-font-family);
         }
 
         /* Today column background + header text */
@@ -247,6 +248,7 @@
 
             .fc-daygrid-day-frame { cursor: pointer; }
 
+
             .fc-more-link {
                 font-size: 0.65rem !important;
                 font-weight: 600;
@@ -272,6 +274,21 @@
             background-color: #6c757d !important;
             border-color: #6c757d !important;
             color: #fff !important;
+        }
+
+        /* Desktop: legend (ⓘ) button in FC toolbar */
+        .fc .fc-legendBtn-button {
+            background-color: transparent !important;
+            border-color: var(--accent) !important;
+            color: var(--accent) !important;
+            font-size: 1rem !important;
+            line-height: 1 !important;
+        }
+        .fc .fc-legendBtn-button:hover,
+        .fc .fc-legendBtn-button:focus {
+            background-color: var(--accent-light) !important;
+            border-color: var(--accent) !important;
+            color: var(--accent) !important;
         }
     </style>
 
@@ -326,6 +343,10 @@
                         <i class="bi bi-calendar3"></i>
                     </button>
                 </div>
+                <button id="calLegendMobile" class="cal-nav-btn" type="button"
+                        aria-label="Легенда кольорів" style="margin-left:0.15rem; color:var(--accent); border-color:var(--accent);">
+                    <i class="bi bi-info-circle"></i>
+                </button>
             </div>
         </div>
 
@@ -404,6 +425,18 @@
             if (status !== 'PLANNED' && status !== 'CONFIRMED') return false;
             const now = new Date();
             return start < now && (end == null || end <= now);
+        }
+
+        /** Short label shown in timeGrid time row (top-right of event block). */
+        function getStatusLabel(status, start, end) {
+            if (isInProgress(status, start, end)) return 'У процесі';
+            if (isOverdue(status, start, end))    return 'Прострочено';
+            if (status === 'CONFIRMED')  return 'Підтверджено';
+            if (status === 'PLANNED')    return 'Заплановано';
+            if (status === 'COMPLETED')  return 'Завершено';
+            if (status === 'CANCELLED')  return 'Скасовано';
+            if (status === 'NO_SHOW')    return 'Не прийшов';
+            return '';
         }
 
         /** Compute {bg, border, text} for any view — single source of truth. */
@@ -506,14 +539,33 @@
                 return { domNodes: [pill] };
             }
 
-            // timeGrid: time row, then name + phone on one row
+            // Mobile week view: name only — no time row, no phone (columns too narrow)
+            if (isMobile() && view === 'timeGridWeek') {
+                const w = document.createElement('div');
+                w.style.cssText = 'font-size:0.7rem;font-weight:600;line-height:1.2;overflow:hidden;padding:1px 2px;';
+                w.textContent = arg.event.title || '';
+                return { domNodes: [w] };
+            }
+
+            // timeGrid: time + status on one row, then name + phone below
             const wrapper = document.createElement('div');
             wrapper.className = 'fc-event-main-frame';
             if (arg.timeText) {
-                const t = document.createElement('div');
-                t.className = 'fc-event-time';
-                t.textContent = arg.timeText;
-                wrapper.appendChild(t);
+                const timeRow = document.createElement('div');
+                timeRow.className = 'fc-event-time';
+                timeRow.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;gap:0.3em;';
+                const timeSpan = document.createElement('span');
+                timeSpan.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                timeSpan.textContent = arg.timeText;
+                timeRow.appendChild(timeSpan);
+                const label = getStatusLabel(status, start, end);
+                if (label && !(isMobile() && view === 'timeGridWeek')) {
+                    const badge = document.createElement('span');
+                    badge.style.cssText = 'display:inline-block;padding:0.15em 0.5em;border-radius:50rem;font-size:1em;font-weight:600;line-height:1.4;flex-shrink:0;white-space:nowrap;background:rgba(0,0,0,0.13);';
+                    badge.textContent = label;
+                    timeRow.appendChild(badge);
+                }
+                wrapper.appendChild(timeRow);
             }
             const nameRow = document.createElement('div');
             nameRow.className = 'fc-event-title fc-sticky';
@@ -578,17 +630,15 @@
                 height:      'auto',
                 firstDay:    1,
 
-                customButtons: hasBack ? {
-                    backBtn: {
-                        text: '←',
-                        click: function() { window.location.href = CAL_RETURN_TO; }
-                    }
-                } : {},
+                customButtons: Object.assign(
+                    hasBack ? { backBtn: { text: '←', click: function() { window.location.href = CAL_RETURN_TO; } } } : {},
+                    { legendBtn: { text: 'ⓘ', click: function() {} } }
+                ),
 
                 headerToolbar: {
                     left:   hasBack ? 'backBtn prev,next today' : 'prev,next today',
                     center: 'title',
-                    right:  'timeGridDay,timeGridWeek,dayGridMonth'
+                    right:  'timeGridDay,timeGridWeek,dayGridMonth legendBtn'
                 },
 
                 slotMinTime:  '08:00:00',
@@ -682,6 +732,44 @@
             });
 
             cal.render();
+
+            // ── Calendar legend popover ────────────────────────────────────
+            function buildLegendHtml() {
+                const items = [
+                    { bg: '#fff3cd', border: '#ffe69c', text: '#664d03', label: 'Заплановано' },
+                    { bg: '#d1e7dd', border: '#a3cfbb', text: '#0a3622', label: 'Підтверджено / У процесі' },
+                    { bg: '#e2e3e5', border: '#c4c8cb', text: '#41464b', label: 'Завершено' },
+                    { bg: '#f5e6f0', border: '#d4b8d4', text: '#6b4c6b', label: 'Скасовано' },
+                    { bg: '#fd7e14', border: '#fd7e14', text: '#fff',    label: 'Не прийшов' },
+                    { bg: '#f8d7da', border: '#f1aeb5', text: '#842029', label: 'Прострочено' },
+                ];
+                let html = '<div style="min-width:175px;font-size:0.82rem;">';
+                items.forEach(function(i) {
+                    html += '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">'
+                        + '<span style="display:inline-block;width:13px;height:13px;border-radius:3px;'
+                        + 'background:' + i.bg + ';border:1.5px solid ' + i.border + ';flex-shrink:0;"></span>'
+                        + '<span>' + i.label + '</span></div>';
+                });
+                html += '</div>';
+                return html;
+            }
+            const legendContent = buildLegendHtml();
+            const popoverOpts = { html: true, content: legendContent, placement: 'bottom', trigger: 'click', sanitize: false };
+
+            const mobileLegendEl = document.getElementById('calLegendMobile');
+            if (mobileLegendEl) new bootstrap.Popover(mobileLegendEl, popoverOpts);
+
+            const desktopLegendEl = document.querySelector('.fc-legendBtn-button');
+            if (desktopLegendEl) new bootstrap.Popover(desktopLegendEl, popoverOpts);
+
+            // Close legend popover when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('#calLegendMobile') && !e.target.closest('.fc-legendBtn-button') && !e.target.closest('.popover')) {
+                    [mobileLegendEl, desktopLegendEl].forEach(function(el) {
+                        if (el) { const p = bootstrap.Popover.getInstance(el); if (p) p.hide(); }
+                    });
+                }
+            });
 
             // ── Wire up mobile custom toolbar ──────────────────────────────
             if (isMobile()) {
