@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,13 +41,16 @@ public class ClientCareService {
     /** For follow-up queue: NO_SHOW counts as overdue signal (client needs contact). */
     private static final List<AppointmentStatus> FOLLOWUP_OVERDUE_STATUSES =
             List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED, AppointmentStatus.NO_SHOW);
-    /** For KPI dashboard cards: only unresolved appointments (NO_SHOW already handled by user). */
+    /** For KPI "Пропущені записи" card: only past PLANNED/CONFIRMED (actionable, client may still come). */
     private static final List<AppointmentStatus> KPI_OVERDUE_STATUSES =
             List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
+    /** For KPI "Не прийшли" card: NO_SHOW without a follow-up appointment. */
+    private static final List<AppointmentStatus> KPI_NO_SHOW_STATUSES =
+            List.of(AppointmentStatus.NO_SHOW);
 
     @Transactional(readOnly = true)
     public List<ClientFollowupDto> getFollowupQueue() {
-        LocalDateTime now   = LocalDateTime.now();
+        LocalDateTime now   = LocalDateTime.now(ZoneId.of("Europe/Warsaw"));
         LocalDate today     = now.toLocalDate();
 
         // 1. Purchase-based signals
@@ -61,6 +65,7 @@ public class ClientCareService {
         Map<Long, LocalDate> apptSignalDate    = new LinkedHashMap<>();
         Map<Long, Long>      apptSignalDays    = new LinkedHashMap<>(); // negative = overdue
         Map<Long, Boolean>   apptPastToday     = new LinkedHashMap<>(); // true = today but already started
+        Map<Long, Boolean>   apptIsNoShow      = new LinkedHashMap<>(); // true = NO_SHOW appointment
         Map<Long, Client>    apptClient        = new LinkedHashMap<>();
 
         // Upcoming — ordered ASC, putIfAbsent gives earliest per client
@@ -86,6 +91,7 @@ public class ClientCareService {
                 long days = ChronoUnit.DAYS.between(today, d);
                 apptSignalDays.put(clientId, days);
                 apptPastToday.put(clientId, days == 0); // today's appointment that already started
+                apptIsNoShow.put(clientId, a.getStatus() == AppointmentStatus.NO_SHOW);
                 apptClient.put(clientId, a.getClient());
             }
         }
@@ -96,6 +102,7 @@ public class ClientCareService {
             LocalDate apptDate = entry.getValue();
             long daysUntil     = apptSignalDays.get(clientId);
             boolean pastToday  = apptPastToday.getOrDefault(clientId, false);
+            boolean isNoShow   = apptIsNoShow.getOrDefault(clientId, false);
             Client c           = apptClient.get(clientId);
 
             ClientFollowupDto existing = byClientId.get(clientId);
@@ -103,14 +110,14 @@ public class ClientCareService {
                 byClientId.put(clientId, new ClientFollowupDto(
                         existing.clientId(), existing.clientName(), existing.clientPhone(),
                         existing.lastPurchaseAt(), existing.daysSinceLastPurchase(), existing.totalSpent(),
-                        apptDate, daysUntil, pastToday
+                        apptDate, daysUntil, pastToday, isNoShow
                 ));
             } else {
                 // Appointment-only client (no purchases yet)
                 byClientId.put(clientId, new ClientFollowupDto(
                         clientId, c.getName(), c.getPhone(),
                         null, 0, BigDecimal.ZERO,
-                        apptDate, daysUntil, pastToday
+                        apptDate, daysUntil, pastToday, isNoShow
                 ));
             }
         }
@@ -128,7 +135,7 @@ public class ClientCareService {
 
     @Transactional(readOnly = true)
     public ClientCareDashboardDto getDashboardData() {
-        LocalDateTime now        = LocalDateTime.now();
+        LocalDateTime now        = LocalDateTime.now(ZoneId.of("Europe/Warsaw"));
 
         List<ClientFollowupDto> all = movementRepository.findClientSaleStats().stream()
                 .map(row -> toPurchaseDto(row, now))
@@ -150,12 +157,23 @@ public class ClientCareService {
                 .map(a -> a.getClient().getId())
                 .filter(id -> !upcomingClientIds.contains(id)) // upcoming supersedes overdue
                 .collect(Collectors.toSet());
+        // NO_SHOW clients who have no upcoming appointment AND no subsequent visit
+        Set<Long> noShowClientIds = appointmentRepository
+                .findOverdueForClients(now, KPI_NO_SHOW_STATUSES)
+                .stream()
+                .filter(a -> a.getClient() != null)
+                .filter(a -> !upcomingClientIds.contains(a.getClient().getId()))
+                .filter(a -> !visitService.hasVisitOnOrAfter(
+                        a.getClient().getId(), a.getStartAt().toLocalDate()))
+                .map(a -> a.getClient().getId())
+                .collect(Collectors.toSet());
         long upcomingVisit = upcomingClientIds.size();
         long overdueVisit  = overdueClientIds.size();
+        long noShowVisit   = noShowClientIds.size();
         long unpaidVisit   = visitService.getClientIdsWithUnpaidVisits().size();
 
         if (all.isEmpty()) {
-            return new ClientCareDashboardDto(totalClients, 0, 0, 0, 0, 0, 0, overdueVisit, upcomingVisit, unpaidVisit);
+            return new ClientCareDashboardDto(totalClients, 0, 0, 0, 0, 0, 0, overdueVisit, upcomingVisit, unpaidVisit, noShowVisit);
         }
 
         List<ClientFollowupDto> sortedBySpent = all.stream()
@@ -172,7 +190,7 @@ public class ClientCareService {
         long recent         = all.stream().filter(c -> c.daysSinceLastPurchase() < RECENT_DAYS).count();
         long repeatPossible = all.stream().filter(c -> c.daysSinceLastPurchase() >= REPEAT_FROM_DAYS && c.daysSinceLastPurchase() <= REPEAT_TO_DAYS).count();
 
-        return new ClientCareDashboardDto(totalClients, all.size(), needsContact, longAbsent, vipInactive, recent, repeatPossible, overdueVisit, upcomingVisit, unpaidVisit);
+        return new ClientCareDashboardDto(totalClients, all.size(), needsContact, longAbsent, vipInactive, recent, repeatPossible, overdueVisit, upcomingVisit, unpaidVisit, noShowVisit);
     }
 
     private ClientFollowupDto toPurchaseDto(Object[] row, LocalDateTime now) {
@@ -182,6 +200,6 @@ public class ClientCareService {
         LocalDateTime lastPurchase = (LocalDateTime) row[3];
         BigDecimal totalSpent  = row[4] != null ? (BigDecimal) row[4] : BigDecimal.ZERO;
         long days = ChronoUnit.DAYS.between(lastPurchase, now);
-        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0, false);
+        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0, false, false);
     }
 }

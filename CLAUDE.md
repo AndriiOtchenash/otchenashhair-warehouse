@@ -203,7 +203,7 @@ Colors computed by `eventStyle(status, start, end)` — single source of truth u
 | PLANNED            | `#fff3cd`  | `#ffe69c`  | `#664d03` |
 | CONFIRMED          | `#d1e7dd`  | `#a3cfbb`  | `#0a3622` |
 | COMPLETED          | `#e2e3e5`  | `#c4c8cb`  | `#41464b` |
-| CANCELLED          | `#dc3545`  | `#dc3545`  | `#fff`    |
+| CANCELLED          | `#f5e6f0`  | `#d4b8d4`  | `#6b4c6b` |
 | NO_SHOW            | `#fd7e14`  | `#fd7e14`  | `#fff`    |
 | Overdue (PLANNED/CONFIRMED + past end)       | `#f8d7da` | `#f1aeb5` | `#842029` |
 | In-progress (PLANNED/CONFIRMED + now inside) | `#d1e7dd` | `#a3cfbb` | `#0a3622` |
@@ -221,8 +221,9 @@ to avoid `.fc-daygrid-dot-event` transparent-background issue.
 ### Dashboard KPI cards (inline style in `clientcare/dashboard.html`)
 | Card                  | Background | Text      |
 |-----------------------|------------|-----------|
-| Заплановані записи    | `#fff3cd`  | `#664d03` |
+| Записані клієнти      | `#fff3cd`  | `#664d03` |
 | Пропущені записи      | `#f8d7da`  | `#842029` |
+| Не прийшли            | `#fff0e6`  | `#7d3c00` |
 
 ## UX patterns (apply consistently)
 - **Client select with search (TomSelect):** Any `<select>` used to pick a client from the database
@@ -445,8 +446,12 @@ com.hairmony.warehouse/
 ## ClientCare — technical notes
 
 ### Dashboard `/clientcare`
-- `ClientCareDashboardDto`: totalClients, totalClientsInQueue, overdueVisitCount, upcomingVisitCount, unpaidVisitCount + 5 purchase KPI counts
-- Section "ЗАПИСИ": Пропущені записи (`KPI_OVERDUE_STATUSES = [PLANNED, CONFIRMED]`), Заплановані записи, Очікує оплати (hidden when 0)
+- `ClientCareDashboardDto`: totalClients, totalClientsInQueue, overdueVisitCount, upcomingVisitCount, unpaidVisitCount, noShowCount + 5 purchase KPI counts
+- Section "ЗАПИСИ": three conditional cards (each hidden when count = 0):
+  - **Пропущені записи** — past PLANNED/CONFIRMED without upcoming; `KPI_OVERDUE_STATUSES = [PLANNED, CONFIRMED]`
+  - **Не прийшли** — NO_SHOW without upcoming appointment AND without a subsequent visit; `KPI_NO_SHOW_STATUSES = [NO_SHOW]`
+  - **Записані клієнти** — clients with any future PLANNED/CONFIRMED appointment (renamed from "Заплановані записи")
+  - **Очікує оплати** — hidden when 0
 - Section "ПОКУПКИ": Кому написати (>30d + phone), Давно не купували (>60d), VIP без активності (top 20% + >30d), Нещодавні (<14d), Повторна покупка (25–40d), Всі клієнти
 - Data source: `StockMovementRepository.findClientSaleStats()` — groups SALE by client, excludes cancelled SALEs
 - Visit KPI counts from `AppointmentRepository` (not VisitRepository — `next_visit_date` no longer drives queue)
@@ -458,7 +463,8 @@ com.hairmony.warehouse/
 - `returnToQueue()` bulk-deletes all SNOOZE+DONE with future dueDate via `@Modifying @Query`
 - Two independent filters (AND logic): `minDays` (purchase days since last sale) + `visitFilter` (overdue/scheduled/none)
   - `FOLLOWUP_OVERDUE_STATUSES = [PLANNED, CONFIRMED, NO_SHOW]` — follow-up queue signal
-  - `KPI_OVERDUE_STATUSES = [PLANNED, CONFIRMED]` — dashboard "Пропущені записи" (NO_SHOW already handled)
+  - `KPI_OVERDUE_STATUSES = [PLANNED, CONFIRMED]` — dashboard "Пропущені записи"
+  - `KPI_NO_SHOW_STATUSES = [NO_SHOW]` — dashboard "Не прийшли" (excludes clients with upcoming appt or subsequent visit)
 - Overdue boundary uses `now` (not `todayStart`); same-day past appointments forced to `days = -1`
 - Activity badge: `FollowUpRepository.countPerClient()` one query → `Map<Long, Integer>`; `syncActivityCountBadge()` JS
 - "Видалити всі записи" always triggers page reload (DONE/SNOOZE deleted → client queue position changes)
@@ -490,6 +496,9 @@ com.hairmony.warehouse/
 - `serviceNames` Map (`Map<Long, String>`) loaded via `SalonServiceService.findAll()` in two places:
   `VisitController.allVisits()` (visits list page) and `ClientController.detail()` (shared fragment);
   fragment guards with `serviceNames != null` (warehouse context has no serviceNames in model)
+- **Appointment badges in client detail** (`fragments/client-detail.html`, "Інформація про клієнта" block):
+  - All upcoming PLANNED/CONFIRMED appointments shown as green badges; grouped in `d-flex flex-wrap gap-1` (no line gap between items)
+  - Overdue badge (NO_SHOW / past PLANNED/CONFIRMED) suppressed if client has a visit on or after the overdue appointment date — `ClientController.addAppointmentBadgeAttrs()` calls `visitService.hasVisitOnOrAfter(clientId, apptDate)`; same logic in `ClientCareService.getDashboardData()` for `noShowCount`
 
 ### Scalp Photos
 - `ScalpPhoto` entity in `domain/scalp/`; `ScalpPhotoService` in `clientcare/service/`

@@ -44,11 +44,18 @@ public class ClientController {
     }
 
     private void addAppointmentBadgeAttrs(Long clientId, Model model) {
-        appointmentService.getNextUpcomingForClient(clientId)
-                .ifPresent(a -> model.addAttribute("nextAppointment", a));
-        if (!model.containsAttribute("nextAppointment")) {
-            appointmentService.getLatestOverdueForClient(clientId)
-                    .ifPresent(a -> model.addAttribute("overdueAppointment", a));
+        var upcoming = appointmentService.getAllUpcomingForClient(clientId);
+        if (!upcoming.isEmpty()) model.addAttribute("upcomingAppointments", upcoming);
+        if (upcoming.isEmpty()) {
+            appointmentService.getLatestOverdueForClient(clientId).ifPresent(a -> {
+                // Suppress badge if the client already has a visit on or after the overdue appointment date
+                // (means they came in afterwards — the missed record is no longer actionable)
+                boolean resolvedByVisit = visitService.hasVisitOnOrAfter(
+                        clientId, a.getStartAt().toLocalDate());
+                if (!resolvedByVisit) {
+                    model.addAttribute("overdueAppointment", a);
+                }
+            });
         }
     }
 

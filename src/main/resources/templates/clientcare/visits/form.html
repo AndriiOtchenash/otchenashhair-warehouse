@@ -59,6 +59,43 @@
         </a>
     </div>
 
+    <!-- Unresolved appointment warning (shown only on new visit form when completeAppointmentId not set) -->
+    <div th:if="${overdueAppointment != null}" id="overdueWarningServer"
+         class="alert mb-3" style="max-width:640px;background:#f8d7da;border-color:#f1aeb5;color:#842029">
+        <div class="d-flex align-items-start gap-2 mb-2">
+            <i class="bi bi-calendar-x mt-1 flex-shrink-0"></i>
+            <div>
+                <div class="fw-bold" th:text="#{appointment.overdue.unresolved.title}">Попередній запис не опрацьовано</div>
+                <div class="small mt-1">
+                    <span th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM.yyyy, HH:mm')}"></span>
+                    <th:block th:if="${overdueAppointment.serviceName != null and !#strings.isEmpty(overdueAppointment.serviceName)}">
+                        <span> &mdash; </span><span th:text="${overdueAppointment.serviceName}"></span>
+                    </th:block>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-success"
+                    th:data-id="${overdueAppointment.id}"
+                    onclick="showVisitCompleteModal(this.dataset.id)">
+                <i class="bi bi-check-circle me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.came}">Прийшов</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-warning"
+                    th:data-id="${overdueAppointment.id}"
+                    onclick="resolveOverdue(this.dataset.id,'NO_SHOW','overdueWarningServer')">
+                <i class="bi bi-person-x me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.noshow}">Не прийшов</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    th:data-id="${overdueAppointment.id}"
+                    onclick="resolveOverdue(this.dataset.id,'CANCELLED','overdueWarningServer')">
+                <i class="bi bi-x-circle me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.cancel}">Скасувати</span>
+            </button>
+        </div>
+    </div>
+
     <div class="card" style="max-width: 640px;">
         <div class="card-body">
             <form id="visitForm"
@@ -287,6 +324,31 @@
         </div>
     </div>
 
+    <!-- "Прийшов" → what to do with the previous appointment modal -->
+    <div th:if="${overdueAppointment != null}" class="modal fade" id="visitCompleteModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-1">
+                    <h6 class="modal-title fw-semibold" th:text="#{appointment.overdue.modal.title}">Що зробити з попереднім візитом?</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-1">
+                    <p class="text-muted small mb-3" th:text="#{appointment.overdue.modal.hint}">Клієнт прийшов. Оберіть дію:</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" id="visitModalLinkBtn">
+                            <i class="bi bi-link-45deg me-1"></i>
+                            <span th:text="#{appointment.overdue.visit.modal.link}">Прив'язати цей протокол до пропущеного запису</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                onclick="dismissVisitModal()">
+                            <span th:text="#{appointment.overdue.visit.modal.later}">Обробити пропущений запис пізніше</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script th:inline="javascript">
         // ── i18n messages ─────────────────────────────────────────────────────
         const MSG_CERT_VALID     = /*[[#{visit.cert.valid}]]*/ 'Сертифікат дійсний';
@@ -455,6 +517,48 @@
                 if (!confirm(/*[[#{visit.unpaid.confirm}]]*/ 'Оплату не підтверджено. Зберегти?')) {
                     e.preventDefault();
                 }
+            }
+        });
+
+        // ── Overdue appointment banner ────────────────────────────────────────
+        function resolveOverdue(id, status, bannerId) {
+            var csrfInput = document.querySelector('input[name="_csrf"]');
+            var params = new URLSearchParams({ status: status });
+            if (csrfInput) params.append(csrfInput.name, csrfInput.value);
+            fetch('/clientcare/appointments/' + id + '/resolve', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    params.toString()
+            }).then(function(r) {
+                if (r.ok) {
+                    var el = document.getElementById(bannerId);
+                    if (el) el.style.display = 'none';
+                }
+            });
+        }
+
+        var _visitModalApptId = null;
+
+        function showVisitCompleteModal(id) {
+            _visitModalApptId = id;
+            new bootstrap.Modal(document.getElementById('visitCompleteModal')).show();
+        }
+
+        function dismissVisitModal() {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('visitCompleteModal'));
+            if (modal) modal.hide();
+            var banner = document.getElementById('overdueWarningServer');
+            if (banner) banner.style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var linkBtn = document.getElementById('visitModalLinkBtn');
+            if (linkBtn) {
+                linkBtn.addEventListener('click', function() {
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('completeAppointmentId', _visitModalApptId);
+                    window.location.href = url.toString();
+                });
             }
         });
     </script>

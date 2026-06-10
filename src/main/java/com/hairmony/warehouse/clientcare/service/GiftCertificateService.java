@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -33,7 +34,7 @@ public class GiftCertificateService {
     public GiftCertificate issue(GiftCertificateFormDto form) {
         GiftCertificate cert = new GiftCertificate();
         cert.setCode(generateCode());
-        cert.setIssuedAt(LocalDateTime.now());
+        cert.setIssuedAt(LocalDateTime.now(ZoneId.of("Europe/Warsaw")));
         cert.setExpiresAt(form.getExpiresAt());
         cert.setStatus(GiftCertificateStatus.ACTIVE);
         cert.setNotes(form.getNotes());
@@ -125,7 +126,7 @@ public class GiftCertificateService {
             throw new IllegalStateException("Certificate is not active");
         }
         cert.setStatus(GiftCertificateStatus.REDEEMED);
-        cert.setRedeemedAt(LocalDateTime.now());
+        cert.setRedeemedAt(LocalDateTime.now(ZoneId.of("Europe/Warsaw")));
         return cert;
     }
 
@@ -161,7 +162,7 @@ public class GiftCertificateService {
             throw new IllegalStateException("Certificate is already cancelled");
         }
         cert.setStatus(GiftCertificateStatus.CANCELLED);
-        cert.setCancelledAt(LocalDateTime.now());
+        cert.setCancelledAt(LocalDateTime.now(ZoneId.of("Europe/Warsaw")));
         return cert;
     }
 

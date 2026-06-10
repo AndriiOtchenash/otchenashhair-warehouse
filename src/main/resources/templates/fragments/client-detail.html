@@ -199,25 +199,36 @@
                             <span class="text-muted small" th:text="#{client.form.notes}">Примітки</span>:
                             <span th:text="${client.notes}"></span>
                         </div>
-                        <!-- Next appointment badge (clientcare contexts only) -->
-                        <div th:if="${nextAppointment != null}">
-                            <a th:href="@{/clientcare/appointments(date=${#temporals.format(nextAppointment.startAt, 'yyyy-MM-dd')})}"
+                        <!-- Upcoming appointment badges (clientcare contexts only) -->
+                        <div th:if="${upcomingAppointments != null and !upcomingAppointments.isEmpty()}"
+                             class="d-flex flex-wrap gap-1">
+                            <a th:each="appt : ${upcomingAppointments}"
+                               th:href="@{/clientcare/appointments(date=${#temporals.format(appt.startAt, 'yyyy-MM-dd')})}"
                                class="text-decoration-none">
                                 <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#d1e7dd;color:#0a3622">
                                     <i class="bi bi-calendar-check-fill"></i>
                                     <span th:text="#{appointment.badge.upcoming}">Наступний запис</span>:
-                                    <strong th:text="${#temporals.format(nextAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(nextAppointment.startAt, 'HH:mm')}"></strong>
+                                    <strong th:text="${#temporals.format(appt.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(appt.startAt, 'HH:mm')}"></strong>
                                 </span>
                             </a>
                         </div>
                         <div th:if="${overdueAppointment != null}">
                             <a th:href="@{/clientcare/appointments(date=${#temporals.format(overdueAppointment.startAt, 'yyyy-MM-dd')})}"
                                class="text-decoration-none">
-                                <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#f8d7da;color:#842029">
-                                    <i class="bi bi-calendar-x-fill"></i>
-                                    <span th:text="#{appointment.badge.overdue}">Прострочений</span>:
-                                    <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
-                                </span>
+                                <th:block th:if="${overdueAppointment.status?.name() == 'NO_SHOW'}">
+                                    <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#ffe8d6;color:#7d3a00">
+                                        <i class="bi bi-person-x-fill"></i>
+                                        <span th:text="#{appointment.badge.noshow}">Не прийшов</span>:
+                                        <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
+                                    </span>
+                                </th:block>
+                                <th:block th:unless="${overdueAppointment.status?.name() == 'NO_SHOW'}">
+                                    <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#f8d7da;color:#842029">
+                                        <i class="bi bi-calendar-x-fill"></i>
+                                        <span th:text="#{appointment.badge.overdue}">Прострочений</span>:
+                                        <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
+                                    </span>
+                                </th:block>
                             </a>
                         </div>
                     </div>
@@ -318,7 +329,7 @@
                                     <span th:text="#{visit.nextAppointment.label}">Наступний запис:</span>
                                     <strong th:text="${#temporals.format(visit.nextAppointmentStartAt, 'dd.MM.yyyy')} + ' о ' + ${#temporals.format(visit.nextAppointmentStartAt, 'HH:mm')}"></strong>
                                 </div>
-                                <div th:if="${visit.nextAppointmentId == null and nextAppointment == null and !visit.nextVisitSkipped}" class="text-warning">
+                                <div th:if="${visit.nextAppointmentId == null and (upcomingAppointments == null or upcomingAppointments.isEmpty()) and !visit.nextVisitSkipped}" class="text-warning">
                                     <i class="bi bi-calendar-x me-1"></i>
                                     <span th:text="#{visit.nextAppointment.notScheduled}">Не запланований</span>
                                 </div>

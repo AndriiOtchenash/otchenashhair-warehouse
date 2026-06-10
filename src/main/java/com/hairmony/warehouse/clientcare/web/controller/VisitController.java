@@ -123,7 +123,17 @@ public class VisitController {
                 appointmentService.getNextUpcomingForClient(clientId).isPresent());
         populateFormModel(model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
-        if (completeAppointmentId != null) model.addAttribute("completeAppointmentId", completeAppointmentId);
+        if (completeAppointmentId != null) {
+            model.addAttribute("completeAppointmentId", completeAppointmentId);
+        } else {
+            appointmentService.getLatestOverdueForClient(clientId).ifPresent(a -> {
+                if (a.getServiceId() != null) {
+                    try { a.setServiceName(salonServiceService.findById(a.getServiceId()).getName()); }
+                    catch (Exception ignored) {}
+                }
+                model.addAttribute("overdueAppointment", a);
+            });
+        }
         return "clientcare/visits/form";
     }
 

@@ -87,6 +87,72 @@
         </span>
     </div>
 
+    <!-- Unresolved appointment warning: server-rendered when client is locked (locked client GET param) -->
+    <div th:if="${overdueAppointment != null}" id="overdueWarningServer"
+         class="alert mb-3" style="background:#f8d7da;border-color:#f1aeb5;color:#842029">
+        <div class="d-flex align-items-start gap-2 mb-2">
+            <i class="bi bi-calendar-x mt-1 flex-shrink-0"></i>
+            <div>
+                <div class="fw-bold" th:text="#{appointment.overdue.unresolved.title}">Попередній запис не опрацьовано</div>
+                <div class="small mt-1">
+                    <span th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM.yyyy, HH:mm')}"></span>
+                    <th:block th:if="${overdueAppointment.serviceName != null and !#strings.isEmpty(overdueAppointment.serviceName)}">
+                        <span> &mdash; </span><span th:text="${overdueAppointment.serviceName}"></span>
+                    </th:block>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-success"
+                    th:data-id="${overdueAppointment.id}"
+                    th:data-client-id="${overdueAppointment.clientId}"
+                    onclick="showCompleteModal(this.dataset.id, this.dataset.clientId, 'overdueWarningServer')">
+                <i class="bi bi-check-circle me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.came}">Прийшов</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-warning"
+                    th:data-id="${overdueAppointment.id}"
+                    onclick="resolveOverdue(this.dataset.id,'NO_SHOW','overdueWarningServer')">
+                <i class="bi bi-person-x me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.noshow}">Не прийшов</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    th:data-id="${overdueAppointment.id}"
+                    onclick="resolveOverdue(this.dataset.id,'CANCELLED','overdueWarningServer')">
+                <i class="bi bi-x-circle me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.cancel}">Скасувати</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Unresolved appointment warning: JS-populated when client chosen from dropdown -->
+    <div id="overdueWarningJs" class="alert mb-3" style="display:none;background:#f8d7da;border-color:#f1aeb5;color:#842029">
+        <div class="d-flex align-items-start gap-2 mb-2">
+            <i class="bi bi-calendar-x mt-1 flex-shrink-0"></i>
+            <div>
+                <div class="fw-bold" th:text="#{appointment.overdue.unresolved.title}">Попередній запис не опрацьовано</div>
+                <div class="small mt-1" id="overdueWarningJsDetails"></div>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-success" id="overdueJsBtnCame"
+                    onclick="showCompleteModal(this.dataset.id, this.dataset.clientId, 'overdueWarningJs')">
+                <i class="bi bi-check-circle me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.came}">Прийшов</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-warning" id="overdueJsBtnNoshow"
+                    onclick="resolveOverdue(this.dataset.id,'NO_SHOW','overdueWarningJs')">
+                <i class="bi bi-person-x me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.noshow}">Не прийшов</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="overdueJsBtnCancel"
+                    onclick="resolveOverdue(this.dataset.id,'CANCELLED','overdueWarningJs')">
+                <i class="bi bi-x-circle me-1"></i>
+                <span th:text="#{appointment.overdue.unresolved.cancel}">Скасувати</span>
+            </button>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header d-flex align-items-center gap-2">
             <i class="bi bi-calendar-plus" th:unless="${isEdit}"></i>
@@ -391,6 +457,49 @@
                 </div>
             </div>
 
+            <!-- "Прийшов" → what to do with the previous appointment modal -->
+            <div class="modal fade" id="overdueCompleteModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header border-0 pb-1">
+                            <h6 class="modal-title fw-semibold" th:text="#{appointment.overdue.modal.title}">Що зробити з попереднім візитом?</h6>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body pt-1">
+                            <p class="text-muted small mb-3" th:text="#{appointment.overdue.modal.hint}">Клієнт прийшов. Оберіть дію:</p>
+                            <div class="d-grid gap-2">
+                                <a id="overdueModalProtocolLink" href="#" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-clipboard-plus me-1"></i>
+                                    <span th:text="#{appointment.overdue.unresolved.protocol}">Заповнити протокол</span>
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        onclick="completeWithoutProtocol()">
+                                    <span th:text="#{appointment.overdue.modal.complete}">Обробити пізніше</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overdue banner ignored — submit confirmation modal -->
+            <div class="modal fade" id="overdueSubmitConfirmModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body py-4 text-center">
+                            <i class="bi bi-calendar-x text-warning fs-1 d-block mb-3"></i>
+                            <p class="mb-0" th:text="#{appointment.overdue.submit.confirm}">Попередній запис не опрацьовано. Зберегти новий запис без змін?</p>
+                        </div>
+                        <div class="modal-footer justify-content-center border-0 pt-0">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
+                                    data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                            <button type="button" class="btn btn-primary btn-sm" style="min-width:4rem"
+                                    id="overdueSubmitConfirmYes" th:text="#{btn.yes}">Так</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Delete confirmation modal -->
             <div th:if="${isEdit}" class="modal fade" id="deleteApptModal" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered">
@@ -520,6 +629,7 @@
         // ── i18n messages ─────────────────────────────────────────────────────
         const MSG_PAST_TIME        = /*[[#{appointment.error.pastTime}]]*/ '';
         const MSG_END_BEFORE_START = /*[[#{appointment.error.endBeforeStart}]]*/ '';
+        const MSG_OVERDUE_CONFIRM  = /*[[#{appointment.overdue.submit.confirm}]]*/ '';
 
         // ── Calendar browse params (only present in link-visit context) ───────
         const BROWSE_LINK_VISIT = /*[[${linkVisitId}]]*/ null;
@@ -576,6 +686,69 @@
             return valid;
         }
 
+        // ── Resolve overdue appointment via AJAX ──────────────────────────────
+        function resolveOverdue(id, status, bannerId) {
+            var csrfInput = document.querySelector('input[name="_csrf"]');
+            var params = new URLSearchParams({ status: status });
+            if (csrfInput) params.append(csrfInput.name, csrfInput.value);
+            fetch('/clientcare/appointments/' + id + '/resolve', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    params.toString()
+            }).then(function(r) {
+                if (r.ok) {
+                    var el = document.getElementById(bannerId);
+                    if (el) el.style.display = 'none';
+                }
+            });
+        }
+
+        // ── "Прийшов" — open modal to choose next action ─────────────────────
+        var _overdueModalId = null, _overdueModalClientId = null, _overdueModalBannerId = null, _overdueHandled = false;
+
+        function showCompleteModal(id, clientId, bannerId) {
+            _overdueModalId       = id;
+            _overdueModalClientId = clientId;
+            _overdueModalBannerId = bannerId;
+            var returnToUrl = '/clientcare/appointments/new?clientId=' + clientId;
+            document.getElementById('overdueModalProtocolLink').href =
+                '/clientcare/visits/new?clientId=' + clientId
+                + '&completeAppointmentId=' + id
+                + '&returnTo=' + encodeURIComponent(returnToUrl);
+            new bootstrap.Modal(document.getElementById('overdueCompleteModal')).show();
+        }
+
+        function completeWithoutProtocol() {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('overdueCompleteModal'));
+            if (modal) modal.hide();
+            resolveOverdue(_overdueModalId, 'COMPLETED', _overdueModalBannerId);
+            _overdueHandled = true;
+        }
+
+        // ── Check for unresolved appointment when client is selected ──────────
+        function checkOverdueForClient(clientId) {
+            var banner = document.getElementById('overdueWarningJs');
+            if (!banner) return;
+            if (!clientId) { banner.style.display = 'none'; return; }
+            fetch('/clientcare/appointments/api/overdue-check?clientId=' + encodeURIComponent(clientId))
+                .then(function(r) { return r.status === 200 ? r.json() : null; })
+                .then(function(data) {
+                    if (!data) { banner.style.display = 'none'; return; }
+                    var dt = new Date(data.startAt);
+                    var pad = function(n) { return String(n).padStart(2, '0'); };
+                    var dateStr = pad(dt.getDate()) + '.' + pad(dt.getMonth() + 1) + '.' + dt.getFullYear()
+                                + ', ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+                    document.getElementById('overdueWarningJsDetails').textContent =
+                        data.serviceName ? dateStr + ' \u2014 ' + data.serviceName : dateStr;
+                    var btnCame = document.getElementById('overdueJsBtnCame');
+                    btnCame.dataset.id       = data.id;
+                    btnCame.dataset.clientId = data.clientId;
+                    document.getElementById('overdueJsBtnNoshow').dataset.id  = data.id;
+                    document.getElementById('overdueJsBtnCancel').dataset.id  = data.id;
+                    banner.style.display = '';
+                });
+        }
+
         // ── Auto-resize notes textarea ────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', function () {
             initDateTimeInputs();
@@ -595,9 +768,26 @@
                 notes.style.height = notes.scrollHeight + 'px';
             }
             const clientEl = document.getElementById('clientId');
-            if (clientEl) clientEl.addEventListener('change', updateCalendarBrowseLink);
+            if (clientEl) {
+                clientEl.addEventListener('change', updateCalendarBrowseLink);
+                clientEl.addEventListener('change', function() { checkOverdueForClient(this.value); });
+            }
             document.getElementById('appointmentForm').addEventListener('submit', function (e) {
-                if (!validateTimes()) e.preventDefault();
+                if (!validateTimes()) { e.preventDefault(); return; }
+                var serverBanner = document.getElementById('overdueWarningServer');
+                var jsBanner     = document.getElementById('overdueWarningJs');
+                var bannerVisible = (serverBanner && serverBanner.style.display !== 'none' && serverBanner.offsetParent !== null)
+                                 || (jsBanner && jsBanner.style.display !== 'none');
+                if (bannerVisible && !_overdueHandled) {
+                    e.preventDefault();
+                    new bootstrap.Modal(document.getElementById('overdueSubmitConfirmModal')).show();
+                }
+            });
+
+            document.getElementById('overdueSubmitConfirmYes').addEventListener('click', function () {
+                bootstrap.Modal.getInstance(document.getElementById('overdueSubmitConfirmModal')).hide();
+                _overdueHandled = true;
+                document.getElementById('appointmentForm').requestSubmit();
             });
 
             // Init dirty detection after all field initialization (edit mode only)
