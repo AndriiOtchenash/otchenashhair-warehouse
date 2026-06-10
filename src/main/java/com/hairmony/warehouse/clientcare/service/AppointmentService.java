@@ -143,6 +143,16 @@ public class AppointmentService {
                 .stream().findFirst().map(this::toDto);
     }
 
+    /** Most-recent NO_SHOW appointment for a client, or empty. Used separately from overdue check
+     *  because NO_SHOW is an explicit master action and must not be suppressed by subsequent visits. */
+    @Transactional(readOnly = true)
+    public Optional<AppointmentDto> getLatestNoShowForClient(Long clientId) {
+        return appointmentRepository
+                .findOverdueByClientId(clientId, LocalDateTime.now(ZoneId.of("Europe/Warsaw")),
+                        EnumSet.of(AppointmentStatus.NO_SHOW))
+                .stream().findFirst().map(this::toDto);
+    }
+
     public void reschedule(Long id, LocalDateTime newStart, LocalDateTime newEnd) {
         Appointment a = appointmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));
