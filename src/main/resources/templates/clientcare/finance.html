@@ -378,7 +378,7 @@
                     <td class="text-nowrap" style="font-size:0.78rem"
                         th:text="${#temporals.format(row.visitDate, 'dd.MM.yyyy')}"></td>
                     <td>
-                        <a th:href="@{/clientcare/clients/{id}(id=${row.clientId})}"
+                        <a th:href="@{/clientcare/clients/{id}(id=${row.clientId},returnTo=${currentPageUrl})}"
                            th:text="${row.clientName}"
                            class="text-decoration-none fw-semibold text-dark"></a>
                     </td>

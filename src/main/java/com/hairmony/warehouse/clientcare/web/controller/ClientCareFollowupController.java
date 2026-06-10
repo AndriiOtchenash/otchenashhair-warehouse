@@ -48,7 +48,8 @@ public class ClientCareFollowupController {
                     if (minDays > 0 && (!c.hasPurchaseSignal() || c.daysSinceLastPurchase() < minDays)) return false;
                     // Visit filter: independent of purchase filter
                     return switch (visitFilter) {
-                        case "overdue"   -> c.visitOverdue() || c.visitTodayOverdue();
+                        case "overdue"   -> (c.visitOverdue() || c.visitTodayOverdue()) && !c.visitIsNoShow();
+                        case "noshow"    -> (c.visitOverdue() || c.visitTodayOverdue()) && c.visitIsNoShow();
                         case "scheduled" -> c.visitToday() || c.visitUpcoming();
                         case "none"      -> !c.hasVisitSignal();
                         default          -> true;

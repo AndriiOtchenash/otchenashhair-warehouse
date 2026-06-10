@@ -252,6 +252,26 @@
                 font-weight: 600;
                 padding: 0 3px;
             }
+
+            /* Back arrow in today-banner: same bg, left border separates from date */
+            .today-back-btn {
+                border-right: 1px solid rgba(255,255,255,0.3);
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+
+        /* Desktop: back button in FC toolbar styled as outline-secondary */
+        .fc .fc-backBtn-button {
+            background-color: transparent !important;
+            border-color: #6c757d !important;
+            color: #6c757d !important;
+        }
+        .fc .fc-backBtn-button:hover,
+        .fc .fc-backBtn-button:focus {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            color: #fff !important;
         }
     </style>
 
@@ -272,11 +292,20 @@
 
         <!-- ── Mobile custom header (hidden on desktop) ── -->
         <div class="d-md-none">
-            <!-- Today banner: tapping navigates to today -->
-            <button id="todayBanner" class="today-banner" type="button">
-                <i class="bi bi-calendar-heart"></i>
-                <span id="todayLabel"></span>
-            </button>
+            <!-- Today banner row: optional back arrow (left) + date label (flex-grow) -->
+            <div class="d-flex">
+                <a th:if="${calReturnTo != null and calClientId == null}"
+                   th:href="${calReturnTo}"
+                   class="today-banner today-back-btn"
+                   style="width:auto; flex-shrink:0; text-decoration:none;"
+                   aria-label="Назад">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <button id="todayBanner" class="today-banner flex-grow-1" type="button">
+                    <i class="bi bi-calendar-heart"></i>
+                    <span id="todayLabel"></span>
+                </button>
+            </div>
             <!-- Nav row: prev / period title / next / view switcher -->
             <div class="cal-nav-row">
                 <button class="cal-nav-btn" id="calPrev" type="button" aria-label="Попередній">
@@ -540,6 +569,8 @@
             const defaultView = isMobile() ? 'timeGridDay' : 'timeGridWeek';
             const savedView   = localStorage.getItem('fcView') || defaultView;
 
+            const hasBack = CAL_RETURN_TO && !CAL_CLIENT_ID;
+
             const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
                 initialView: savedView,
                 initialDate: INITIAL_DATE || undefined,
@@ -547,8 +578,15 @@
                 height:      'auto',
                 firstDay:    1,
 
+                customButtons: hasBack ? {
+                    backBtn: {
+                        text: '←',
+                        click: function() { window.location.href = CAL_RETURN_TO; }
+                    }
+                } : {},
+
                 headerToolbar: {
-                    left:   'prev,next today',
+                    left:   hasBack ? 'backBtn prev,next today' : 'prev,next today',
                     center: 'title',
                     right:  'timeGridDay,timeGridWeek,dayGridMonth'
                 },
