@@ -25,6 +25,7 @@ import java.util.ArrayList;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
@@ -54,6 +55,14 @@ public class VisitService {
     public boolean isLatestVisit(Long visitId, Long clientId) {
         return visitRepository.findFirstByClientIdOrderByVisitDateDescCreatedAtDesc(clientId)
                 .map(v -> v.getId().equals(visitId))
+                .orElse(false);
+    }
+
+    /** True if the client has any visit on or after the given date (overdue badge suppression). */
+    @Transactional(readOnly = true)
+    public boolean hasVisitOnOrAfter(Long clientId, java.time.LocalDate date) {
+        return visitRepository.findFirstByClientIdOrderByVisitDateDescCreatedAtDesc(clientId)
+                .map(v -> !v.getVisitDate().isBefore(date))
                 .orElse(false);
     }
 
@@ -269,7 +278,7 @@ public class VisitService {
         }
 
         cert.setStatus(GiftCertificateStatus.REDEEMED);
-        cert.setRedeemedAt(LocalDateTime.now());
+        cert.setRedeemedAt(LocalDateTime.now(ZoneId.of("Europe/Warsaw")));
         dto.setPaid(true);
     }
 

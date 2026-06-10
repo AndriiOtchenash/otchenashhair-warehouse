@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -66,7 +67,7 @@ public class AiAssistantService {
         List<StockDashboardRowDto> stock = stockService.getDashboard();
 
         List<StockMovement> recentMovements = stockService.findAllMovements().stream()
-                .filter(m -> m.getCreatedAt().isAfter(LocalDateTime.now().minusDays(30)))
+                .filter(m -> m.getCreatedAt().isAfter(LocalDateTime.now(ZoneId.of("Europe/Warsaw")).minusDays(30)))
                 .limit(20)
                 .toList();
 

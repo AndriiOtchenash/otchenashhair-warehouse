@@ -63,6 +63,43 @@ public class AppointmentController {
                 .stream().map(this::toCalendarEvent).toList();
     }
 
+    /** AJAX: check for the latest unresolved (overdue/no-show) appointment for a client.
+     *  Returns 200 + JSON when found, 204 when none. */
+    @GetMapping("/api/overdue-check")
+    @ResponseBody
+    public ResponseEntity<?> overdueCheck(@RequestParam Long clientId) {
+        return appointmentService.getLatestOverdueForClient(clientId)
+                .map(a -> {
+                    String svcName = "";
+                    if (a.getServiceId() != null) {
+                        try { svcName = salonServiceService.findById(a.getServiceId()).getName(); }
+                        catch (Exception ignored) {}
+                    }
+                    Map<String, Object> resp = new LinkedHashMap<>();
+                    resp.put("id",          a.getId());
+                    resp.put("clientId",    a.getClientId());
+                    resp.put("startAt",     a.getStartAt().toString());
+                    resp.put("serviceName", svcName);
+                    resp.put("status",      a.getStatus().name());
+                    return ResponseEntity.ok(resp);
+                })
+                .orElse(ResponseEntity.noContent().build());
+    }
+
+    /** AJAX: quickly resolve an overdue appointment (COMPLETED / NO_SHOW / CANCELLED) without redirect. */
+    @PostMapping("/{id}/resolve")
+    @ResponseBody
+    public ResponseEntity<Void> resolveOverdue(@PathVariable Long id,
+                                               @RequestParam AppointmentStatus status) {
+        if (status != AppointmentStatus.COMPLETED
+                && status != AppointmentStatus.NO_SHOW
+                && status != AppointmentStatus.CANCELLED) {
+            return ResponseEntity.badRequest().build();
+        }
+        appointmentService.changeStatus(id, status);
+        return ResponseEntity.ok().build();
+    }
+
     /** Drag-and-drop / resize reschedule endpoint. */
     @PostMapping("/{id}/reschedule")
     @ResponseBody
@@ -98,6 +135,7 @@ public class AppointmentController {
             model.addAttribute("clientLocked", true);
             model.addAttribute("lockedClientName", clientService.findById(clientId).getName());
         }
+        addOverdueWarning(clientId, model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
         addMissedAppointmentBanner(rebookedFromId, model);
@@ -122,6 +160,7 @@ public class AppointmentController {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
             addMissedAppointmentBanner(rebookedFromId, model);
+            addOverdueWarning(dto.getClientId(), model);
             return "clientcare/appointments/form";
         }
         if (dto.getStartAt() != null && dto.getStartAt().isBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")).minusMinutes(5))) {
@@ -131,6 +170,7 @@ public class AppointmentController {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
             addMissedAppointmentBanner(rebookedFromId, model);
+            addOverdueWarning(dto.getClientId(), model);
             return "clientcare/appointments/form";
         }
         Long appointmentId = appointmentService.save(dto);
@@ -302,6 +342,18 @@ public class AppointmentController {
             }
             model.addAttribute("lockedClientName", display);
         }
+    }
+
+    /** Checks for the latest unresolved appointment for a client and adds it to the model for the warning banner. */
+    private void addOverdueWarning(Long clientId, Model model) {
+        if (clientId == null) return;
+        appointmentService.getLatestOverdueForClient(clientId).ifPresent(a -> {
+            if (a.getServiceId() != null) {
+                try { a.setServiceName(salonServiceService.findById(a.getServiceId()).getName()); }
+                catch (Exception ignored) {}
+            }
+            model.addAttribute("overdueAppointment", a);
+        });
     }
 
     /** Loads the missed (NO_SHOW) appointment's startAt for the rebook banner. */

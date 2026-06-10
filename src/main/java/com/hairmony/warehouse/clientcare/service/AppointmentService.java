@@ -127,6 +127,14 @@ public class AppointmentService {
                 .stream().findFirst().map(this::toDto);
     }
 
+    /** All upcoming PLANNED/CONFIRMED appointments for a client, ordered by startAt ASC. */
+    @Transactional(readOnly = true)
+    public List<AppointmentDto> getAllUpcomingForClient(Long clientId) {
+        return appointmentRepository
+                .findUpcomingByClientId(clientId, LocalDateTime.now(ZoneId.of("Europe/Warsaw")), ACTIVE_STATUSES)
+                .stream().map(this::toDto).toList();
+    }
+
     /** Most-recent overdue appointment (PLANNED/CONFIRMED/NO_SHOW) for a client, or empty. */
     @Transactional(readOnly = true)
     public Optional<AppointmentDto> getLatestOverdueForClient(Long clientId) {

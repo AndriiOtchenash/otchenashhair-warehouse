@@ -6,6 +6,7 @@ import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.clientcare.web.dto.ClientFollowupDto;
 import com.hairmony.warehouse.clientcare.web.dto.LatestFollowUpDto;
 import com.hairmony.warehouse.clientcare.web.dto.UnresolvedVisitRowDto;
+import com.hairmony.warehouse.clientcare.web.dto.UpcomingSnoozeDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -13,6 +14,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -79,9 +83,28 @@ public class ClientCareFollowupController {
         List<UnresolvedVisitRowDto> unresolvedVisits = visitService.getClientsWithUnresolvedNextVisit();
         List<UnresolvedVisitRowDto> skippedVisits = visitService.getClientsWithSkippedNextVisit();
 
+        LocalDate today = LocalDate.now();
+        List<UpcomingSnoozeDto> upcomingSnoozes = snoozed.stream()
+                .map(c -> {
+                    LatestFollowUpDto fu = latestFollowUps.get(c.clientId());
+                    long daysUntil = (fu != null && fu.dueDate() != null)
+                            ? ChronoUnit.DAYS.between(today, fu.dueDate())
+                            : 0;
+                    return new UpcomingSnoozeDto(
+                            c.clientId(),
+                            c.clientName(),
+                            fu != null ? fu.note() : null,
+                            fu != null ? fu.dueDate() : null,
+                            daysUntil
+                    );
+                })
+                .sorted(Comparator.comparingLong(UpcomingSnoozeDto::daysUntil))
+                .collect(Collectors.toList());
+
         model.addAttribute("clients", active);
         model.addAttribute("snoozed", snoozed);
         model.addAttribute("done", done);
+        model.addAttribute("upcomingSnoozes", upcomingSnoozes);
         model.addAttribute("latestFollowUps", latestFollowUps);
         model.addAttribute("activityCounts", activityCounts);
         model.addAttribute("activeMinDays", minDays);

@@ -45,17 +45,33 @@
     <div class="section-label" th:text="#{clientcare.section.visits}">Візити</div>
     <div class="row g-3">
 
-        <!-- Пропущені візити -->
-        <div class="col-6 col-md-4">
+        <!-- Пропущені записи (PLANNED/CONFIRMED, дата пройшла) — скривається якщо 0 -->
+        <div class="col-6 col-md-4" th:if="${dashboard.overdueVisitCount > 0}">
             <a th:href="@{/clientcare/followups(visitFilter='overdue')}" class="text-decoration-none">
                 <div class="card kpi-card h-100 p-3" style="background:#f8d7da;">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <div class="kpi-number" style="color:#842029;" th:text="${dashboard.overdueVisitCount}">0</div>
-                            <div class="fw-600 mt-1" style="font-size:0.9rem;color:#842029;" th:text="#{clientcare.card.overdueVisit}">Пропущені візити</div>
-                            <div class="kpi-hint" style="color:#842029;" th:text="#{clientcare.card.overdueVisit.hint}">Дата пройшла, не прийшли</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;color:#842029;" th:text="#{clientcare.card.overdueVisit}">Пропущені записи</div>
+                            <div class="kpi-hint" style="color:#842029;" th:text="#{clientcare.card.overdueVisit.hint}">Дата пройшла, не підтверджено</div>
                         </div>
                         <i class="bi bi-calendar-x kpi-icon" style="color:#842029;"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Не прийшли (NO_SHOW без наступного запису) — скривається якщо 0 -->
+        <div class="col-6 col-md-4" th:if="${dashboard.noShowCount > 0}">
+            <a th:href="@{/clientcare/followups(visitFilter='overdue')}" class="text-decoration-none">
+                <div class="card kpi-card h-100 p-3" style="background:#fff0e6;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="kpi-number" style="color:#7d3c00;" th:text="${dashboard.noShowCount}">0</div>
+                            <div class="fw-600 mt-1" style="font-size:0.9rem;color:#7d3c00;" th:text="#{clientcare.card.noShow}">Не прийшли</div>
+                            <div class="kpi-hint" style="color:#7d3c00;" th:text="#{clientcare.card.noShow.hint}">NO_SHOW, без нового запису</div>
+                        </div>
+                        <i class="bi bi-person-x kpi-icon" style="color:#7d3c00;"></i>
                     </div>
                 </div>
             </a>

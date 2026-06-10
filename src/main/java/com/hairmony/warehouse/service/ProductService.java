@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -82,7 +84,7 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id));
         product.setActive(false);
-        product.setDeactivatedAt(java.time.LocalDateTime.now());
+        product.setDeactivatedAt(LocalDateTime.now(ZoneId.of("Europe/Warsaw")));
         String trimmed = (reason != null) ? reason.trim() : "";
         product.setDeactivationReason(trimmed.isEmpty() ? null : trimmed);
         // no save() needed — dirty checking handles it

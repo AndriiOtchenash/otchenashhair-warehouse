@@ -10,5 +10,6 @@ public record ClientCareDashboardDto(
         long repeatPossibleCount,
         long overdueVisitCount,
         long upcomingVisitCount,
-        long unpaidVisitCount
+        long unpaidVisitCount,
+        long noShowCount
 ) {}

@@ -8,6 +8,7 @@ import lombok.*;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Set;
 
 @Getter
@@ -78,7 +79,7 @@ public class AppointmentDto {
     /** True when the appointment window has passed but status was never resolved. */
     public boolean isPastUnresolved() {
         return endAt != null
-                && endAt.isBefore(LocalDateTime.now())
+                && endAt.isBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")))
                 && Set.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED).contains(status);
     }
 }
