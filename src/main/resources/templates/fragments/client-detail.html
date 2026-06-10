@@ -203,7 +203,7 @@
                         <div th:if="${upcomingAppointments != null and !upcomingAppointments.isEmpty()}"
                              class="d-flex flex-wrap gap-1">
                             <a th:each="appt : ${upcomingAppointments}"
-                               th:href="@{/clientcare/appointments(date=${#temporals.format(appt.startAt, 'yyyy-MM-dd')})}"
+                               th:href="@{/clientcare/appointments(date=${#temporals.format(appt.startAt, 'yyyy-MM-dd')},returnTo=${currentPageUrl})}"
                                class="text-decoration-none">
                                 <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#d1e7dd;color:#0a3622">
                                     <i class="bi bi-calendar-check-fill"></i>
@@ -213,7 +213,7 @@
                             </a>
                         </div>
                         <div th:if="${overdueAppointment != null}">
-                            <a th:href="@{/clientcare/appointments(date=${#temporals.format(overdueAppointment.startAt, 'yyyy-MM-dd')})}"
+                            <a th:href="@{/clientcare/appointments(date=${#temporals.format(overdueAppointment.startAt, 'yyyy-MM-dd')},returnTo=${currentPageUrl})}"
                                class="text-decoration-none">
                                 <th:block th:if="${overdueAppointment.status?.name() == 'NO_SHOW'}">
                                     <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#ffe8d6;color:#7d3a00">

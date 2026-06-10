@@ -63,7 +63,7 @@
 
         <!-- Не прийшли (NO_SHOW без наступного запису) — скривається якщо 0 -->
         <div class="col-6 col-md-4" th:if="${dashboard.noShowCount > 0}">
-            <a th:href="@{/clientcare/followups(visitFilter='overdue')}" class="text-decoration-none">
+            <a th:href="@{/clientcare/followups(visitFilter='noshow')}" class="text-decoration-none">
                 <div class="card kpi-card h-100 p-3" style="background:#fff0e6;">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
