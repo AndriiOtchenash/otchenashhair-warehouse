@@ -28,6 +28,14 @@ public class MovementController {
 
     @GetMapping("/movements/history")
     public String history(MovementFilterDto filter, Model model) {
+        if (filter.getDateFrom() == null && filter.getDateTo() == null
+                && filter.getMovementType() == null && filter.getWriteOffReason() == null
+                && filter.getProductId() == null
+                && (filter.getProductName() == null || filter.getProductName().isBlank())
+                && (filter.getCounterparty() == null || filter.getCounterparty().isBlank())
+                && filter.getPage() == 0) {
+            filter.setDateFrom(LocalDate.now().withDayOfMonth(1));
+        }
         if (filter.getDateFrom() != null && filter.getDateTo() != null
                 && filter.getDateTo().isBefore(filter.getDateFrom())) {
             LocalDate tmp = filter.getDateFrom();

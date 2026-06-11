@@ -50,6 +50,9 @@ public class VisitController {
                           @RequestParam(required = false) Long serviceId,
                           @RequestParam(required = false) Boolean paid,
                           Model model) {
+        if (from == null && to == null && serviceId == null && paid == null && clientId == null) {
+            from = LocalDate.now().withDayOfMonth(1);
+        }
         if (from != null && to != null && to.isBefore(from)) {
             LocalDate tmp = from; from = to; to = tmp;
         }
