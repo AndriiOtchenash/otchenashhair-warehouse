@@ -241,8 +241,7 @@
                                           th:text="#{followup.signal.visit.upcoming(${c.daysUntilNextVisit()})}">Візит: через N дн</span>
                                     <!-- Purchase signal -->
                                     <span th:if="${c.hasPurchaseSignal()}"
-                                          class="days-badge"
-                                          th:classappend="${c.daysSinceLastPurchase() > 60} ? 'days-urgent' : (${c.daysSinceLastPurchase() > 30} ? 'days-warn' : 'days-ok')"
+                                          class="days-badge days-ok"
                                           th:text="#{followup.signal.purchase(${c.daysSinceLastPurchase()})}">Покупка: N дн</span>
                                 </div>
                             </td>
