@@ -19,6 +19,7 @@
     <div class="card mb-3">
         <div class="card-body py-2">
             <form method="get" th:action="@{/clientcare/visits}" id="filterForm">
+                <input type="hidden" id="resetInput" name="reset" value="">
                 <div class="row g-2 align-items-end">
 
                     <!-- Date range -->
@@ -32,7 +33,7 @@
                                        onclick="this.showPicker&&this.showPicker()"/>
                                 <button type="button" class="btn btn-outline-secondary d-md-none px-1"
                                         id="clearFromBtn" style="display:none"
-                                        onclick="document.querySelector('[name=from]').value=''; this.closest('.input-group').classList.remove('filter-active'); this.style.display='none'; document.getElementById('filterForm').submit();">
+                                        onclick="document.querySelector('[name=from]').value=''; this.closest('.input-group').classList.remove('filter-active'); this.style.display='none'; document.getElementById('resetInput').value='1'; document.getElementById('filterForm').submit();">
                                     <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
                                 </button>
                             </div>
@@ -44,7 +45,7 @@
                                        onclick="this.showPicker&&this.showPicker()"/>
                                 <button type="button" class="btn btn-outline-secondary d-md-none px-1"
                                         id="clearToBtn" style="display:none"
-                                        onclick="document.querySelector('[name=to]').value=''; this.closest('.input-group').classList.remove('filter-active'); this.style.display='none'; document.getElementById('filterForm').submit();">
+                                        onclick="document.querySelector('[name=to]').value=''; this.closest('.input-group').classList.remove('filter-active'); this.style.display='none'; document.getElementById('resetInput').value='1'; document.getElementById('filterForm').submit();">
                                     <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
                                 </button>
                             </div>
@@ -111,9 +112,9 @@
                             <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
                         </button>
                     </div>
-                    <a th:href="@{/clientcare/visits}" id="clearAllBtn"
+                    <a th:href="@{/clientcare/visits(reset=1)}" id="clearAllBtn"
                        class="btn btn-outline-secondary btn-sm"
-                       style="flex-shrink:0; white-space:nowrap"
+                       style="flex-shrink:0; white-space:nowrap; font-size:0.65rem"
                        th:style="${srvFilterCount == 0} ? 'display:none'">
                         <i class="bi bi-funnel"></i>
                         <span th:text="#{btn.reset}">Скинути</span><span id="clearAllCountSpan" th:text="${srvFilterCount > 0} ? ${' (' + srvFilterCount + ')'} : ''"></span>
@@ -133,6 +134,9 @@
             <span th:text="#{visit.journal.kpi.unpaid}">Не оплачено</span>:
             <strong th:text="${kpiUnpaid}" style="display:inline-flex;align-items:center;justify-content:center;background:#f8d7da;color:#842029;border-radius:50%;min-width:1.4em;height:1.4em;font-size:0.82rem;vertical-align:middle;padding:0 0.2em">0</strong>
         </th:block>
+        <span th:if="${from != null or to != null or serviceId != null or paid != null}"
+              class="ms-1 badge rounded-pill bg-warning text-dark"
+              th:text="#{movements.filtered}">з фільтром</span>
     </div>
 
     <!-- Empty state -->
