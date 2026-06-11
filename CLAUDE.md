@@ -378,6 +378,21 @@ to avoid `.fc-daygrid-dot-event` transparent-background issue.
 - Production: https://otchenashhair-warehouse.fly.dev/
 - Platform: Fly.io (Amsterdam region, 1 shared machine, 512MB RAM)
 - Database: Neon PostgreSQL (eu-central-1, Frankfurt)
+
+### JVM memory tuning (Dockerfile)
+Machine has 512MB RAM. JVM flags must be explicit — without limits Metaspace and Code Cache grow unbounded and trigger OOM kill.
+Current flags: `-Xmx180m -Xms64m -XX:MaxMetaspaceSize=120m -XX:ReservedCodeCacheSize=64m -XX:+UseSerialGC -Xss256k`
+
+Memory budget:
+- Heap: 180MB (max)
+- Metaspace: 120MB (cap — Spring+Hibernate+Thymeleaf ~80-100MB at runtime)
+- Code cache: 64MB (cap — JIT compiled code)
+- Thread stacks: ~8MB (256KB × ~30 Tomcat threads)
+- JVM native overhead: ~20MB
+- **Total: ~390MB**, leaving ~120MB headroom
+
+**OOM root cause (2026-06-11):** GitHub Actions cron woke up suspended machine → cold JVM startup spike (class loading fills Metaspace fast) → OOM kill at 8s after start. Capped Metaspace + SerialGC (no G1GC region pre-allocation) + lower `-Xms` fixes the startup peak.
+If `OutOfMemoryError: Metaspace` appears in logs → raise `-XX:MaxMetaspaceSize` to 140m.
 - CI/CD: GitHub Actions
   - test.yml — triggers on push to develop and PRs to master; runs ./mvnw test (unit tests only, no DB required)
   - deploy.yml — triggers on push to master; runs unit tests first, then builds Docker image and deploys to Fly.io
