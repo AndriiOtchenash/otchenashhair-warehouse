@@ -49,8 +49,9 @@ public class VisitController {
                           @RequestParam(required = false) Long clientId,
                           @RequestParam(required = false) Long serviceId,
                           @RequestParam(required = false) Boolean paid,
+                          @RequestParam(required = false) String reset,
                           Model model) {
-        if (from == null && to == null && serviceId == null && paid == null && clientId == null) {
+        if (reset == null && from == null && to == null && serviceId == null && paid == null && clientId == null) {
             from = LocalDate.now().withDayOfMonth(1);
         }
         if (from != null && to != null && to.isBefore(from)) {

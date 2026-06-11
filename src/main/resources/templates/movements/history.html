@@ -4,31 +4,6 @@
 <body>
 <div th:fragment="content">
     <style>
-        .filter-active {
-            border: 2px solid var(--accent, #4f46e5) !important;
-            background-color: var(--accent-light, #eef0ff) !important;
-        }
-        @media (max-width: 767.98px) {
-            .filter-field-inline {
-                display: flex;
-                align-items: center;
-                gap: 0.4rem;
-            }
-            .filter-field-inline > label {
-                margin-bottom: 0 !important;
-                flex-shrink: 0;
-                white-space: nowrap;
-            }
-            .filter-field-inline > .input-group,
-            .filter-field-inline > input,
-            .filter-field-inline > select {
-                flex: 1;
-                min-width: 0;
-            }
-            .filter-field-inline > button {
-                flex-shrink: 0;
-            }
-        }
         thead.table-light { --bs-table-bg: var(--accent-light); }
         .table th {
             font-size: 0.65rem !important;
@@ -64,88 +39,46 @@
 
     <!-- Filters -->
     <form id="filterForm" method="get" action="/movements/history" class="card mb-3">
-        <div class="card-body pb-2">
-            <!-- Row 1: text search fields -->
-            <div class="row g-2 mb-2">
-                <div class="col-12 col-md-6">
-                    <div class="filter-field-inline">
-                        <label class="form-label form-label-sm fw-semibold mb-1" th:text="#{stock.form.product}">Товар</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" id="productNameInput"
-                                   name="productName"
-                                   th:value="${filter.productName}"
-                                   th:placeholder="#{common.search}"/>
-                            <button type="button" class="btn btn-outline-secondary d-md-none"
-                                    onclick="clearSearch('productNameInput')" tabindex="-1"
-                                    id="clearProductBtn"
-                                    th:style="${filter.productName != null and !filter.productName.isEmpty()} ? '' : 'display:none'">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <small class="filter-min-hint fw-semibold" style="display:none; font-size:0.8rem; color:#e67e22">
-                        <i class="bi bi-info-circle me-1"></i><span th:text="#{movements.filter.minChars}">мін. 3 символи</span>
-                    </small>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="filter-field-inline">
-                        <label class="form-label form-label-sm fw-semibold mb-1" th:text="#{movements.filter.counterparty}">Контрагент</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" id="counterpartyInput"
-                                   name="counterparty"
-                                   th:value="${filter.counterparty}"
-                                   th:placeholder="#{movements.filter.counterparty.hint}"/>
-                            <button type="button" class="btn btn-outline-secondary d-md-none"
-                                    onclick="clearSearch('counterpartyInput')" tabindex="-1"
-                                    id="clearCounterpartyBtn"
-                                    th:style="${filter.counterparty != null and !filter.counterparty.isEmpty()} ? '' : 'display:none'">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <small class="filter-min-hint fw-semibold" style="display:none; font-size:0.8rem; color:#e67e22">
-                        <i class="bi bi-info-circle me-1"></i><span th:text="#{movements.filter.minChars}">мін. 3 символи</span>
-                    </small>
-                </div>
-            </div>
-            <!-- Row 2: date / type / reset -->
+        <input type="hidden" id="resetInput" name="reset" value="">
+        <div class="card-body py-2">
             <div class="row g-2 align-items-end">
-                <div class="col-6 col-md-auto">
-                    <div class="filter-field-inline">
-                        <label class="form-label form-label-sm fw-semibold mb-1" th:text="#{movements.filter.dateFrom}">Від</label>
-                        <input type="date" class="form-control form-control-sm"
-                               id="dateFromInput" name="dateFrom"
-                               th:value="${filter.dateFrom}"
-                               onclick="try{this.showPicker()}catch(e){}"/>
-                        <button th:if="${filter.dateFrom != null}"
-                                type="button" tabindex="-1"
-                                class="btn btn-outline-secondary btn-sm d-md-none px-1"
-                                onclick="clearDateField('dateFromInput')">
-                            <i class="bi bi-x-lg" style="font-size:0.65rem"></i>
-                        </button>
+
+                <!-- Date range (visits-style inline labels) -->
+                <div class="col-12 col-md-5">
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="form-label form-label-sm fw-semibold flex-shrink-0 mb-0" th:text="#{movements.filter.dateFrom}">Від</span>
+                        <div class="input-group input-group-sm flex-grow-1" id="dateFromWrap"
+                             th:classappend="${filter.dateFrom != null} ? 'filter-active'">
+                            <input type="date" name="dateFrom" class="form-control form-control-sm"
+                                   id="dateFromInput" th:value="${filter.dateFrom}"
+                                   onclick="try{this.showPicker()}catch(e){}"/>
+                            <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                                    id="clearFromBtn" style="display:none"
+                                    onclick="document.getElementById('dateFromInput').value=''; document.getElementById('dateFromWrap').classList.remove('filter-active'); this.style.display='none'; document.getElementById('resetInput').value='1'; syncClearAllBtn(); submitFilter();">
+                                <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                            </button>
+                        </div>
+                        <span class="form-label form-label-sm fw-semibold flex-shrink-0 mb-0" th:text="#{movements.filter.dateTo}">До</span>
+                        <div class="input-group input-group-sm flex-grow-1" id="dateToWrap"
+                             th:classappend="${filter.dateTo != null} ? 'filter-active'">
+                            <input type="date" name="dateTo" class="form-control form-control-sm"
+                                   id="dateToInput" th:value="${filter.dateTo}"
+                                   onclick="try{this.showPicker()}catch(e){}"/>
+                            <button type="button" class="btn btn-outline-secondary d-md-none px-1"
+                                    id="clearToBtn" style="display:none"
+                                    onclick="document.getElementById('dateToInput').value=''; document.getElementById('dateToWrap').classList.remove('filter-active'); this.style.display='none'; document.getElementById('resetInput').value='1'; syncClearAllBtn(); submitFilter();">
+                                <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-auto">
-                    <div class="filter-field-inline">
-                        <label class="form-label form-label-sm fw-semibold mb-1" th:text="#{movements.filter.dateTo}">До</label>
-                        <input type="date" class="form-control form-control-sm"
-                               id="dateToInput" name="dateTo"
-                               th:value="${filter.dateTo}"
-                               onclick="try{this.showPicker()}catch(e){}"/>
-                        <button th:if="${filter.dateTo != null}"
-                                type="button" tabindex="-1"
-                                class="btn btn-outline-secondary btn-sm d-md-none px-1"
-                                onclick="clearDateField('dateToInput')">
-                            <i class="bi bi-x-lg" style="font-size:0.65rem"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="col-12 col-md-auto">
-                    <div class="filter-field-inline">
-                        <label class="form-label form-label-sm fw-semibold mb-1" th:text="#{stock.form.movementType}">Тип</label>
-                        <select class="form-select form-select-sm" name="movementType">
+
+                <!-- Movement type -->
+                <div class="col-6 col-md-3">
+                    <div class="filter-select-wrap" id="typeWrap"
+                         th:classappend="${filter.movementType != null} ? 'filter-active'">
+                        <select class="form-select form-select-sm" name="movementType"
+                                onchange="submitFilter()">
                             <option value="" th:text="#{movements.filter.allTypes}">Всі типи</option>
                             <option th:each="t : ${movementTypes}"
                                     th:value="${t}"
@@ -153,45 +86,88 @@
                                     th:selected="${filter.movementType == t}">
                             </option>
                         </select>
-                        <button th:if="${filter.movementType != null}"
-                                type="button" tabindex="-1"
-                                class="btn btn-outline-secondary btn-sm d-md-none px-1"
-                                onclick="clearTypeFilter()">
-                            <i class="bi bi-x-lg" style="font-size:0.65rem"></i>
+                        <button type="button" class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                tabindex="-1"
+                                th:style="${filter.movementType != null} ? '' : 'display:none'"
+                                onclick="document.querySelector('[name=movementType]').value=''; submitFilter();">
+                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
                         </button>
                     </div>
                 </div>
-                <div class="col-12 col-md-auto" id="writeOffReasonFilterCol">
-                    <div class="filter-field-inline">
-                        <label class="form-label form-label-sm fw-semibold mb-1" th:text="#{movements.filter.writeOffReason}">Причина</label>
-                        <select class="form-select form-select-sm" name="writeOffReason">
-                            <option value="">—</option>
+
+                <!-- Write-off reason -->
+                <div class="col-6 col-md-2" id="writeOffReasonFilterCol">
+                    <div class="filter-select-wrap" id="writeOffWrap"
+                         th:classappend="${filter.writeOffReason != null} ? 'filter-active'">
+                        <select class="form-select form-select-sm" name="writeOffReason"
+                                onchange="submitFilter()">
+                            <option value="" th:text="#{movements.filter.writeOffReason.placeholder}">Списання через</option>
                             <option th:each="r : ${writeOffReasons}"
                                     th:value="${r}"
                                     th:text="#{writeOffReason.__${r}__}"
                                     th:selected="${filter.writeOffReason == r}">
                             </option>
                         </select>
-                        <button th:if="${filter.writeOffReason != null}"
-                                type="button" tabindex="-1"
-                                class="btn btn-outline-secondary btn-sm d-md-none px-1"
-                                onclick="clearWriteOffReasonFilter()">
-                            <i class="bi bi-x-lg" style="font-size:0.65rem"></i>
+                        <button type="button" class="btn btn-outline-secondary btn-sm d-md-none px-1"
+                                tabindex="-1"
+                                th:style="${filter.writeOffReason != null} ? '' : 'display:none'"
+                                onclick="document.querySelector('[name=writeOffReason]').value=''; submitFilter();">
+                            <i class="bi bi-x-lg" style="font-size:0.89rem"></i>
                         </button>
                     </div>
                 </div>
-                <div class="col-auto d-flex align-items-end"
-                     th:with="filterCount=${(filter.productName != null and !filter.productName.isEmpty() ? 1 : 0) +
-                                           (filter.counterparty != null and !filter.counterparty.isEmpty() ? 1 : 0) +
-                                           (filter.dateFrom != null ? 1 : 0) +
-                                           (filter.dateTo != null ? 1 : 0) +
-                                           (filter.movementType != null ? 1 : 0) +
-                                           (filter.writeOffReason != null ? 1 : 0)}">
-                    <a th:if="${filterCount > 0}" href="/movements/history" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-funnel"></i>
-                        <span th:text="#{btn.reset}">Скинути</span><span th:text="${' (' + filterCount + ')'}"></span>
-                    </a>
+
+            </div>
+
+            <!-- Row 3: Counterparty search -->
+            <div class="mt-2 d-flex align-items-center gap-2">
+                <div class="input-group input-group-sm" style="flex:1; min-width:0" id="counterpartySearchWrap"
+                     th:classappend="${filter.counterparty != null and !filter.counterparty.isEmpty()} ? 'filter-active'">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="counterpartyInput"
+                           name="counterparty" th:value="${filter.counterparty}"
+                           th:placeholder="#{movements.filter.counterparty}"/>
+                    <button type="button" class="btn btn-outline-secondary px-1"
+                            id="clearCounterpartyBtn" tabindex="-1"
+                            th:style="${filter.counterparty != null and !filter.counterparty.isEmpty()} ? '' : 'display:none'"
+                            onclick="clearSearch('counterpartyInput')">
+                        <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                    </button>
                 </div>
+            </div>
+
+            <!-- Row 4: Product search + Reset button -->
+            <div class="mt-1 d-flex align-items-center gap-2">
+                <div class="input-group input-group-sm" style="flex:1; min-width:0" id="productSearchWrap"
+                     th:classappend="${filter.productName != null and !filter.productName.isEmpty()} ? 'filter-active'">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="productNameInput"
+                           name="productName" th:value="${filter.productName}"
+                           th:placeholder="#{stock.form.product}"/>
+                    <button type="button" class="btn btn-outline-secondary px-1"
+                            id="clearProductBtn" tabindex="-1"
+                            th:style="${filter.productName != null and !filter.productName.isEmpty()} ? '' : 'display:none'"
+                            onclick="clearSearch('productNameInput')">
+                        <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                    </button>
+                </div>
+                <a href="/movements/history?reset=1" id="clearAllBtn"
+                   class="btn btn-outline-secondary btn-sm"
+                   style="flex-shrink:0; white-space:nowrap; font-size:0.65rem"
+                   th:style="${(filter.productName != null and !filter.productName.isEmpty()) or
+                               (filter.counterparty != null and !filter.counterparty.isEmpty()) or
+                               filter.dateFrom != null or filter.dateTo != null or
+                               filter.movementType != null or filter.writeOffReason != null} ? '' : 'display:none'">
+                    <i class="bi bi-funnel"></i>
+                    <span th:text="#{btn.reset}">Скинути</span><span id="clearAllCountSpan"></span>
+                </a>
+            </div>
+
+            <!-- Min chars hint -->
+            <div id="minCharsHint" style="display:none" class="mt-1">
+                <small class="fw-semibold" style="font-size:0.8rem; color:#e67e22">
+                    <i class="bi bi-info-circle me-1"></i><span th:text="#{movements.filter.minChars}">мін. 3 символи</span>
+                </small>
             </div>
         </div>
     </form>
@@ -432,74 +408,69 @@
             document.getElementById('filterForm').submit();
         }
 
-        function clearTypeFilter() {
-            var sel = document.querySelector('select[name="movementType"]');
-            if (sel) { sel.value = ''; }
-            submitFilter();
-        }
-
-        function clearWriteOffReasonFilter() {
-            var sel = document.querySelector('select[name="writeOffReason"]');
-            if (sel) { sel.value = ''; }
-            submitFilter();
-        }
-
-        function clearDateField(inputId) {
-            var el = document.getElementById(inputId);
-            if (el) { el.value = ''; }
-            submitFilter();
-        }
-
         function clearSearch(inputId) {
             var input = document.getElementById(inputId);
             if (input) { input.value = ''; }
-            var clearBtnId = inputId === 'productNameInput' ? 'clearProductBtn' : 'clearCounterpartyBtn';
-            var btn = document.getElementById(clearBtnId);
-            if (btn) { btn.style.display = 'none'; }
+            var btnId  = inputId === 'productNameInput' ? 'clearProductBtn'  : 'clearCounterpartyBtn';
+            var wrapId = inputId === 'productNameInput' ? 'productSearchWrap' : 'counterpartySearchWrap';
+            var btn  = document.getElementById(btnId);
+            var wrap = document.getElementById(wrapId);
+            if (btn)  btn.style.display = 'none';
+            if (wrap) wrap.classList.remove('filter-active');
+            syncClearAllBtn();
             submitFilter();
+        }
+
+        function countActiveFilters() {
+            var n = 0;
+            var from        = document.getElementById('dateFromInput');
+            var to          = document.getElementById('dateToInput');
+            var type        = document.querySelector('[name=movementType]');
+            var reason      = document.querySelector('[name=writeOffReason]');
+            var product     = document.getElementById('productNameInput');
+            var counterpart = document.getElementById('counterpartyInput');
+            if (from        && from.value)        n++;
+            if (to          && to.value)          n++;
+            if (type        && type.value)        n++;
+            if (reason      && reason.value)      n++;
+            if (product     && product.value)     n++;
+            if (counterpart && counterpart.value) n++;
+            return n;
+        }
+
+        function syncClearAllBtn() {
+            var btn      = document.getElementById('clearAllBtn');
+            var countSpan = document.getElementById('clearAllCountSpan');
+            if (!btn) return;
+            var n = countActiveFilters();
+            btn.style.display = n > 0 ? '' : 'none';
+            if (countSpan) countSpan.textContent = n > 0 ? ' (' + n + ')' : '';
         }
 
         (function () {
             var form = document.getElementById('filterForm');
             if (!form) return;
 
-            var fields = form.querySelectorAll('input[name], select[name]');
+            // Show × on date inputs if server pre-filled
+            var fromInput = document.getElementById('dateFromInput');
+            var toInput   = document.getElementById('dateToInput');
+            if (fromInput && fromInput.value) document.getElementById('clearFromBtn').style.display = '';
+            if (toInput   && toInput.value)   document.getElementById('clearToBtn').style.display   = '';
 
-            function updateFilters() {
-                fields.forEach(function (el) {
-                    if (el.value !== '') {
-                        el.classList.add('filter-active');
-                    } else {
-                        el.classList.remove('filter-active');
-                    }
-                });
+            syncClearAllBtn();
+
+            // filter-active on text search wrappers
+            function syncTextActive() {
+                var p = document.getElementById('productNameInput');
+                var pw = document.getElementById('productSearchWrap');
+                if (p && pw) { if (p.value) pw.classList.add('filter-active'); else pw.classList.remove('filter-active'); }
+                var c = document.getElementById('counterpartyInput');
+                var cw = document.getElementById('counterpartySearchWrap');
+                if (c && cw) { if (c.value) cw.classList.add('filter-active'); else cw.classList.remove('filter-active'); }
             }
+            syncTextActive();
 
-            fields.forEach(function (el) {
-                el.addEventListener('input', updateFilters);
-                el.addEventListener('change', updateFilters);
-            });
-            updateFilters();
-
-            // × button visibility for text inputs
-            [{input: 'productNameInput', btn: 'clearProductBtn'},
-             {input: 'counterpartyInput', btn: 'clearCounterpartyBtn'}]
-                .forEach(function (pair) {
-                    var input = document.getElementById(pair.input);
-                    var btn = document.getElementById(pair.btn);
-                    if (input && btn) {
-                        input.addEventListener('input', function () {
-                            btn.style.display = this.value ? '' : 'none';
-                        });
-                    }
-                });
-
-            // Auto-submit: selects → immediately
-            form.querySelectorAll('select[name]').forEach(function (el) {
-                el.addEventListener('change', function () { submitFilter(); });
-            });
-
-            // Sync min/max on date range inputs to prevent invalid ranges
+            // Sync min/max on date range inputs
             function syncDateRange(changedId) {
                 var fromEl = document.getElementById('dateFromInput');
                 var toEl   = document.getElementById('dateToInput');
@@ -513,18 +484,35 @@
             }
             syncDateRange(null);
 
-            // Auto-submit: date inputs → on change (fires immediately after picker selection)
+            // Auto-submit: date inputs → on change
             form.querySelectorAll('input[type="date"]').forEach(function (el) {
-                el.addEventListener('change', function () { syncDateRange(this.id); submitFilter(); });
+                el.addEventListener('change', function () {
+                    syncDateRange(this.id);
+                    var wrapId = this.id === 'dateFromInput' ? 'dateFromWrap' : 'dateToWrap';
+                    var btnId  = this.id === 'dateFromInput' ? 'clearFromBtn' : 'clearToBtn';
+                    var wrap = document.getElementById(wrapId);
+                    var btn  = document.getElementById(btnId);
+                    if (wrap) { if (this.value) wrap.classList.add('filter-active'); else wrap.classList.remove('filter-active'); }
+                    if (btn)  btn.style.display = this.value ? '' : 'none';
+                    syncClearAllBtn();
+                    submitFilter();
+                });
             });
 
-            // Auto-submit: text inputs → debounced 500ms, min 3 chars (or empty to reset)
+            // Auto-submit: text inputs → debounced 500ms, min 3 chars
             var debounceTimer;
+            var minHint = document.getElementById('minCharsHint');
             form.querySelectorAll('input[type="text"]').forEach(function (el) {
-                var hint = el.closest('[class*="col-"]') && el.closest('[class*="col-"]').querySelector('.filter-min-hint');
                 el.addEventListener('input', function () {
                     var val = this.value;
-                    if (hint) hint.style.display = (val.length > 0 && val.length < 3) ? '' : 'none';
+                    if (minHint) minHint.style.display = (val.length > 0 && val.length < 3) ? '' : 'none';
+                    var btnId  = this.id === 'productNameInput' ? 'clearProductBtn'  : 'clearCounterpartyBtn';
+                    var wrapId = this.id === 'productNameInput' ? 'productSearchWrap' : 'counterpartySearchWrap';
+                    var btn  = document.getElementById(btnId);
+                    var wrap = document.getElementById(wrapId);
+                    if (btn)  btn.style.display = val ? '' : 'none';
+                    if (wrap) { if (val) wrap.classList.add('filter-active'); else wrap.classList.remove('filter-active'); }
+                    syncClearAllBtn();
                     if (val.length > 0 && val.length < 3) return;
                     clearTimeout(debounceTimer);
                     var inputId = this.id;
@@ -544,7 +532,7 @@
                     focusEl.focus();
                     var v = focusEl.value;
                     focusEl.value = '';
-                    focusEl.value = v; // moves cursor to end
+                    focusEl.value = v;
                 }
             }
         })();

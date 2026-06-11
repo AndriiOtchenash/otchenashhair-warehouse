@@ -27,8 +27,11 @@ public class MovementController {
     private final ClientService clientService;
 
     @GetMapping("/movements/history")
-    public String history(MovementFilterDto filter, Model model) {
-        if (filter.getDateFrom() == null && filter.getDateTo() == null
+    public String history(MovementFilterDto filter,
+                          @org.springframework.web.bind.annotation.RequestParam(required = false) String reset,
+                          Model model) {
+        if (reset == null
+                && filter.getDateFrom() == null && filter.getDateTo() == null
                 && filter.getMovementType() == null && filter.getWriteOffReason() == null
                 && filter.getProductId() == null
                 && (filter.getProductName() == null || filter.getProductName().isBlank())
