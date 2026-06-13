@@ -158,9 +158,9 @@
                     <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
                 </button>
             </div>
+            <!-- Reset all filters — visible only when ≥1 filter is active -->
             <button type="button" id="resetFiltersBtn"
-                    class="btn btn-outline-secondary btn-sm"
-                    style="display:none"
+                    class="btn btn-outline-secondary btn-sm" style="display:none"
                     onclick="resetAllFilters()">
                 <i class="bi bi-funnel"></i>
                 <span th:text="#{btn.reset}">Скинути</span><span id="resetFilterCount"></span>
