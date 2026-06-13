@@ -64,6 +64,7 @@ public class ReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             Model model) {
 
+        if (preset == null) preset = "ALL_TIME";
         ReportPeriod period = resolvePeriod(preset, from, to);
         Map<String, Object> trends = reportService.getTrends(period.getFrom(), period.getTo());
 

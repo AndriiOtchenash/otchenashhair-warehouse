@@ -146,20 +146,19 @@
 
         </div>
 
-        <!-- Row 2: Search -->
-        <div class="input-group input-group-sm" id="searchGroup">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="text" name="search" id="searchInput" class="form-control"
-                   th:placeholder="#{dashboard.filter.search}"
-                   oninput="filterSearch(this.value); toggleClearBtn(this)"/>
-            <button type="button" class="btn btn-outline-secondary d-md-none"
-                    onclick="clearSearch()" tabindex="-1" style="display:none">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-
-        <!-- Reset all filters — visible only when ≥1 filter is active -->
-        <div class="mt-2">
+        <!-- Row 2: Search + Reset -->
+        <div class="d-flex align-items-center gap-2">
+            <div class="input-group input-group-sm" id="searchGroup" style="flex:1; min-width:0">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" name="search" id="searchInput" class="form-control"
+                       th:placeholder="#{dashboard.filter.search}"
+                       oninput="filterSearch(this.value); toggleClearBtn(this)"/>
+                <button type="button" class="btn btn-outline-secondary px-1"
+                        onclick="clearSearch()" tabindex="-1" style="display:none">
+                    <i class="bi bi-x-lg" style="font-size:0.8rem"></i>
+                </button>
+            </div>
+            <!-- Reset all filters — visible only when ≥1 filter is active -->
             <button type="button" id="resetFiltersBtn"
                     class="btn btn-outline-secondary btn-sm" style="display:none"
                     onclick="resetAllFilters()">
