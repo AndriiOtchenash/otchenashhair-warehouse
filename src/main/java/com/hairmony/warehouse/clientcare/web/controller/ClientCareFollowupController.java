@@ -47,8 +47,8 @@ public class ClientCareFollowupController {
                     if (fu != null && (fu.isActiveSnoozed() || fu.isRecentlyDone())) return false;
                     // Purchase filter: must have a purchase AND it must be old enough
                     if (minDays > 0 && (!c.hasPurchaseSignal() || c.daysSinceLastPurchase() < minDays)) return false;
-                    // Purchase upper bound: exclude clients with purchase signal older than maxDays
-                    if (maxDays > 0 && c.hasPurchaseSignal() && c.daysSinceLastPurchase() > maxDays) return false;
+                    // Purchase upper bound: must have purchase AND it must be recent enough
+                    if (maxDays > 0 && (!c.hasPurchaseSignal() || c.daysSinceLastPurchase() > maxDays)) return false;
                     // Visit filter: independent of purchase filter
                     return switch (visitFilter) {
                         case "overdue"   -> (c.visitOverdue() || c.visitTodayOverdue()) && !c.visitIsNoShow();
