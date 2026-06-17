@@ -247,6 +247,7 @@
             }
 
             .fc-daygrid-day-frame { cursor: pointer; }
+            .cal-context-banner { align-items: flex-start; }
 
 
             .fc-more-link {
@@ -294,13 +295,15 @@
 
     <!-- Context banner — visible when booking for a specific client -->
     <div th:if="${calClientId != null}" class="cal-context-banner">
-        <span>
-            <i class="bi bi-person-check me-1"></i>
-            <span th:text="#{appointments.calendar.pickSlot}">Оберіть час для запису</span>
-            <strong th:if="${calClientName != null}" th:text="': ' + ${calClientName}"></strong>
-        </span>
+        <div class="d-flex flex-column flex-md-row align-items-md-center gap-md-1">
+            <div>
+                <i class="bi bi-person-check me-1"></i>
+                <span th:text="#{appointments.calendar.pickSlot}">Оберіть час для запису</span><span th:if="${calClientName != null}"> :</span>
+            </div>
+            <strong th:if="${calClientName != null}" th:text="${calClientName}"></strong>
+        </div>
         <a th:href="${calReturnTo != null} ? ${calReturnTo} : '/clientcare/clients/' + ${calClientId}"
-           class="btn btn-outline-secondary btn-sm"
+           class="btn btn-outline-secondary btn-sm flex-shrink-0"
            th:text="#{btn.cancel}">Скасувати</a>
     </div>
 

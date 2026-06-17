@@ -23,12 +23,12 @@ public class ReminderService {
     private static final List<AppointmentStatus> REMINDER_STATUSES =
             List.of(AppointmentStatus.PLANNED, AppointmentStatus.CONFIRMED);
 
-    private static final String[] UA_DAYS = {
-            "неділя", "понеділок", "вівторок", "середа", "четвер", "п'ятниця", "субота"
+    private static final String[] PL_DAYS = {
+            "niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"
     };
-    private static final String[] UA_MONTHS = {
-            "січня", "лютого", "березня", "квітня", "травня", "червня",
-            "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"
+    private static final String[] PL_MONTHS = {
+            "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+            "lipca", "sierpnia", "września", "października", "listopada", "grudnia"
     };
 
     private final AppointmentRepository appointmentRepository;
@@ -51,26 +51,26 @@ public class ReminderService {
             String timeStr = formatTime(a.getStartAt());
 
             if (a.getClient().getTelegramChatId() != null) {
-                String text = "🌿 <b>Нагадуємо: завтра ваш візит!</b>\n" +
+                String text = "🌿 <b>Przypomnienie: jutro Twoja wizyta!</b>\n" +
                         "📅 " + dateStr + "\n" +
                         "🕐 " + timeStr + "\n" +
                         "✂️ " + serviceName + "\n" +
                         "📍 Jana Sebastiana Bacha 11, 50-305 Wrocław\n\n" +
-                        "Будь ласка, підтвердіть візит:";
+                        "Prosimy o potwierdzenie wizyty:";
 
                 List<List<Map<String, String>>> keyboard = List.of(
                         List.of(
-                                Map.of("text", "✅ Підтверджую", "callback_data", "confirm:" + a.getId()),
-                                Map.of("text", "❌ Скасувати",   "callback_data", "cancel:"  + a.getId())
+                                Map.of("text", "✅ Potwierdzam", "callback_data", "confirm:" + a.getId()),
+                                Map.of("text", "❌ Anuluj",      "callback_data", "cancel:"  + a.getId())
                         )
                 );
                 telegramService.sendMessageWithButtons(a.getClient().getTelegramChatId(), text, keyboard);
                 sent++;
             } else {
-                String masterText = "⚠️ Клієнт без Telegram: <b>" + a.getClient().getName() + "</b>" +
+                String masterText = "⚠️ Klient bez Telegram: <b>" + a.getClient().getName() + "</b>" +
                         (a.getClient().getPhone() != null ? ", " + a.getClient().getPhone() : "") + "\n" +
-                        "Візит: " + dateStr + " о " + timeStr + " — " + serviceName + "\n" +
-                        "Нагадайте вручну.";
+                        "Wizyta: " + dateStr + " o " + timeStr + " — " + serviceName + "\n" +
+                        "Przypomnij ręcznie.";
                 telegramService.sendMasterMessage(masterText);
                 masterNotified++;
             }
@@ -85,15 +85,15 @@ public class ReminderService {
     }
 
     private String resolveServiceName(Long serviceId) {
-        if (serviceId == null) return "Послуга";
+        if (serviceId == null) return "Usługa";
         return salonServiceRepository.findById(serviceId)
                 .map(s -> s.getName())
-                .orElse("Послуга");
+                .orElse("Usługa");
     }
 
     private String formatDate(LocalDateTime dt) {
-        String day = UA_DAYS[dt.getDayOfWeek().getValue() % 7];
-        String month = UA_MONTHS[dt.getMonthValue() - 1];
+        String day = PL_DAYS[dt.getDayOfWeek().getValue() % 7];
+        String month = PL_MONTHS[dt.getMonthValue() - 1];
         return dt.getDayOfMonth() + " " + month + ", " + day;
     }
 

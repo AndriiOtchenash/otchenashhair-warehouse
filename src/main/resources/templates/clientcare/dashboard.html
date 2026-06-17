@@ -117,7 +117,7 @@
 
         <!-- Кому написати -->
         <div class="col-6 col-md-4">
-            <a th:href="@{/clientcare/followups}" class="text-decoration-none">
+            <a th:href="@{/clientcare/followups(minDays=30)}" class="text-decoration-none">
                 <div class="card kpi-card h-100 p-3">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
@@ -165,7 +165,7 @@
 
         <!-- Нещодавні клієнти -->
         <div class="col-6 col-md-4">
-            <a th:href="@{/clientcare/followups}" class="text-decoration-none">
+            <a th:href="@{/clientcare/followups(maxDays=13)}" class="text-decoration-none">
                 <div class="card kpi-card h-100 p-3">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
@@ -181,7 +181,7 @@
 
         <!-- Повторна покупка можлива -->
         <div class="col-6 col-md-4">
-            <a th:href="@{/clientcare/followups}" class="text-decoration-none">
+            <a th:href="@{/clientcare/followups(minDays=25, maxDays=40)}" class="text-decoration-none">
                 <div class="card kpi-card h-100 p-3">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>

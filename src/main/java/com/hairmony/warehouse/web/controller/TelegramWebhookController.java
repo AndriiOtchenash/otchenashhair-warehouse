@@ -68,7 +68,7 @@ public class TelegramWebhookController {
 
         String[] parts = text.split("\\s+", 2);
         if (parts.length < 2 || parts[1].isBlank()) {
-            telegramService.sendMessage(chatId, "❌ Посилання недійсне або вже використане.");
+            telegramService.sendMessage(chatId, "❌ Link jest nieprawidłowy lub już został użyty.");
             return;
         }
 
@@ -76,7 +76,7 @@ public class TelegramWebhookController {
         Optional<Client> clientOpt = clientRepository.findByTelegramLinkToken(token);
 
         if (clientOpt.isEmpty()) {
-            telegramService.sendMessage(chatId, "❌ Посилання недійсне або вже використане.");
+            telegramService.sendMessage(chatId, "❌ Link jest nieprawidłowy lub już został użyty.");
             return;
         }
 
@@ -86,9 +86,9 @@ public class TelegramWebhookController {
         // dirty checking — no explicit save()
 
         telegramService.sendMessage(chatId,
-                "✅ <b>Чудово!</b> Тепер ви будете отримувати нагадування про ваші візити.");
+                "✅ <b>Świetnie!</b> Od teraz będziesz otrzymywać przypomnienia o Twoich wizytach.");
         telegramService.sendMasterMessage(
-                "🔗 <b>" + client.getName() + "</b> підключив Telegram-нагадування");
+                "🔗 <b>" + client.getName() + "</b> połączył(a) przypomnienia Telegram");
 
         log.info("Telegram: client {} linked chat_id={}", client.getId(), chatId);
     }
@@ -110,14 +110,14 @@ public class TelegramWebhookController {
 
         Optional<Appointment> appointmentOpt = appointmentRepository.findById(appointmentId);
         if (appointmentOpt.isEmpty()) {
-            telegramService.answerCallbackQuery(cq.id(), "Цей візит вже оброблено.");
+            telegramService.answerCallbackQuery(cq.id(), "Ta wizyta została już przetworzona.");
             return;
         }
 
         Appointment appointment = appointmentOpt.get();
         if (appointment.getStatus() != AppointmentStatus.PLANNED &&
                 appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-            telegramService.answerCallbackQuery(cq.id(), "Цей візит вже оброблено.");
+            telegramService.answerCallbackQuery(cq.id(), "Ta wizyta została już przetworzona.");
             telegramService.editMessageReplyMarkup(chatId, messageId);
             return;
         }
@@ -134,35 +134,35 @@ public class TelegramWebhookController {
 
             String resolvedServiceName = resolveServiceName(appointment.getServiceId());
 
-            telegramService.answerCallbackQuery(cq.id(), "✅ Підтверджено!");
+            telegramService.answerCallbackQuery(cq.id(), "✅ Potwierdzono!");
             telegramService.editMessageReplyMarkup(chatId, messageId);
             telegramService.editMessageText(chatId, messageId,
-                    "✅ <b>Візит підтверджено!</b>\n\n" +
+                    "✅ <b>Wizyta potwierdzona!</b>\n\n" +
                     "📅 " + dateStr + "\n" +
                     "🕐 " + timeStr + "\n" +
                     "✂️ " + resolvedServiceName + "\n" +
                     "📍 " + ADDRESS);
             telegramService.sendMasterMessage(
-                    "✅ <b>" + clientName + "</b> підтвердив(ла) візит\n" +
-                    "📅 " + dateStr + " о " + timeStr + " — " + resolvedServiceName);
+                    "✅ <b>" + clientName + "</b> potwierdził(a) wizytę\n" +
+                    "📅 " + dateStr + " o " + timeStr + " — " + resolvedServiceName);
 
             boolean filesSent = sendPostConfirmFiles(chatId, resolvedServiceName);
             if (!filesSent) {
                 telegramService.sendMessageNoPreview(chatId,
-                        "🗺 <a href=\"" + MAPS_URL + "\">Прокласти маршрут →</a>");
+                        "🗺 <a href=\"" + MAPS_URL + "\">Nawiguj →</a>");
             }
 
             log.info("Telegram: appointment {} confirmed by client via Telegram", appointmentId);
         } else {
             appointment.setStatus(AppointmentStatus.CANCELLED);
 
-            telegramService.answerCallbackQuery(cq.id(), "❌ Скасовано");
+            telegramService.answerCallbackQuery(cq.id(), "❌ Anulowano");
             telegramService.editMessageReplyMarkup(chatId, messageId);
             telegramService.editMessageText(chatId, messageId,
-                    "❌ <b>Візит скасовано.</b>\n📅 " + dateStr + "\n🕐 " + timeStr);
+                    "❌ <b>Wizyta anulowana.</b>\n📅 " + dateStr + "\n🕐 " + timeStr);
             telegramService.sendMasterMessage(
-                    "❌ <b>" + clientName + "</b> скасував(ла) візит\n" +
-                    "📅 " + dateStr + " о " + timeStr + " — " + serviceStr + "\n" +
+                    "❌ <b>" + clientName + "</b> anulował(a) wizytę\n" +
+                    "📅 " + dateStr + " o " + timeStr + " — " + serviceStr + "\n" +
                     "📱 " + clientPhone);
 
             log.info("Telegram: appointment {} cancelled by client via Telegram", appointmentId);
@@ -182,36 +182,39 @@ public class TelegramWebhookController {
         boolean sent = false;
         if (isFirst && videoId != null && !videoId.isBlank()) {
             telegramService.sendVideoWithCaption(chatId, videoId,
-                    "📹 Відео-нагадування: як зорієнтуватися на місці");
+                    "📹 Film: jak do nas dotrzeć");
             sent = true;
         }
         if (checklistId != null && !checklistId.isBlank()) {
             telegramService.sendPhotoWithCaption(chatId, checklistId,
-                    "📋 Чек-лист: як правильно підготуватися до консультації");
+                    "📋 Lista kontrolna: jak przygotować się do konsultacji");
             sent = true;
         }
         if (sent) {
             telegramService.sendMessageNoPreview(chatId,
-                    "🗺 <a href=\"" + MAPS_URL + "\">Прокласти маршрут →</a>");
+                    "🗺 <a href=\"" + MAPS_URL + "\">Nawiguj →</a>");
         }
         return sent;
     }
 
+    private static final String[] PL_MONTHS = {
+        "stycznia","lutego","marca","kwietnia","maja","czerwca",
+        "lipca","sierpnia","września","października","listopada","grudnia"
+    };
+    private static final String[] PL_DAYS = {
+        "niedziela","poniedziałek","wtorek","środa","czwartek","piątek","sobota"
+    };
+
     private String resolveServiceName(Long serviceId) {
-        if (serviceId == null) return "Послуга";
+        if (serviceId == null) return "Usługa";
         return salonServiceRepository.findById(serviceId)
                 .map(s -> s.getName())
-                .orElse("Послуга");
+                .orElse("Usługa");
     }
 
     private String formatDate(LocalDateTime dt) {
-        String[] months = {
-            "січня","лютого","березня","квітня","травня","червня",
-            "липня","серпня","вересня","жовтня","листопада","грудня"
-        };
-        String[] days = {"неділя","понеділок","вівторок","середа","четвер","п'ятниця","субота"};
-        return dt.getDayOfMonth() + " " + months[dt.getMonthValue() - 1] +
-               ", " + days[dt.getDayOfWeek().getValue() % 7];
+        return dt.getDayOfMonth() + " " + PL_MONTHS[dt.getMonthValue() - 1] +
+               ", " + PL_DAYS[dt.getDayOfWeek().getValue() % 7];
     }
 
     private String formatTime(LocalDateTime dt) {
