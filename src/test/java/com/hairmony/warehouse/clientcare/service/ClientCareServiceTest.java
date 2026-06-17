@@ -67,10 +67,10 @@ class ClientCareServiceTest {
         assertThat(dto.vipInactiveCount()).isZero();
     }
 
-    // ── needsContact (>30 days + hasPhone) ───────────────────────────────────
+    // ── needsContact (>30 days, regardless of phone) ─────────────────────────
 
     @Test
-    void needsContact_countedWhen31DaysAndHasPhone() {
+    void needsContact_countedWhen31Days() {
         ClientCareDashboardDto dto = dashboard(
                 row(1, "+48111222333", 31, BigDecimal.TEN)
         );
@@ -78,11 +78,12 @@ class ClientCareServiceTest {
     }
 
     @Test
-    void needsContact_notCountedWithoutPhone() {
+    void needsContact_countedWithoutPhone() {
+        // phone no longer required — any 31+ day client without upcoming visit counts
         ClientCareDashboardDto dto = dashboard(
                 row(1, null, 31, BigDecimal.TEN)
         );
-        assertThat(dto.needsContactCount()).isZero();
+        assertThat(dto.needsContactCount()).isEqualTo(1);
     }
 
     @Test

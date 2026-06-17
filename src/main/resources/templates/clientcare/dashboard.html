@@ -117,13 +117,13 @@
 
         <!-- Кому написати -->
         <div class="col-6 col-md-4">
-            <a th:href="@{/clientcare/followups(minDays=31)}" class="text-decoration-none">
+            <a th:href="@{/clientcare/followups(minDays=31, visitFilter='none')}" class="text-decoration-none">
                 <div class="card kpi-card h-100 p-3">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <div class="kpi-number text-warning" th:text="${dashboard.needsContactCount}">0</div>
                             <div class="fw-600 mt-1" style="font-size:0.9rem;" th:text="#{clientcare.card.needsContact}">Кому написати</div>
-                            <div class="kpi-hint" th:text="#{clientcare.card.needsContact.hint}">Є телефон, &gt;30 днів</div>
+                            <div class="kpi-hint" th:text="#{clientcare.card.needsContact.hint}">&gt;30 днів</div>
                         </div>
                         <i class="bi bi-chat-dots kpi-icon text-warning"></i>
                     </div>
