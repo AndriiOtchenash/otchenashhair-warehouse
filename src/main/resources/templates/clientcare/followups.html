@@ -151,33 +151,41 @@
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="text-muted filter-row-label" th:text="#{clientcare.filter.purchase.label}">Покупки:</span>
                     <a th:href="@{/clientcare/followups(visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
-                       class="filter-pill" th:classappend="${activeMinDays == 0} ? ' active'"
+                       class="filter-pill" th:classappend="${activeMinDays == 0 and !activeVip} ? ' active'"
                        th:text="#{clientcare.filter.all}">Всі</a>
-                    <a th:href="@{/clientcare/followups(minDays=30, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                    <a th:href="@{/clientcare/followups(minDays=30, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null}, vip=${activeVip ? true : null})}"
                        class="filter-pill" th:classappend="${activeMinDays == 30} ? ' active'">
                         30+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-                    <a th:href="@{/clientcare/followups(minDays=60, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                    <a th:href="@{/clientcare/followups(minDays=60, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null}, vip=${activeVip ? true : null})}"
                        class="filter-pill" th:classappend="${activeMinDays == 60} ? ' active'">
                         60+ <span th:text="#{clientcare.filter.days}">днів</span></a>
-                    <a th:href="@{/clientcare/followups(minDays=90, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                    <a th:href="@{/clientcare/followups(minDays=90, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null}, vip=${activeVip ? true : null})}"
                        class="filter-pill" th:classappend="${activeMinDays == 90} ? ' active'">
                         90+ <span th:text="#{clientcare.filter.days}">днів</span></a>
                 </div>
                 <!-- Visit signal -->
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="text-muted filter-row-label" th:text="#{clientcare.filter.visit.label}">Візити:</span>
-                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null})}"
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, vip=${activeVip ? true : null})}"
                        class="filter-pill" th:classappend="${activeVisitFilter == 'all'} ? ' active'"
                        th:text="#{clientcare.filter.all}">Всі</a>
-                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='overdue')}"
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, visitFilter='overdue', vip=${activeVip ? true : null})}"
                        class="filter-pill" th:classappend="${activeVisitFilter == 'overdue'} ? ' active'"
                        th:text="#{clientcare.filter.visit.overdue}">Прострочені</a>
-                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='scheduled')}"
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, visitFilter='scheduled', vip=${activeVip ? true : null})}"
                        class="filter-pill" th:classappend="${activeVisitFilter == 'scheduled'} ? ' active'"
                        th:text="#{clientcare.filter.visit.scheduled}">Заплановані</a>
-                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, visitFilter='none')}"
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, visitFilter='none', vip=${activeVip ? true : null})}"
                        class="filter-pill" th:classappend="${activeVisitFilter == 'none'} ? ' active'"
                        th:text="#{clientcare.filter.visit.none}">Без візиту</a>
+                </div>
+                <!-- VIP filter row — shown only when vip=true is active -->
+                <div th:if="${activeVip}" class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="text-muted filter-row-label">VIP:</span>
+                    <a th:href="@{/clientcare/followups(minDays=${activeMinDays > 0 ? activeMinDays : null}, maxDays=${activeMaxDays > 0 ? activeMaxDays : null}, visitFilter=${activeVisitFilter != 'all' ? activeVisitFilter : null})}"
+                       class="filter-pill active">
+                        <i class="bi bi-star me-1"></i><span th:text="#{clientcare.filter.vip}">VIP (топ 20%)</span> ×
+                    </a>
                 </div>
             </div>
 
