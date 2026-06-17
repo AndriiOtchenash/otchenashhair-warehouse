@@ -187,10 +187,26 @@ public class ClientCareService {
         long needsContact   = all.stream().filter(c -> c.daysSinceLastPurchase() > NEEDS_CONTACT_DAYS && !upcomingClientIds.contains(c.clientId())).count();
         long longAbsent     = all.stream().filter(c -> c.daysSinceLastPurchase() > LONG_ABSENT_DAYS).count();
         long vipInactive    = all.stream().filter(c -> vipIds.contains(c.clientId()) && c.daysSinceLastPurchase() > NEEDS_CONTACT_DAYS).count();
-        long recent         = all.stream().filter(c -> c.daysSinceLastPurchase() < RECENT_DAYS).count();
+        long recent         = all.stream().filter(c -> c.daysSinceLastPurchase() < RECENT_DAYS && !upcomingClientIds.contains(c.clientId())).count();
         long repeatPossible = all.stream().filter(c -> c.daysSinceLastPurchase() >= REPEAT_FROM_DAYS && c.daysSinceLastPurchase() <= REPEAT_TO_DAYS).count();
 
         return new ClientCareDashboardDto(totalClients, all.size(), needsContact, longAbsent, vipInactive, recent, repeatPossible, overdueVisit, upcomingVisit, unpaidVisit, noShowVisit);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Long> getVipClientIds() {
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Warsaw"));
+        List<ClientFollowupDto> all = movementRepository.findClientSaleStats().stream()
+                .map(row -> toPurchaseDto(row, now))
+                .toList();
+        if (all.isEmpty()) return Set.of();
+        List<ClientFollowupDto> sortedBySpent = all.stream()
+                .sorted(Comparator.comparing(ClientFollowupDto::totalSpent).reversed())
+                .toList();
+        int vipCount = Math.max(1, (int) Math.ceil(sortedBySpent.size() * VIP_PERCENTILE));
+        return sortedBySpent.subList(0, vipCount).stream()
+                .map(ClientFollowupDto::clientId)
+                .collect(Collectors.toSet());
     }
 
     private ClientFollowupDto toPurchaseDto(Object[] row, LocalDateTime now) {

@@ -19,6 +19,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Controller
@@ -34,15 +35,19 @@ public class ClientCareFollowupController {
     public String followups(@RequestParam(required = false, defaultValue = "0") int minDays,
                             @RequestParam(required = false, defaultValue = "0") int maxDays,
                             @RequestParam(required = false, defaultValue = "all") String visitFilter,
+                            @RequestParam(required = false, defaultValue = "false") boolean vip,
                             Model model) {
         List<ClientFollowupDto> queue = clientCareService.getFollowupQueue();
 
         var clientIds = queue.stream().map(ClientFollowupDto::clientId).collect(Collectors.toSet());
         Map<Long, LatestFollowUpDto> latestFollowUps = followUpService.getLatestPerClient(clientIds);
 
+        Set<Long> vipIds = vip ? clientCareService.getVipClientIds() : Set.of();
+
         // Active queue — exclude snoozed; apply minDays + maxDays + visitFilter
         List<ClientFollowupDto> active = queue.stream()
                 .filter(c -> {
+                    if (vip && !vipIds.contains(c.clientId())) return false;
                     LatestFollowUpDto fu = latestFollowUps.get(c.clientId());
                     if (fu != null && (fu.isActiveSnoozed() || fu.isRecentlyDone())) return false;
                     // Purchase filter: must have a purchase AND it must be old enough
@@ -81,6 +86,7 @@ public class ClientCareFollowupController {
         if (minDays > 0) parts.add("minDays=" + minDays);
         if (maxDays > 0) parts.add("maxDays=" + maxDays);
         if (!"all".equals(visitFilter)) parts.add("visitFilter=" + visitFilter);
+        if (vip) parts.add("vip=true");
         String returnTo = "/clientcare/followups" + (parts.isEmpty() ? "" : "?" + String.join("&", parts));
 
         Map<Long, Integer> activityCounts = followUpService.getActivityCountsPerClient(clientIds);
@@ -115,6 +121,7 @@ public class ClientCareFollowupController {
         model.addAttribute("activeMinDays", minDays);
         model.addAttribute("activeMaxDays", maxDays);
         model.addAttribute("activeVisitFilter", visitFilter);
+        model.addAttribute("activeVip", vip);
         model.addAttribute("returnTo", returnTo);
         model.addAttribute("unresolvedVisits", unresolvedVisits);
         model.addAttribute("skippedVisits", skippedVisits);
