@@ -184,7 +184,7 @@ public class ClientCareService {
                 .map(ClientFollowupDto::clientId)
                 .collect(Collectors.toSet());
 
-        long needsContact   = all.stream().filter(c -> c.daysSinceLastPurchase() > NEEDS_CONTACT_DAYS && c.hasPhone()).count();
+        long needsContact   = all.stream().filter(c -> c.daysSinceLastPurchase() > NEEDS_CONTACT_DAYS && !upcomingClientIds.contains(c.clientId())).count();
         long longAbsent     = all.stream().filter(c -> c.daysSinceLastPurchase() > LONG_ABSENT_DAYS).count();
         long vipInactive    = all.stream().filter(c -> vipIds.contains(c.clientId()) && c.daysSinceLastPurchase() > NEEDS_CONTACT_DAYS).count();
         long recent         = all.stream().filter(c -> c.daysSinceLastPurchase() < RECENT_DAYS).count();
