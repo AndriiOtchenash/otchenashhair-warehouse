@@ -32,6 +32,7 @@ public class ClientCareFollowupController {
 
     @GetMapping
     public String followups(@RequestParam(required = false, defaultValue = "0") int minDays,
+                            @RequestParam(required = false, defaultValue = "0") int maxDays,
                             @RequestParam(required = false, defaultValue = "all") String visitFilter,
                             Model model) {
         List<ClientFollowupDto> queue = clientCareService.getFollowupQueue();
@@ -39,13 +40,15 @@ public class ClientCareFollowupController {
         var clientIds = queue.stream().map(ClientFollowupDto::clientId).collect(Collectors.toSet());
         Map<Long, LatestFollowUpDto> latestFollowUps = followUpService.getLatestPerClient(clientIds);
 
-        // Active queue — exclude snoozed; apply minDays + visitFilter
+        // Active queue — exclude snoozed; apply minDays + maxDays + visitFilter
         List<ClientFollowupDto> active = queue.stream()
                 .filter(c -> {
                     LatestFollowUpDto fu = latestFollowUps.get(c.clientId());
                     if (fu != null && (fu.isActiveSnoozed() || fu.isRecentlyDone())) return false;
                     // Purchase filter: must have a purchase AND it must be old enough
                     if (minDays > 0 && (!c.hasPurchaseSignal() || c.daysSinceLastPurchase() < minDays)) return false;
+                    // Purchase upper bound: exclude clients with purchase signal older than maxDays
+                    if (maxDays > 0 && c.hasPurchaseSignal() && c.daysSinceLastPurchase() > maxDays) return false;
                     // Visit filter: independent of purchase filter
                     return switch (visitFilter) {
                         case "overdue"   -> (c.visitOverdue() || c.visitTodayOverdue()) && !c.visitIsNoShow();
@@ -73,9 +76,10 @@ public class ClientCareFollowupController {
                 })
                 .collect(Collectors.toList());
 
-        // Build returnTo preserving both active filters
+        // Build returnTo preserving all active filters
         java.util.List<String> parts = new java.util.ArrayList<>();
         if (minDays > 0) parts.add("minDays=" + minDays);
+        if (maxDays > 0) parts.add("maxDays=" + maxDays);
         if (!"all".equals(visitFilter)) parts.add("visitFilter=" + visitFilter);
         String returnTo = "/clientcare/followups" + (parts.isEmpty() ? "" : "?" + String.join("&", parts));
 
@@ -109,6 +113,7 @@ public class ClientCareFollowupController {
         model.addAttribute("latestFollowUps", latestFollowUps);
         model.addAttribute("activityCounts", activityCounts);
         model.addAttribute("activeMinDays", minDays);
+        model.addAttribute("activeMaxDays", maxDays);
         model.addAttribute("activeVisitFilter", visitFilter);
         model.addAttribute("returnTo", returnTo);
         model.addAttribute("unresolvedVisits", unresolvedVisits);
