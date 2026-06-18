@@ -30,7 +30,13 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     @Query("SELECT m.originalMovementId FROM StockMovement m WHERE m.originalMovementId IN :ids")
     Set<Long> findCancelledMovementIds(@Param("ids") Set<Long> ids);
 
-    @Query("SELECT m FROM StockMovement m WHERE m.movementType = 'SALE' AND m.createdAt >= :from AND m.createdAt <= :to ORDER BY m.createdAt DESC")
+    @Query("""
+            SELECT m FROM StockMovement m
+            WHERE m.movementType = 'SALE' AND m.createdAt >= :from AND m.createdAt <= :to
+              AND NOT EXISTS (SELECT 1 FROM StockMovement c
+                              WHERE c.movementType = 'CANCELLATION' AND c.originalMovementId = m.id)
+            ORDER BY m.createdAt DESC
+            """)
     List<StockMovement> findSalesBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
     @Query("SELECT m FROM StockMovement m WHERE m.movementType = 'PURCHASE' AND m.createdAt >= :from AND m.createdAt <= :to ORDER BY m.createdAt DESC")
