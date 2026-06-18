@@ -54,10 +54,13 @@
         <div class="appt-title-group" style="display:contents">
             <h1 class="page-title mb-0" th:text="${isEdit} ? #{appointment.form.title} : #{appointments.add}">Запис</h1>
             <th:block th:if="${isEdit}">
+            <span th:if="${isInProgress}"
+                  class="badge rounded-pill fw-semibold" style="background:#d1e7dd;color:#0a3622"
+                  th:text="#{appointments.status.inProgress}">У процесі</span>
             <span th:if="${isOverdue}"
                   class="badge rounded-pill fw-semibold" style="background:#f8d7da;color:#842029"
                   th:text="#{appointment.overdue.badge}">Прострочено</span>
-            <th:block th:unless="${isOverdue}" th:switch="${appointment.status?.name()}">
+            <th:block th:unless="${isInProgress or isOverdue}" th:switch="${appointment.status?.name()}">
                 <span th:case="'PLANNED'"   class="badge rounded-pill fw-semibold" style="background:#fff3cd;color:#664d03"  th:text="#{appointments.status.PLANNED}">Заплановано</span>
                 <span th:case="'CONFIRMED'" class="badge rounded-pill fw-semibold" style="background:#d1e7dd;color:#0a3622"  th:text="#{appointments.status.CONFIRMED}">Підтверджено</span>
                 <span th:case="'COMPLETED'" class="badge rounded-pill fw-semibold" style="background:#e2e3e5;color:#41464b"  th:text="#{appointments.status.COMPLETED}">Виконано</span>
