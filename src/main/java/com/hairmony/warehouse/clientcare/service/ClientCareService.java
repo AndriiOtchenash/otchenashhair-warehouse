@@ -126,7 +126,7 @@ public class ClientCareService {
 
         // 3. Follow-up-only clients: have a NOTE entry but no purchase or appointment signal
         //    (e.g. client whose only appointment was CANCELLED — they disappear from queue otherwise)
-        Set<Long> followupOnlyIds = followUpRepository.findAllDistinctClientIds();
+        Set<Long> followupOnlyIds = new HashSet<>(followUpRepository.findAllDistinctClientIds());
         followupOnlyIds.removeAll(byClientId.keySet());
         if (!followupOnlyIds.isEmpty()) {
             clientRepository.findAllById(followupOnlyIds).forEach(c ->
