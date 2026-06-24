@@ -7,6 +7,7 @@ import com.hairmony.warehouse.domain.appointment.AppointmentStatus;
 import com.hairmony.warehouse.domain.client.Client;
 import com.hairmony.warehouse.repository.AppointmentRepository;
 import com.hairmony.warehouse.repository.ClientRepository;
+import com.hairmony.warehouse.repository.FollowUpRepository;
 import com.hairmony.warehouse.repository.StockMovementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class ClientCareService {
     private final StockMovementRepository movementRepository;
     private final ClientRepository clientRepository;
     private final AppointmentRepository appointmentRepository;
+    private final FollowUpRepository followUpRepository;
     private final VisitService visitService;
 
     private static final List<AppointmentStatus> UPCOMING_STATUSES =
@@ -122,7 +124,21 @@ public class ClientCareService {
             }
         }
 
-        // 3. Sort: overdue → today → upcoming → purchase-only (by days desc)
+        // 3. Follow-up-only clients: have a NOTE entry but no purchase or appointment signal
+        //    (e.g. client whose only appointment was CANCELLED — they disappear from queue otherwise)
+        Set<Long> followupOnlyIds = followUpRepository.findAllDistinctClientIds();
+        followupOnlyIds.removeAll(byClientId.keySet());
+        if (!followupOnlyIds.isEmpty()) {
+            clientRepository.findAllById(followupOnlyIds).forEach(c ->
+                byClientId.put(c.getId(), new ClientFollowupDto(
+                        c.getId(), c.getName(), c.getPhone(),
+                        null, 0, BigDecimal.ZERO,
+                        null, 0, false, false
+                ))
+            );
+        }
+
+        // 4. Sort: overdue → today → upcoming → purchase-only (by days desc)
         return byClientId.values().stream()
                 .sorted(Comparator
                         .comparingInt(ClientFollowupDto::signalPriority)

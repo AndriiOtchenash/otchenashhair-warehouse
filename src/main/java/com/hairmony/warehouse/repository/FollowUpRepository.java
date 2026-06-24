@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface FollowUpRepository extends JpaRepository<FollowUp, Long> {
 
@@ -42,4 +43,8 @@ public interface FollowUpRepository extends JpaRepository<FollowUp, Long> {
     @Modifying
     @Query("DELETE FROM FollowUp f WHERE f.client.id = :clientId")
     void deleteAllByClientId(@Param("clientId") Long clientId);
+
+    /** Returns all distinct client IDs that have any follow-up record. */
+    @Query("SELECT DISTINCT f.client.id FROM FollowUp f")
+    Set<Long> findAllDistinctClientIds();
 }
