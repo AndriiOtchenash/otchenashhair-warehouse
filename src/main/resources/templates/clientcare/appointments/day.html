@@ -369,7 +369,10 @@
         const INITIAL_DATE   = /*[[${initialDate}]]*/ null;
         const CAL_CLIENT_ID  = /*[[${calClientId}]]*/ null;
         const CAL_LINK_VISIT = /*[[${calLinkVisitId}]]*/ null;
-        const CAL_RETURN_TO  = /*[[${calReturnTo}]]*/ null;
+        const CAL_RETURN_TO      = /*[[${calReturnTo}]]*/ null;
+        const CAL_SERVICE_ID     = /*[[${calServiceId}]]*/ null;
+        const CAL_REBOOKED_FROM  = /*[[${calRebookedFromId}]]*/ null;
+        const CAL_EDIT_APPT_ID   = /*[[${calEditApptId}]]*/ null;
         const CSRF_PARAM     = /*[[${_csrf != null ? _csrf.parameterName : '_csrf'}]]*/ '_csrf';
         const CSRF_TOKEN     = /*[[${_csrf != null ? _csrf.token : ''}]]*/ '';
         const TODAY_LABEL    = /*[[#{common.today}]]*/ 'Сьогодні';
@@ -470,15 +473,24 @@
             return STATUS_COLORS[status] || '#adb5bd';
         }
 
-        /** Build URL for new appointment, preserving link-visit context. */
+        /** Build URL after slot click — returns to existing edit form when editApptId is set. */
         function newApptUrl(dateStr) {
             const date = dateStr.slice(0, 10);
             const time = dateStr.length >= 16 ? dateStr.slice(11, 16) : null;
+            if (CAL_EDIT_APPT_ID) {
+                // Slot picked to reschedule an existing appointment — go back to its edit form
+                let url = '/clientcare/appointments/' + CAL_EDIT_APPT_ID + '/edit?startDate=' + date;
+                if (time)          url += '&startTime=' + time;
+                if (CAL_RETURN_TO) url += '&returnTo='  + encodeURIComponent(CAL_RETURN_TO);
+                return url;
+            }
             let url = '/clientcare/appointments/new?date=' + date;
-            if (time)           url += '&startTime=' + time;
-            if (CAL_CLIENT_ID)  url += '&clientId='    + CAL_CLIENT_ID;
-            if (CAL_LINK_VISIT) url += '&linkVisitId='  + CAL_LINK_VISIT;
-            if (CAL_RETURN_TO)  url += '&returnTo='     + encodeURIComponent(CAL_RETURN_TO);
+            if (time)              url += '&startTime='      + time;
+            if (CAL_CLIENT_ID)     url += '&clientId='       + CAL_CLIENT_ID;
+            if (CAL_SERVICE_ID)    url += '&serviceId='      + CAL_SERVICE_ID;
+            if (CAL_REBOOKED_FROM) url += '&rebookedFromId=' + CAL_REBOOKED_FROM;
+            if (CAL_LINK_VISIT)    url += '&linkVisitId='    + CAL_LINK_VISIT;
+            if (CAL_RETURN_TO)     url += '&returnTo='       + encodeURIComponent(CAL_RETURN_TO);
             return url;
         }
 

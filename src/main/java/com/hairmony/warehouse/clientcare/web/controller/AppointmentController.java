@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.clientcare.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.AppointmentService;
+import com.hairmony.warehouse.clientcare.service.FollowUpService;
 import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
 import com.hairmony.warehouse.clientcare.web.dto.AppointmentDto;
@@ -16,10 +17,12 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +36,7 @@ public class AppointmentController {
     private final ClientService clientService;
     private final VisitService visitService;
     private final SalonServiceService salonServiceService;
+    private final FollowUpService followUpService;
 
     @GetMapping
     public String calendarView(@RequestParam(required = false)
@@ -40,14 +44,20 @@ public class AppointmentController {
                                @RequestParam(required = false) Long clientId,
                                @RequestParam(required = false) Long linkVisitId,
                                @RequestParam(required = false) String returnTo,
+                               @RequestParam(required = false) Long serviceId,
+                               @RequestParam(required = false) Long rebookedFromId,
+                               @RequestParam(required = false) Long editApptId,
                                Model model) {
         model.addAttribute("initialDate", date != null ? date : LocalDate.now());
         if (clientId != null) {
             model.addAttribute("calClientId", clientId);
             model.addAttribute("calClientName", clientService.findById(clientId).getName());
         }
-        if (linkVisitId != null) model.addAttribute("calLinkVisitId", linkVisitId);
-        if (returnTo != null)   model.addAttribute("calReturnTo", returnTo);
+        if (linkVisitId    != null) model.addAttribute("calLinkVisitId",    linkVisitId);
+        if (returnTo       != null) model.addAttribute("calReturnTo",        returnTo);
+        if (serviceId      != null) model.addAttribute("calServiceId",       serviceId);
+        if (rebookedFromId != null) model.addAttribute("calRebookedFromId",  rebookedFromId);
+        if (editApptId     != null) model.addAttribute("calEditApptId",      editApptId);
         return "clientcare/appointments/day";
     }
 
@@ -69,6 +79,7 @@ public class AppointmentController {
     @ResponseBody
     public ResponseEntity<?> overdueCheck(@RequestParam Long clientId) {
         return appointmentService.getLatestOverdueForClient(clientId)
+                .filter(a -> a.getStatus() != AppointmentStatus.NO_SHOW)
                 .map(a -> {
                     String svcName = "";
                     if (a.getServiceId() != null) {
@@ -135,7 +146,7 @@ public class AppointmentController {
             model.addAttribute("clientLocked", true);
             model.addAttribute("lockedClientName", clientService.findById(clientId).getName());
         }
-        addOverdueWarning(clientId, model);
+        addOverdueWarning(clientId, rebookedFromId, model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
         addMissedAppointmentBanner(rebookedFromId, model);
@@ -160,7 +171,7 @@ public class AppointmentController {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
             addMissedAppointmentBanner(rebookedFromId, model);
-            addOverdueWarning(dto.getClientId(), model);
+            addOverdueWarning(dto.getClientId(), rebookedFromId, model);
             return "clientcare/appointments/form";
         }
         if (dto.getStartAt() != null && dto.getStartAt().isBefore(LocalDateTime.now(ZoneId.of("Europe/Warsaw")).minusMinutes(5))) {
@@ -170,7 +181,7 @@ public class AppointmentController {
             if (returnTo != null) model.addAttribute("returnTo", returnTo);
             if (linkVisitId != null) model.addAttribute("linkVisitId", linkVisitId);
             addMissedAppointmentBanner(rebookedFromId, model);
-            addOverdueWarning(dto.getClientId(), model);
+            addOverdueWarning(dto.getClientId(), rebookedFromId, model);
             return "clientcare/appointments/form";
         }
         Long appointmentId = appointmentService.save(dto);
@@ -180,15 +191,33 @@ public class AppointmentController {
         if (returnTo != null && returnTo.matches("^/[^/].*")) {
             return "redirect:" + returnTo;
         }
-        return redirectToDay(dto.getStartAt() != null ? dto.getStartAt().toLocalDate() : LocalDate.now());
+        return "redirect:/clientcare/appointments/" + appointmentId + "/edit";
     }
 
     @GetMapping("/{id}/edit")
     public String editForm(@PathVariable Long id,
                            @RequestParam(required = false) String returnTo,
+                           @RequestParam(required = false)
+                           @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                           @RequestParam(required = false) String startTime,
                            Model model) {
         AppointmentDto dto = appointmentService.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));
+        // When returning from calendar slot pick, override date/time preserving original duration
+        if (startDate != null) {
+            LocalTime lt = parseStartTime(startTime);
+            LocalDateTime newStart = startDate.atTime(lt);
+            LocalDateTime newEnd;
+            if (dto.getStartAt() != null && dto.getEndAt() != null) {
+                long durationMinutes = Duration.between(dto.getStartAt(), dto.getEndAt()).toMinutes();
+                newEnd = newStart.plusMinutes(durationMinutes > 0 ? durationMinutes : 120);
+            } else {
+                newEnd = newStart.plusHours(2);
+            }
+            dto.setStartAt(newStart);
+            dto.setEndAt(newEnd);
+            model.addAttribute("slotPicked", true);
+        }
         populateFormModel(model);
         model.addAttribute("appointment", dto);
         model.addAttribute("isEdit", true);
@@ -210,6 +239,9 @@ public class AppointmentController {
         model.addAttribute("isInProgress", isInProgress);
         model.addAttribute("isOverdue", isOverdue);
         model.addAttribute("isNoShow", isNoShow);
+        if (isNoShow) {
+            model.addAttribute("followupAdded", followUpService.hasActivity(dto.getClientId()));
+        }
         lockClientForEdit(dto, model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         return "clientcare/appointments/form";
@@ -284,6 +316,41 @@ public class AppointmentController {
         return redirectToDay(date != null ? date : LocalDate.now());
     }
 
+    @PostMapping("/{id}/noshow-followup")
+    public String noshowFollowup(@PathVariable Long id) {
+        AppointmentDto dto = appointmentService.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));
+        if (dto.getClientId() != null) {
+            String dateStr = dto.getStartAt() != null
+                    ? dto.getStartAt().format(DateTimeFormatter.ofPattern("dd.MM.yyyy 'о' HH:mm"))
+                    : "";
+            followUpService.note(dto.getClientId(), "Не прийшов на запис " + dateStr);
+        }
+        return "redirect:/clientcare/followups";
+    }
+
+    @PostMapping("/{id}/cancel")
+    public String cancelWithReason(@PathVariable Long id,
+                                   @RequestParam(required = false) String reason,
+                                   @RequestParam(defaultValue = "false") boolean addToFollowup,
+                                   @RequestParam(required = false)
+                                   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        AppointmentDto dto = appointmentService.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));
+        appointmentService.changeStatus(id, AppointmentStatus.CANCELLED);
+        if (addToFollowup && dto.getClientId() != null) {
+            String dateStr = dto.getStartAt() != null
+                    ? dto.getStartAt().format(DateTimeFormatter.ofPattern("dd.MM.yyyy 'о' HH:mm"))
+                    : "";
+            String note = "Скасував(ла) запис " + dateStr;
+            if (reason != null && !reason.isBlank()) {
+                note += ": " + reason.trim();
+            }
+            followUpService.note(dto.getClientId(), note);
+        }
+        return redirectToDay(date != null ? date : LocalDate.now());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void populateFormModel(Model model) {
@@ -346,14 +413,21 @@ public class AppointmentController {
 
     /** Checks for the latest unresolved appointment for a client and adds it to the model for the warning banner. */
     private void addOverdueWarning(Long clientId, Model model) {
+        addOverdueWarning(clientId, null, model);
+    }
+
+    private void addOverdueWarning(Long clientId, Long excludeId, Model model) {
         if (clientId == null) return;
-        appointmentService.getLatestOverdueForClient(clientId).ifPresent(a -> {
-            if (a.getServiceId() != null) {
-                try { a.setServiceName(salonServiceService.findById(a.getServiceId()).getName()); }
-                catch (Exception ignored) {}
-            }
-            model.addAttribute("overdueAppointment", a);
-        });
+        appointmentService.getLatestOverdueForClient(clientId)
+                .filter(a -> a.getStatus() != AppointmentStatus.NO_SHOW)
+                .filter(a -> excludeId == null || !excludeId.equals(a.getId()))
+                .ifPresent(a -> {
+                    if (a.getServiceId() != null) {
+                        try { a.setServiceName(salonServiceService.findById(a.getServiceId()).getName()); }
+                        catch (Exception ignored) {}
+                    }
+                    model.addAttribute("overdueAppointment", a);
+                });
     }
 
     /** Loads the missed (NO_SHOW) appointment's startAt for the rebook banner. */
@@ -361,7 +435,9 @@ public class AppointmentController {
         if (rebookedFromId == null) return;
         model.addAttribute("rebookedFromId", rebookedFromId);
         appointmentService.findById(rebookedFromId)
-                .filter(a -> a.getStartAt() != null)
+                .filter(a -> a.getStartAt() != null
+                        && (a.getStatus() == AppointmentStatus.PLANNED
+                            || a.getStatus() == AppointmentStatus.CONFIRMED))
                 .ifPresent(a -> model.addAttribute("missedAppointmentAt", a.getStartAt()));
     }
 }

@@ -61,6 +61,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
                                             @Param("before") LocalDateTime before,
                                             @Param("statuses") Collection<AppointmentStatus> statuses);
 
+    /** Cancelled appointments for a single client, most recent first. */
+    List<Appointment> findAllByClientIdAndStatusOrderByStartAtDesc(Long clientId, AppointmentStatus status);
+
     // ── Reminder queries ──────────────────────────────────────────────────────
 
     @Query("SELECT a FROM Appointment a JOIN FETCH a.client WHERE a.startAt BETWEEN :from AND :to AND a.status IN :statuses AND a.reminder48hSentAt IS NULL")

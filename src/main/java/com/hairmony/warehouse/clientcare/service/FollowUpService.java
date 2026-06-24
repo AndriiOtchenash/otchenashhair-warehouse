@@ -80,6 +80,11 @@ public class FollowUpService {
         save(clientId, FollowUpAction.NOTE, null, text);
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasActivity(Long clientId) {
+        return followUpRepository.findFirstByClientIdOrderByCreatedAtDesc(clientId).isPresent();
+    }
+
     @Transactional
     public void deleteAllActivity(Long clientId) {
         followUpRepository.deleteAllByClientId(clientId);
