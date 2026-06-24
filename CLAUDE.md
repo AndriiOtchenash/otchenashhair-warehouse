@@ -483,6 +483,8 @@ com.hairmony.warehouse/
 - Overdue boundary uses `now` (not `todayStart`); same-day past appointments forced to `days = -1`
 - Activity badge: `FollowUpRepository.countPerClient()` one query → `Map<Long, Integer>`; `syncActivityCountBadge()` JS
 - "Видалити всі записи" always triggers page reload (DONE/SNOOZE deleted → client queue position changes)
+- **`submitNote()` (activity modal):** after saving a note, closes the modal + `window.location.reload()` — same pattern as `clearAllActivity()`; Save button disabled immediately on click to prevent double-tap on iOS
+- **Follow-up-only clients:** `ClientCareService.getFollowupQueue()` Step 3 — clients with any follow-up record but no purchase or appointment signal (e.g. a client whose only appointment was CANCELLED with "add to follow-up" checked) are added via `FollowUpRepository.findAllDistinctClientIds()`; these appear at priority 3 (same as purchase-only) with no purchase/visit signal badges
 - `FollowUpActionController`: `@Validated`, `@Min(1) @Max(365)` on snooze days, `@Size(max=500)` on note; all `returnTo` via `safeRedirect(fallback="/clientcare/followups")`
 - **Two-tab layout:** Tab 1 "Товари і записи" (purchase/appointment queue, existing logic); Tab 2 "Без запису" (clients whose latest visit has no linked appointment and no upcoming calendar appointment)
   - Tab nav CSS pattern identical to `client-detail.html` (`#followupTabs`, `flex-shrink-0` on `<li>`, `badge bg-secondary ms-1` count badges hidden when 0)

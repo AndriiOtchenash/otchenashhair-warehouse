@@ -54,6 +54,11 @@
             text-align: center; padding: 0 0.2rem;
             pointer-events: none;
         }
+        /* Activity modal — fix iOS keyboard breaking width (100vw + body padding-right = horizontal overflow) */
+        @media (max-width: 575.98px) {
+            #activityModal .modal-dialog { width: 100%; max-width: 100%; }
+            #activityModal .modal-content { overflow-x: hidden; }
+        }
         /* Tabs — same pattern as client-detail */
         #followupTabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         #followupTabs::-webkit-scrollbar { display: none; }
@@ -632,7 +637,7 @@
     <!-- Activity log modal -->
     <div class="modal fade" id="activityModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
-            <div class="modal-content" style="max-height:90vh;">
+            <div class="modal-content" style="max-height:90vh; max-height:90dvh;">
                 <div class="modal-header py-2">
                     <h6 class="modal-title fw-semibold" id="activityModalTitle"></h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -822,18 +827,17 @@
             if (!text) return;
             const saveBtn = document.querySelector('#noteInputArea .btn-primary');
             if (saveBtn) saveBtn.disabled = true;
-            const form = new FormData();
-            form.append('text', text);
-            form.append('returnTo', currentReturnTo);
-            form.append(csrfParam, csrfToken);
-            fetch('/clientcare/followups/' + currentClientId + '/note', { method: 'POST', body: form })
-                .then(() => {
-                    bootstrap.Modal.getInstance(document.getElementById('activityModal')).hide();
-                    window.location.reload();
-                })
-                .catch(() => {
-                    if (saveBtn) saveBtn.disabled = false;
-                });
+            // Use plain form submit (reliable on iOS WebKit — fetch + redirect stalls the Promise)
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/clientcare/followups/' + currentClientId + '/note';
+            [['text', text], ['returnTo', currentReturnTo || '/clientcare/followups'], [csrfParam, csrfToken]].forEach(([k, v]) => {
+                const i = document.createElement('input');
+                i.type = 'hidden'; i.name = k; i.value = v;
+                form.appendChild(i);
+            });
+            document.body.appendChild(form);
+            form.submit();
         }
 
         // ── Unsnooze modal ──
