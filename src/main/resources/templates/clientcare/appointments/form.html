@@ -444,54 +444,52 @@
                 </div>
             </div>
 
-            <!-- Cancel step 1: confirm -->
+            <!-- Cancel: single modal with two steps (iOS-safe — no modal chaining) -->
             <div th:if="${canComplete}" class="modal fade" id="cancelApptModal" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
-                        <div class="modal-body py-4 text-center">
-                            <i class="bi bi-x-circle text-danger fs-1 d-block mb-3"></i>
-                            <p class="mb-0" th:text="#{appointment.cancel.confirm(${lockedClientName})}">Відмінити запис?</p>
-                        </div>
-                        <div class="modal-footer justify-content-center border-0 pt-0">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
-                                    data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
-                            <button type="button" id="proceedToReason" class="btn btn-danger btn-sm" style="min-width:4rem"
-                                    th:text="#{btn.yes}">Так</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Cancel step 2: reason + follow-up option -->
-            <div th:if="${canComplete}" class="modal fade" id="cancelReasonModal" tabindex="-1">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header border-0 pb-1">
-                            <h6 class="modal-title fw-semibold" th:text="#{appointment.cancel.reason.title}">Причина скасування</h6>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <form th:action="@{/clientcare/appointments/{id}/cancel(id=${appointment.id})}" method="post">
-                            <div class="modal-body">
-                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                                <input type="hidden" name="date" th:value="${#temporals.format(appointment.startAt, 'yyyy-MM-dd')}"/>
-                                <div class="mb-3">
-                                    <textarea name="reason" class="form-control form-control-sm" rows="3"
-                                              th:placeholder="#{appointment.cancel.reason.placeholder}"></textarea>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="addToFollowup" value="true"
-                                           id="addToFollowupCheck" checked>
-                                    <label class="form-check-label small" for="addToFollowupCheck"
-                                           th:text="#{appointment.cancel.followup.add}">Додати до follow-up черги</label>
-                                </div>
+                        <!-- Step 1: confirm -->
+                        <div id="cancelStep1">
+                            <div class="modal-body py-4 text-center">
+                                <i class="bi bi-x-circle text-danger fs-1 d-block mb-3"></i>
+                                <p class="mb-0" th:text="#{appointment.cancel.confirm(${lockedClientName})}">Відмінити запис?</p>
                             </div>
-                            <div class="modal-footer border-0 pt-0 justify-content-center">
+                            <div class="modal-footer justify-content-center border-0 pt-0">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
-                                        data-bs-dismiss="modal" th:text="#{btn.back}">Назад</button>
-                                <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem"
-                                        th:text="#{appointment.cancel.submit}">Скасувати</button>
+                                        data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
+                                <button type="button" id="proceedToReason" class="btn btn-danger btn-sm" style="min-width:4rem"
+                                        th:text="#{btn.yes}">Так</button>
                             </div>
-                        </form>
+                        </div>
+                        <!-- Step 2: reason + follow-up option -->
+                        <div id="cancelStep2" style="display:none">
+                            <div class="modal-header border-0 pb-1">
+                                <h6 class="modal-title fw-semibold" th:text="#{appointment.cancel.reason.title}">Причина скасування</h6>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form th:action="@{/clientcare/appointments/{id}/cancel(id=${appointment.id})}" method="post">
+                                <div class="modal-body">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                                    <input type="hidden" name="date" th:value="${#temporals.format(appointment.startAt, 'yyyy-MM-dd')}"/>
+                                    <div class="mb-3">
+                                        <textarea name="reason" class="form-control form-control-sm" rows="3"
+                                                  th:placeholder="#{appointment.cancel.reason.placeholder}"></textarea>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="addToFollowup" value="true"
+                                               id="addToFollowupCheck" checked>
+                                        <label class="form-check-label small" for="addToFollowupCheck"
+                                               th:text="#{appointment.cancel.followup.add}">Додати до follow-up черги</label>
+                                    </div>
+                                </div>
+                                <div class="modal-footer border-0 pt-0 justify-content-center">
+                                    <button type="button" id="backToStep1" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
+                                            th:text="#{btn.back}">Назад</button>
+                                    <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem"
+                                            th:text="#{appointment.cancel.submit}">Скасувати</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -842,17 +840,27 @@
                 document.getElementById('appointmentForm').requestSubmit();
             });
 
-            // Two-step cancel: confirm → reason modal
-            // Wait for hidden.bs.modal before showing second modal — required on iOS Safari
+            // Two-step cancel: swap sections inside one modal (iOS-safe)
             var proceedToReason = document.getElementById('proceedToReason');
             if (proceedToReason) {
                 proceedToReason.addEventListener('click', function () {
-                    var modal1El = document.getElementById('cancelApptModal');
-                    var modal1   = bootstrap.Modal.getInstance(modal1El);
-                    modal1El.addEventListener('hidden.bs.modal', function () {
-                        new bootstrap.Modal(document.getElementById('cancelReasonModal')).show();
-                    }, { once: true });
-                    modal1.hide();
+                    document.getElementById('cancelStep1').style.display = 'none';
+                    document.getElementById('cancelStep2').style.display = '';
+                });
+            }
+            var backToStep1 = document.getElementById('backToStep1');
+            if (backToStep1) {
+                backToStep1.addEventListener('click', function () {
+                    document.getElementById('cancelStep2').style.display = 'none';
+                    document.getElementById('cancelStep1').style.display = '';
+                });
+            }
+            // Reset to step 1 whenever the modal is closed
+            var cancelModalEl = document.getElementById('cancelApptModal');
+            if (cancelModalEl) {
+                cancelModalEl.addEventListener('hidden.bs.modal', function () {
+                    document.getElementById('cancelStep1').style.display = '';
+                    document.getElementById('cancelStep2').style.display = 'none';
                 });
             }
 
