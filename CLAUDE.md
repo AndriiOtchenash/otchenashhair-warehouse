@@ -335,6 +335,41 @@ to avoid `.fc-daygrid-dot-event` transparent-background issue.
   called on `DOMContentLoaded`; scan.html reads these params via `URLSearchParams` and appends them
   to the post-scan redirect (`getStockUrl()`) and manual link (`updateManualLink()`).
 
+## iOS WebKit patterns (apply consistently)
+
+All iOS browsers (Safari and Chrome) use WebKit. These bugs recur — apply the patterns below whenever adding modals or async form submissions.
+
+- **Modals inside scroll containers freeze:** Never place Bootstrap modals inside an element with `overflow: auto/scroll` or `-webkit-overflow-scrolling: touch`. iOS traps `position: fixed` children, causing the modal to appear dimmed and freeze the page. Always place modals AFTER the closing `</div>` of `.card` / `.card-body`. Already fixed in `appointments/form.html`.
+
+- **`fetch()` + server redirect stalls Promise:** Do not use `fetch()` for form submissions where the server returns a `redirect:`. On iOS WebKit the Promise never resolves, so `.then()` never fires — the UI freezes while the request already succeeded on the server. Use `document.createElement('form')` + `form.submit()` instead (same pattern as `submitUnsnooze()` in `followups.html`):
+  ```javascript
+  const form = document.createElement('form');
+  form.method = 'POST'; form.action = '/some/endpoint';
+  const addField = (name, value) => {
+      const i = document.createElement('input');
+      i.type = 'hidden'; i.name = name; i.value = value;
+      form.appendChild(i);
+  };
+  addField('field', value);
+  addField(csrfParam, csrfToken);
+  document.body.appendChild(form);
+  form.submit();
+  ```
+  **Thymeleaf gotcha inside `th:inline="javascript"`:** Never use nested array literals `[['key', val], ...]` — Thymeleaf's `[[...]]` inline expression syntax conflicts and throws `TemplateProcessingException`. Use the `addField()` helper pattern above instead.
+
+- **`modal-fullscreen-sm-down` breaks width when keyboard opens:** Bootstrap sets `width: 100vw` on `.modal-dialog`. When the keyboard opens, Bootstrap adds `padding-right` to `<body>` for scrollbar compensation — `100vw` includes that padding → horizontal overflow → broken layout. Fix: override with `width: 100%` (percentage is relative to parent, unaffected by body padding) and add `overflow-x: hidden`. Also use `max-height: 90dvh` (`dvh` = dynamic viewport height, shrinks with keyboard; iOS 15.4+) with `90vh` fallback:
+  ```css
+  @media (max-width: 575.98px) {
+      #myModal .modal-dialog { width: 100%; max-width: 100%; }
+      #myModal .modal-content { overflow-x: hidden; }
+  }
+  ```
+  ```html
+  <div class="modal-content" style="max-height:90vh; max-height:90dvh;">
+  ```
+
+- **Two-step modal chaining freezes page:** Never hide one Bootstrap modal and immediately show another on iOS — the second modal appears but freezes. Use a single modal with two `<div>` steps swapped via `style.display`, plus `overflow-hidden` on `.modal-content`. Reset to step 1 on `hidden.bs.modal`. Applied in `appointments/form.html` cancel modal.
+
 ## Stock expense validation
 - unitPrice required and > 0 for SALE — validated in StockExpenseDto via @AssertTrue isUnitPriceValidForSale()
   AND service guard (defense-in-depth); message key: stock.expense.salePriceRequired
