@@ -820,14 +820,19 @@
         function submitNote() {
             const text = document.getElementById('newNoteText').value.trim();
             if (!text) return;
+            const saveBtn = document.querySelector('#noteInputArea .btn-primary');
+            if (saveBtn) saveBtn.disabled = true;
             const form = new FormData();
             form.append('text', text);
             form.append('returnTo', currentReturnTo);
             form.append(csrfParam, csrfToken);
             fetch('/clientcare/followups/' + currentClientId + '/note', { method: 'POST', body: form })
                 .then(() => {
-                    hideNoteInput();
-                    loadActivity();
+                    bootstrap.Modal.getInstance(document.getElementById('activityModal')).hide();
+                    window.location.reload();
+                })
+                .catch(() => {
+                    if (saveBtn) saveBtn.disabled = false;
                 });
         }
 
