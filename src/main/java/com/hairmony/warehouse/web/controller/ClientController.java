@@ -115,6 +115,7 @@ public class ClientController {
             model.addAttribute("editUrl", "/clientcare/clients/" + id + "/edit?returnTo=detail");
             model.addAttribute("currentPageUrl", "/clientcare/clients/" + id + "?from=appointments" + (date != null ? "&date=" + date : ""));
             model.addAttribute("appointmentsByDate", appointmentService.getAppointmentsByDateForClient(id));
+            model.addAttribute("cancelledAppointments", appointmentService.getCancelledForClient(id));
             return "clientcare/clients/detail";
         }
         if ("clientcare".equals(from)) {
@@ -122,6 +123,7 @@ public class ClientController {
             model.addAttribute("editUrl", "/clients/" + id + "/edit?returnTo=detail");
             model.addAttribute("currentPageUrl", "/clients/" + id + "?from=clientcare");
             model.addAttribute("appointmentsByDate", appointmentService.getAppointmentsByDateForClient(id));
+            model.addAttribute("cancelledAppointments", appointmentService.getCancelledForClient(id));
             return "clientcare/clients/detail";
         }
         if (isClientCare(request)) {
@@ -131,6 +133,7 @@ public class ClientController {
             model.addAttribute("currentPageUrl", "/clientcare/clients/" + id +
                     (returnTo != null ? "?returnTo=" + returnTo : ""));
             model.addAttribute("appointmentsByDate", appointmentService.getAppointmentsByDateForClient(id));
+            model.addAttribute("cancelledAppointments", appointmentService.getCancelledForClient(id));
             return "clientcare/clients/detail";
         }
         model.addAttribute("backUrl", "/clients");

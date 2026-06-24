@@ -153,6 +153,14 @@ public class AppointmentService {
                 .stream().findFirst().map(this::toDto);
     }
 
+    /** All cancelled appointments for a client, most recent first. */
+    @Transactional(readOnly = true)
+    public List<AppointmentDto> getCancelledForClient(Long clientId) {
+        return appointmentRepository
+                .findAllByClientIdAndStatusOrderByStartAtDesc(clientId, AppointmentStatus.CANCELLED)
+                .stream().map(this::toDto).toList();
+    }
+
     public void reschedule(Long id, LocalDateTime newStart, LocalDateTime newEnd) {
         Appointment a = appointmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + id));

@@ -290,6 +290,7 @@
                                style="width:9rem"
                                th:classappend="${#fields.hasErrors('startAt')} ? 'is-invalid'"
                                th:attr="min=${(isEdit != null && isEdit) ? null : #temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}"
+                               th:readonly="${isNoShow}"
                                oninput="syncStart(); updateStartTimeMin(); updateCalendarBrowseLink()"/>
                     </div>
                     <!-- Row 2: start + end time (full width) -->
@@ -299,6 +300,7 @@
                                    th:text="#{appointment.form.startAt}">Початок</label>
                             <input type="time" id="startTime" class="form-control form-control-sm" lang="en-GB"
                                    th:classappend="${#fields.hasErrors('startAt')} ? 'is-invalid'"
+                                   th:readonly="${isNoShow}"
                                    oninput="syncStart(); autoAdjustEnd(); updateEndTimeMin(); this.classList.remove('is-invalid')"/>
                             <div class="invalid-feedback" id="startTimeError"></div>
                         </div>
@@ -307,11 +309,12 @@
                                    th:text="#{appointment.form.endAt}">Кінець</label>
                             <input type="time" id="endTime" class="form-control form-control-sm" lang="en-GB"
                                    th:classappend="${#fields.hasErrors('endAt')} ? 'is-invalid'"
+                                   th:readonly="${isNoShow}"
                                    oninput="syncEndTime(); this.classList.remove('is-invalid')"/>
                             <div class="invalid-feedback" id="endTimeError"></div>
                         </div>
                     </div>
-                    <a id="calendarBrowseBtn" href="#"
+                    <a th:unless="${isNoShow}" id="calendarBrowseBtn" href="#"
                        class="btn btn-outline-secondary btn-sm w-100">
                         <i class="bi bi-calendar3 me-1"></i>
                         <span th:text="#{appointment.form.browseCalendar}">Переглянути календар →</span>
@@ -329,27 +332,22 @@
                 </div>
 
                 <!-- ── Actions ── -->
-                <div class="form-actions d-flex align-items-center">
-                    <div th:if="${isEdit}" style="flex:1"></div>
-                    <div class="d-flex gap-2" th:classappend="${isEdit} ? 'mx-auto' : ''">
-                        <button type="submit" id="saveBtn" class="btn btn-primary"
-                                th:disabled="${isEdit}">
-                            <i class="bi bi-check2 me-1"></i>
-                            <span th:text="#{btn.save}">Зберегти</span>
-                        </button>
-                        <a id="cancelBtn"
-                           th:href="${returnTo != null ? returnTo : '#'}"
-                           th:data-history-back="${returnTo == null}"
-                           class="btn btn-outline-secondary"
-                           th:text="#{btn.cancel}">Скасувати</a>
-                    </div>
-                    <div th:if="${isEdit}" style="flex:1;display:flex;justify-content:flex-end">
-                        <button type="button"
-                                class="btn btn-outline-danger"
-                                data-bs-toggle="modal" data-bs-target="#deleteApptModal">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
+                <div class="form-actions d-flex justify-content-end align-items-center gap-2">
+                    <button th:if="${isEdit}" type="button"
+                            class="btn btn-outline-danger btn-sm me-auto"
+                            data-bs-toggle="modal" data-bs-target="#deleteApptModal">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <a id="cancelBtn"
+                       th:href="${returnTo != null ? returnTo : '#'}"
+                       th:data-history-back="${returnTo == null}"
+                       class="btn btn-outline-secondary btn-sm"
+                       th:text="#{btn.cancel}">Скасувати</a>
+                    <button type="submit" id="saveBtn" class="btn btn-primary btn-sm"
+                            th:disabled="${isEdit}">
+                        <i class="bi bi-check2 me-1"></i>
+                        <span th:text="#{btn.save}">Зберегти</span>
+                    </button>
                 </div>
             </form>
 
@@ -421,11 +419,19 @@
                     </div>
                 </div>
                 <div class="d-flex gap-2">
-                    <a th:href="@{/clientcare/followups(visitFilter='overdue')}"
-                       class="btn btn-outline-primary btn-sm flex-grow-1">
-                        <i class="bi bi-list-check me-1"></i>
-                        <span th:text="#{appointment.noshow.panel.followup}">Черга follow-up</span>
-                    </a>
+                    <form th:unless="${followupAdded}"
+                          th:action="@{/clientcare/appointments/{id}/noshow-followup(id=${appointment.id})}"
+                          method="post" class="flex-grow-1">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="bi bi-list-check me-1"></i>
+                            <span th:text="#{appointment.noshow.panel.followup}">Черга follow-up</span>
+                        </button>
+                    </form>
+                    <div th:if="${followupAdded}" class="flex-grow-1 btn btn-outline-secondary btn-sm disabled">
+                        <i class="bi bi-check2 me-1"></i>
+                        <span th:text="#{appointment.noshow.panel.followup.added}">У черзі</span>
+                    </div>
                     <a th:href="@{/clientcare/appointments/new(
                            clientId=${appointment.clientId},
                            serviceId=${appointment.serviceId},
@@ -438,7 +444,7 @@
                 </div>
             </div>
 
-            <!-- Cancel confirmation modal -->
+            <!-- Cancel step 1: confirm -->
             <div th:if="${canComplete}" class="modal fade" id="cancelApptModal" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
@@ -449,13 +455,43 @@
                         <div class="modal-footer justify-content-center border-0 pt-0">
                             <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
                                     data-bs-dismiss="modal" th:text="#{btn.no}">Ні</button>
-                            <form th:action="@{/clientcare/appointments/{id}/status(id=${appointment.id})}" method="post" class="d-inline">
-                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
-                                <input type="hidden" name="status" value="CANCELLED"/>
-                                <input type="hidden" name="date" th:value="${#temporals.format(appointment.startAt, 'yyyy-MM-dd')}"/>
-                                <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem" th:text="#{btn.yes}">Так</button>
-                            </form>
+                            <button type="button" id="proceedToReason" class="btn btn-danger btn-sm" style="min-width:4rem"
+                                    th:text="#{btn.yes}">Так</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cancel step 2: reason + follow-up option -->
+            <div th:if="${canComplete}" class="modal fade" id="cancelReasonModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header border-0 pb-1">
+                            <h6 class="modal-title fw-semibold" th:text="#{appointment.cancel.reason.title}">Причина скасування</h6>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form th:action="@{/clientcare/appointments/{id}/cancel(id=${appointment.id})}" method="post">
+                            <div class="modal-body">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
+                                <input type="hidden" name="date" th:value="${#temporals.format(appointment.startAt, 'yyyy-MM-dd')}"/>
+                                <div class="mb-3">
+                                    <textarea name="reason" class="form-control form-control-sm" rows="3"
+                                              th:placeholder="#{appointment.cancel.reason.placeholder}"></textarea>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="addToFollowup" value="true"
+                                           id="addToFollowupCheck" checked>
+                                    <label class="form-check-label small" for="addToFollowupCheck"
+                                           th:text="#{appointment.cancel.followup.add}">Додати до follow-up черги</label>
+                                </div>
+                            </div>
+                            <div class="modal-footer border-0 pt-0 justify-content-center">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:4rem"
+                                        data-bs-dismiss="modal" th:text="#{btn.back}">Назад</button>
+                                <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem"
+                                        th:text="#{appointment.cancel.submit}">Скасувати</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -526,7 +562,7 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
         // ── Client mode toggle ────────────────────────────────────────────────
         function initMode() {
             const existing = document.getElementById('modeExisting');
@@ -615,7 +651,8 @@
         }
 
         // ── Enforce startTime.min = now when start date = today (new form only) ──
-        const IS_EDIT = /*[[${isEdit != null && isEdit}]]*/ false;
+        const IS_EDIT     = /*[[${isEdit != null && isEdit}]]*/ false;
+        const SLOT_PICKED = /*[[${slotPicked != null && slotPicked}]]*/ false;
         function updateStartTimeMin() {
             if (IS_EDIT) return;
             const startDate = document.getElementById('startDate').value;
@@ -634,9 +671,12 @@
         const MSG_END_BEFORE_START = /*[[#{appointment.error.endBeforeStart}]]*/ '';
         const MSG_OVERDUE_CONFIRM  = /*[[#{appointment.overdue.submit.confirm}]]*/ '';
 
-        // ── Calendar browse params (only present in link-visit context) ───────
-        const BROWSE_LINK_VISIT = /*[[${linkVisitId}]]*/ null;
-        const BROWSE_RETURN_TO  = /*[[${returnTo}]]*/ null;
+        // ── Calendar browse params ────────────────────────────────────────────
+        const BROWSE_LINK_VISIT    = /*[[${linkVisitId}]]*/ null;
+        const BROWSE_RETURN_TO     = /*[[${returnTo}]]*/ null;
+        const BROWSE_SERVICE_ID    = /*[[${appointment.serviceId}]]*/ null;
+        const BROWSE_REBOOKED_FROM = /*[[${rebookedFromId}]]*/ null;
+        const BROWSE_EDIT_APPT_ID  = /*[[${isEdit != null && isEdit ? appointment.id : null}]]*/ null;
 
         function updateCalendarBrowseLink() {
             const btn = document.getElementById('calendarBrowseBtn');
@@ -644,9 +684,14 @@
             const date = document.getElementById('startDate').value || new Date().toISOString().slice(0, 10);
             let url = `/clientcare/appointments?date=${date}`;
             const clientEl = document.getElementById('clientId');
-            if (clientEl && clientEl.value) url += `&clientId=${clientEl.value}`;
-            if (BROWSE_LINK_VISIT) url += `&linkVisitId=${BROWSE_LINK_VISIT}`;
-            if (BROWSE_RETURN_TO)  url += `&returnTo=${encodeURIComponent(BROWSE_RETURN_TO)}`;
+            if (clientEl && clientEl.value)  url += `&clientId=${clientEl.value}`;
+            const serviceEl = document.getElementById('serviceId');
+            const currentServiceId = (serviceEl && serviceEl.value) ? serviceEl.value : BROWSE_SERVICE_ID;
+            if (currentServiceId)            url += `&serviceId=${currentServiceId}`;
+            if (BROWSE_REBOOKED_FROM)        url += `&rebookedFromId=${BROWSE_REBOOKED_FROM}`;
+            if (BROWSE_LINK_VISIT)           url += `&linkVisitId=${BROWSE_LINK_VISIT}`;
+            if (BROWSE_EDIT_APPT_ID)         url += `&editApptId=${BROWSE_EDIT_APPT_ID}`;
+            if (BROWSE_RETURN_TO)            url += `&returnTo=${encodeURIComponent(BROWSE_RETURN_TO)}`;
             btn.href = url;
         }
 
@@ -775,6 +820,10 @@
                 clientEl.addEventListener('change', updateCalendarBrowseLink);
                 clientEl.addEventListener('change', function() { checkOverdueForClient(this.value); });
             }
+            const serviceEl = document.getElementById('serviceId');
+            if (serviceEl) {
+                serviceEl.addEventListener('change', updateCalendarBrowseLink);
+            }
             document.getElementById('appointmentForm').addEventListener('submit', function (e) {
                 if (!validateTimes()) { e.preventDefault(); return; }
                 var serverBanner = document.getElementById('overdueWarningServer');
@@ -793,10 +842,20 @@
                 document.getElementById('appointmentForm').requestSubmit();
             });
 
+            // Two-step cancel: confirm → reason modal
+            var proceedToReason = document.getElementById('proceedToReason');
+            if (proceedToReason) {
+                proceedToReason.addEventListener('click', function () {
+                    bootstrap.Modal.getInstance(document.getElementById('cancelApptModal')).hide();
+                    new bootstrap.Modal(document.getElementById('cancelReasonModal')).show();
+                });
+            }
+
             // Init dirty detection after all field initialization (edit mode only)
             var saveBtn = document.getElementById('saveBtn');
             if (saveBtn && saveBtn.disabled) {
                 initialSnapshot = getFormSnapshot();
+                if (SLOT_PICKED) saveBtn.disabled = false;
                 document.getElementById('appointmentForm').addEventListener('input',  syncSaveBtn);
                 document.getElementById('appointmentForm').addEventListener('change', syncSaveBtn);
             }
