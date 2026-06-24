@@ -843,11 +843,16 @@
             });
 
             // Two-step cancel: confirm → reason modal
+            // Wait for hidden.bs.modal before showing second modal — required on iOS Safari
             var proceedToReason = document.getElementById('proceedToReason');
             if (proceedToReason) {
                 proceedToReason.addEventListener('click', function () {
-                    bootstrap.Modal.getInstance(document.getElementById('cancelApptModal')).hide();
-                    new bootstrap.Modal(document.getElementById('cancelReasonModal')).show();
+                    var modal1El = document.getElementById('cancelApptModal');
+                    var modal1   = bootstrap.Modal.getInstance(modal1El);
+                    modal1El.addEventListener('hidden.bs.modal', function () {
+                        new bootstrap.Modal(document.getElementById('cancelReasonModal')).show();
+                    }, { once: true });
+                    modal1.hide();
                 });
             }
 
