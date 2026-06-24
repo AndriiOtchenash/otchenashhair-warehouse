@@ -452,9 +452,9 @@
     <!-- Cancel: single modal with two steps -->
     <div th:if="${canComplete}" class="modal fade" id="cancelApptModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
+            <div class="modal-content overflow-hidden">
                 <!-- Step 1: confirm -->
-                <div id="cancelStep1">
+                <div id="cancelStep1" class="w-100">
                     <div class="modal-body py-4 text-center">
                         <i class="bi bi-x-circle text-danger fs-1 d-block mb-3"></i>
                         <p class="mb-0" th:text="#{appointment.cancel.confirm(${lockedClientName})}">Відмінити запис?</p>
@@ -467,12 +467,12 @@
                     </div>
                 </div>
                 <!-- Step 2: reason + follow-up option -->
-                <div id="cancelStep2" style="display:none">
+                <div id="cancelStep2" class="w-100" style="display:none">
                     <div class="modal-header border-0 pb-1">
                         <h6 class="modal-title fw-semibold" th:text="#{appointment.cancel.reason.title}">Причина скасування</h6>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <form th:action="@{/clientcare/appointments/{id}/cancel(id=${appointment.id})}" method="post">
+                    <form class="w-100" th:action="@{/clientcare/appointments/{id}/cancel(id=${appointment.id})}" method="post">
                         <div class="modal-body">
                             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
                             <input type="hidden" name="date" th:value="${#temporals.format(appointment.startAt, 'yyyy-MM-dd')}"/>
