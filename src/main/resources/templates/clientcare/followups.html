@@ -831,11 +831,14 @@
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = '/clientcare/followups/' + currentClientId + '/note';
-            [['text', text], ['returnTo', currentReturnTo || '/clientcare/followups'], [csrfParam, csrfToken]].forEach(([k, v]) => {
+            const addField = (name, value) => {
                 const i = document.createElement('input');
-                i.type = 'hidden'; i.name = k; i.value = v;
+                i.type = 'hidden'; i.name = name; i.value = value;
                 form.appendChild(i);
-            });
+            };
+            addField('text', text);
+            addField('returnTo', currentReturnTo || '/clientcare/followups');
+            addField(csrfParam, csrfToken);
             document.body.appendChild(form);
             form.submit();
         }
