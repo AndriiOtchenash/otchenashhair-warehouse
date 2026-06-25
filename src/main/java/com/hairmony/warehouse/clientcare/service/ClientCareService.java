@@ -192,7 +192,6 @@ public class ClientCareService {
                 .stream()
                 .filter(a -> a.getClient() != null)
                 .map(a -> a.getClient().getId())
-                .filter(id -> !upcomingClientIds.contains(id)) // upcoming supersedes overdue
                 .collect(Collectors.toSet());
         // NO_SHOW clients who have no upcoming appointment AND no subsequent visit
         Set<Long> noShowClientIds = appointmentRepository
@@ -228,6 +227,28 @@ public class ClientCareService {
         long repeatPossible = all.stream().filter(c -> c.daysSinceLastPurchase() >= REPEAT_FROM_DAYS && c.daysSinceLastPurchase() <= REPEAT_TO_DAYS).count();
 
         return new ClientCareDashboardDto(totalClients, all.size(), needsContact, longAbsent, vipInactive, recent, repeatPossible, overdueVisit, upcomingVisit, unpaidVisit, noShowVisit);
+    }
+
+    /**
+     * Most recent overdue (PLANNED/CONFIRMED past) appointment start time per client.
+     * Results are ordered DESC so putIfAbsent keeps the most recent one per client.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, LocalDateTime> getOverdueStartTimeByClient() {
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Warsaw"));
+        Map<Long, LocalDateTime> result = new LinkedHashMap<>();
+        for (var a : appointmentRepository.findOverdueForClients(now, KPI_OVERDUE_STATUSES)) {
+            if (a.getClient() != null) {
+                result.putIfAbsent(a.getClient().getId(), a.getStartAt());
+            }
+        }
+        return result;
+    }
+
+    /** Clients who have any past PLANNED/CONFIRMED appointment (regardless of upcoming bookings). */
+    @Transactional(readOnly = true)
+    public Set<Long> getOverdueClientIds() {
+        return getOverdueStartTimeByClient().keySet();
     }
 
     @Transactional(readOnly = true)

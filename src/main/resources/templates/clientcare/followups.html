@@ -246,6 +246,15 @@
                                     <span th:if="${c.visitTodayOverdue()}"
                                           class="days-badge days-urgent"
                                           th:text="#{followup.signal.visit.today}">Візит: сьогодні</span>
+                                    <!-- Extra overdue badge for clients whose primary signal is upcoming
+                                         but who also have an unhandled past PLANNED/CONFIRMED appointment -->
+                                    <th:block th:if="${overdueStartByClient != null and !c.visitOverdue() and !c.visitTodayOverdue()}">
+                                        <th:block th:with="overdueAt=${overdueStartByClient[c.clientId]}">
+                                            <span th:if="${overdueAt != null}"
+                                                  class="days-badge days-urgent"
+                                                  th:text="#{followup.signal.visit.overdue.date(${#temporals.format(overdueAt, 'dd.MM')}, ${#temporals.format(overdueAt, 'HH:mm')})}">Прострочений: дд.мм о ЧЧ:хх</span>
+                                        </th:block>
+                                    </th:block>
                                     <span th:if="${c.visitToday()}"
                                           class="days-badge days-warn"
                                           th:text="#{followup.signal.visit.today}">Візит: сьогодні</span>

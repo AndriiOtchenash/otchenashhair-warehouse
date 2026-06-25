@@ -546,7 +546,9 @@
             if (CAL_SERVICE_ID)    url += '&serviceId='      + CAL_SERVICE_ID;
             if (CAL_REBOOKED_FROM) url += '&rebookedFromId=' + CAL_REBOOKED_FROM;
             if (CAL_LINK_VISIT)    url += '&linkVisitId='    + CAL_LINK_VISIT;
-            if (CAL_RETURN_TO)     url += '&returnTo='       + encodeURIComponent(CAL_RETURN_TO);
+            // Determine returnTo: explicit param wins; rebook flow defaults back to this calendar day
+            var effectiveReturnTo = CAL_RETURN_TO || (CAL_REBOOKED_FROM ? '/clientcare/appointments?date=' + date : null);
+            if (effectiveReturnTo) url += '&returnTo=' + encodeURIComponent(effectiveReturnTo);
             return url;
         }
 

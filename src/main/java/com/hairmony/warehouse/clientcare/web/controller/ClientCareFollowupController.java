@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
@@ -43,6 +44,11 @@ public class ClientCareFollowupController {
         Map<Long, LatestFollowUpDto> latestFollowUps = followUpService.getLatestPerClient(clientIds);
 
         Set<Long> vipIds = vip ? clientCareService.getVipClientIds() : Set.of();
+        // For overdue filter: use the same source as the KPI card — any past PLANNED/CONFIRMED appointment,
+        // even if the client also has an upcoming booking (the queue DTO only tracks the primary signal).
+        Map<Long, LocalDateTime> overdueStartByClient = "overdue".equals(visitFilter)
+                ? clientCareService.getOverdueStartTimeByClient() : Map.of();
+        Set<Long> overdueClientIds = overdueStartByClient.keySet();
 
         // Active queue — exclude snoozed; apply minDays + maxDays + visitFilter
         List<ClientFollowupDto> active = queue.stream()
@@ -56,7 +62,7 @@ public class ClientCareFollowupController {
                     if (maxDays > 0 && (!c.hasPurchaseSignal() || c.daysSinceLastPurchase() > maxDays)) return false;
                     // Visit filter: independent of purchase filter
                     return switch (visitFilter) {
-                        case "overdue"   -> (c.visitOverdue() || c.visitTodayOverdue()) && !c.visitIsNoShow();
+                        case "overdue"   -> overdueClientIds.contains(c.clientId());
                         case "noshow"    -> (c.visitOverdue() || c.visitTodayOverdue()) && c.visitIsNoShow();
                         case "scheduled" -> c.visitToday() || c.visitUpcoming();
                         case "none"      -> !c.hasVisitSignal();
@@ -118,6 +124,7 @@ public class ClientCareFollowupController {
         model.addAttribute("upcomingSnoozes", upcomingSnoozes);
         model.addAttribute("latestFollowUps", latestFollowUps);
         model.addAttribute("activityCounts", activityCounts);
+        model.addAttribute("overdueStartByClient", overdueStartByClient);
         model.addAttribute("activeMinDays", minDays);
         model.addAttribute("activeMaxDays", maxDays);
         model.addAttribute("activeVisitFilter", visitFilter);
