@@ -23,6 +23,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -47,25 +49,33 @@ public class ClientController {
     }
 
     private void addAppointmentBadgeAttrs(Long clientId, Model model) {
-        var upcoming = appointmentService.getAllUpcomingForClient(clientId);
+        List<AppointmentDto> upcoming = appointmentService.getAllUpcomingForClient(clientId);
+        // Keep upcomingAppointments for the "no next visit" warning in the visit history section
         if (!upcoming.isEmpty()) {
             model.addAttribute("upcomingAppointments", upcoming);
-            return;
         }
-        // NO_SHOW is an explicit master action — always show, never suppress by subsequent visits
+
+        // Collect overdue badge (if any)
+        Optional<AppointmentDto> overdueOpt = Optional.empty();
         Optional<AppointmentDto> noShow = appointmentService.getLatestNoShowForClient(clientId);
         if (noShow.isPresent()) {
-            model.addAttribute("overdueAppointment", noShow.get());
-            return;
+            overdueOpt = noShow;
+        } else {
+            Optional<AppointmentDto> pastUnresolved = appointmentService.getLatestOverdueForClient(clientId)
+                    .filter(a -> a.getStatus() != AppointmentStatus.NO_SHOW);
+            if (pastUnresolved.isPresent()
+                    && !visitService.hasVisitOnOrAfter(clientId, pastUnresolved.get().getStartAt().toLocalDate())) {
+                overdueOpt = pastUnresolved;
+            }
         }
-        // PLANNED/CONFIRMED past — suppress if client came in on a later date
-        appointmentService.getLatestOverdueForClient(clientId)
-                .filter(a -> a.getStatus() != AppointmentStatus.NO_SHOW)
-                .ifPresent(a -> {
-                    if (!visitService.hasVisitOnOrAfter(clientId, a.getStartAt().toLocalDate())) {
-                        model.addAttribute("overdueAppointment", a);
-                    }
-                });
+
+        // Combine and sort by startAt so badges appear in chronological order
+        List<AppointmentDto> badges = new ArrayList<>(upcoming);
+        overdueOpt.ifPresent(badges::add);
+        badges.sort(Comparator.comparing(AppointmentDto::getStartAt));
+        if (!badges.isEmpty()) {
+            model.addAttribute("appointmentBadges", badges);
+        }
     }
 
     @GetMapping

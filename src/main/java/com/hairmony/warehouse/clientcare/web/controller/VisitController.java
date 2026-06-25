@@ -129,6 +129,12 @@ public class VisitController {
         if (returnTo != null) model.addAttribute("returnTo", returnTo);
         if (completeAppointmentId != null) {
             model.addAttribute("completeAppointmentId", completeAppointmentId);
+            // Pre-fill service from the appointment being completed
+            appointmentService.findById(completeAppointmentId).ifPresent(a -> {
+                if (a.getServiceId() != null) {
+                    dto.setServiceId(a.getServiceId());
+                }
+            });
         } else {
             appointmentService.getLatestOverdueForClient(clientId).ifPresent(a -> {
                 if (a.getServiceId() != null) {

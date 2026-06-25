@@ -199,34 +199,31 @@
                             <span class="text-muted small" th:text="#{client.form.notes}">Примітки</span>:
                             <span th:text="${client.notes}"></span>
                         </div>
-                        <!-- Upcoming appointment badges (clientcare contexts only) -->
-                        <div th:if="${upcomingAppointments != null and !upcomingAppointments.isEmpty()}"
+                        <!-- Appointment badges sorted by date (clientcare contexts only) -->
+                        <div th:if="${appointmentBadges != null and !appointmentBadges.isEmpty()}"
                              class="d-flex flex-wrap gap-1">
-                            <a th:each="appt : ${upcomingAppointments}"
+                            <a th:each="appt : ${appointmentBadges}"
                                th:href="@{/clientcare/appointments(date=${#temporals.format(appt.startAt, 'yyyy-MM-dd')},returnTo=${currentPageUrl})}"
                                class="text-decoration-none">
-                                <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#d1e7dd;color:#0a3622">
-                                    <i class="bi bi-calendar-check-fill"></i>
-                                    <span th:text="#{appointment.badge.upcoming}">Наступний запис</span>:
-                                    <strong th:text="${#temporals.format(appt.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(appt.startAt, 'HH:mm')}"></strong>
-                                </span>
-                            </a>
-                        </div>
-                        <div th:if="${overdueAppointment != null}">
-                            <a th:href="@{/clientcare/appointments(date=${#temporals.format(overdueAppointment.startAt, 'yyyy-MM-dd')},returnTo=${currentPageUrl})}"
-                               class="text-decoration-none">
-                                <th:block th:if="${overdueAppointment.status?.name() == 'NO_SHOW'}">
+                                <th:block th:if="${appt.status?.name() == 'NO_SHOW'}">
                                     <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#ffe8d6;color:#7d3a00">
                                         <i class="bi bi-person-x-fill"></i>
                                         <span th:text="#{appointment.badge.noshow}">Не прийшов</span>:
-                                        <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
+                                        <strong th:text="${#temporals.format(appt.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(appt.startAt, 'HH:mm')}"></strong>
                                     </span>
                                 </th:block>
-                                <th:block th:unless="${overdueAppointment.status?.name() == 'NO_SHOW'}">
+                                <th:block th:if="${appt.pastUnresolved}">
                                     <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#f8d7da;color:#842029">
                                         <i class="bi bi-calendar-x-fill"></i>
                                         <span th:text="#{appointment.badge.overdue}">Прострочений</span>:
-                                        <strong th:text="${#temporals.format(overdueAppointment.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(overdueAppointment.startAt, 'HH:mm')}"></strong>
+                                        <strong th:text="${#temporals.format(appt.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(appt.startAt, 'HH:mm')}"></strong>
+                                    </span>
+                                </th:block>
+                                <th:block th:if="${appt.status?.name() != 'NO_SHOW' and !appt.pastUnresolved}">
+                                    <span class="badge rounded-pill d-inline-flex align-items-center gap-1" style="background:#d1e7dd;color:#0a3622">
+                                        <i class="bi bi-calendar-check-fill"></i>
+                                        <span th:text="#{appointment.badge.upcoming}">Наступний запис</span>:
+                                        <strong th:text="${#temporals.format(appt.startAt, 'dd.MM')} + ' о ' + ${#temporals.format(appt.startAt, 'HH:mm')}"></strong>
                                     </span>
                                 </th:block>
                             </a>
