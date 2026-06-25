@@ -39,7 +39,7 @@
             margin: 1rem -1rem -1rem;
             padding: 0.75rem 1rem;
         }
-        #saveBtn:disabled {
+        #saveBtn:disabled, #saveReminderBtn:disabled {
             background-color: transparent;
             border-color: #6c757d;
             color: #6c757d;
@@ -418,7 +418,7 @@
                         <div class="text-muted small" th:text="#{appointment.noshow.panel.hint}">Зв'яжіться та запропонуйте новий час</div>
                     </div>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <form th:unless="${followupAdded}"
                           th:action="@{/clientcare/appointments/{id}/noshow-followup(id=${appointment.id})}"
                           method="post" class="flex-grow-1">
@@ -441,6 +441,35 @@
                         <i class="bi bi-calendar-plus me-1"></i>
                         <span th:text="#{appointment.noshow.panel.rebook}">Записати повторно</span>
                     </a>
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm flex-grow-1"
+                            data-bs-toggle="modal" data-bs-target="#reminderModal">
+                        <i th:if="${!reminderAdded}" class="bi bi-bell me-1"></i>
+                        <i th:if="${reminderAdded}"  class="bi bi-pencil me-1"></i>
+                        <span th:if="${!reminderAdded}" th:text="#{appointment.noshow.panel.reminder}">Зробити нагадування</span>
+                        <span th:if="${reminderAdded}"  th:text="#{appointment.noshow.panel.reminder.edit}">Редагувати нагадування</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── Cancelled follow-up panel ── -->
+            <div th:if="${isCancelled}" class="mt-3 pt-3 border-top">
+                <div class="alert alert-secondary py-2 mb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-x-circle-fill fs-5 text-secondary flex-shrink-0"></i>
+                    <div>
+                        <div class="fw-semibold small" th:text="#{appointment.cancelled.panel.title}">Запис скасовано</div>
+                        <div class="text-muted small" th:text="#{appointment.cancelled.panel.hint}">Зв'яжіться та запропонуйте новий час</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button"
+                            class="btn btn-outline-secondary btn-sm flex-grow-1"
+                            data-bs-toggle="modal" data-bs-target="#reminderModal">
+                        <i th:if="${!reminderAdded}" class="bi bi-bell me-1"></i>
+                        <i th:if="${reminderAdded}"  class="bi bi-pencil me-1"></i>
+                        <span th:if="${!reminderAdded}" th:text="#{appointment.noshow.panel.reminder}">Зробити нагадування</span>
+                        <span th:if="${reminderAdded}"  th:text="#{appointment.noshow.panel.reminder.edit}">Редагувати нагадування</span>
+                    </button>
                 </div>
             </div>
 
@@ -558,6 +587,48 @@
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf != null}"/>
                         <button type="submit" class="btn btn-danger btn-sm" style="min-width:4rem" th:text="#{btn.yes}">Так</button>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reminder modal (NO_SHOW and CANCELLED context) -->
+    <div th:if="${isNoShow or isCancelled}" class="modal fade" id="reminderModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-1">
+                    <h6 class="modal-title fw-semibold" th:text="#{calendar.reminder.modal.title}">Встановити нагадування</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex gap-2 mb-2 flex-wrap">
+                        <button type="button" class="btn btn-outline-secondary btn-sm reminder-preset" data-days="1"
+                                th:text="#{calendar.reminder.date.preset.tomorrow}">Завтра</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm reminder-preset" data-days="3"
+                                th:text="#{calendar.reminder.date.preset.3days}">+3 дні</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm reminder-preset" data-days="7"
+                                th:text="#{calendar.reminder.date.preset.7days}">+7 днів</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm reminder-preset" data-days="14"
+                                th:text="#{calendar.reminder.date.preset.14days}">+14 днів</button>
+                        <button th:if="${nextApptDate != null}" type="button"
+                                id="reminderNextApptBtn"
+                                class="btn btn-outline-secondary btn-sm"
+                                th:data-iso="${nextApptDate}"
+                                th:text="#{calendar.reminder.next.appt(${#temporals.format(nextApptDate, 'dd.MM')})}">Перед наступним записом</button>
+                    </div>
+                    <input type="date" id="reminderDate" class="form-control form-control-sm mb-2"/>
+                    <textarea id="reminderText" class="form-control form-control-sm" rows="2"
+                              th:placeholder="#{calendar.reminder.note.placeholder}"></textarea>
+                </div>
+                <div class="modal-footer border-0 pt-0 justify-content-between align-items-center">
+                    <button type="button" id="deleteReminderBtn" class="btn btn-outline-danger btn-sm"
+                            style="display:none" th:text="#{calendar.reminder.delete}">Видалити</button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal"
+                                th:text="#{btn.cancel}">Скасувати</button>
+                        <button type="button" id="saveReminderBtn" class="btn btn-primary btn-sm"
+                                th:text="#{calendar.tasks.save}">Зберегти</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -867,13 +938,174 @@
                 });
             }
 
-            // Init dirty detection after all field initialization (edit mode only)
+            // Init dirty detection (edit mode only)
             var saveBtn = document.getElementById('saveBtn');
-            if (saveBtn && saveBtn.disabled) {
+            if (IS_EDIT && saveBtn) {
+                saveBtn.disabled = !SLOT_PICKED; // JS guarantee — disable unless slot was pre-picked
                 initialSnapshot = getFormSnapshot();
-                if (SLOT_PICKED) saveBtn.disabled = false;
                 document.getElementById('appointmentForm').addEventListener('input',  syncSaveBtn);
                 document.getElementById('appointmentForm').addEventListener('change', syncSaveBtn);
+            }
+
+            // ── Reminder modal (NO_SHOW and CANCELLED context) ────────────────
+            var reminderModalEl = document.getElementById('reminderModal');
+            if (reminderModalEl) {
+                const _remindable         = /*[[${(isNoShow != null && isNoShow) || (isCancelled != null && isCancelled)}]]*/ false;
+                const REMINDER_APPT_ID    = /*[[${((isNoShow != null && isNoShow) || (isCancelled != null && isCancelled)) ? appointment.id : null}]]*/ null;
+                const REMINDER_CLIENT_ID  = /*[[${((isNoShow != null && isNoShow) || (isCancelled != null && isCancelled)) ? appointment.clientId : null}]]*/ null;
+                const REMINDER_CLIENT     = /*[[${((isNoShow != null && isNoShow) || (isCancelled != null && isCancelled)) ? lockedClientName : ''}]]*/ '';
+                const REMINDER_APPT_DATE  = /*[[${(((isNoShow != null && isNoShow) || (isCancelled != null && isCancelled)) && appointment.startAt != null) ? #temporals.format(appointment.startAt, 'dd.MM.yyyy') : ''}]]*/ '';
+                const REMINDER_IS_CANCELLED = /*[[${isCancelled != null && isCancelled}]]*/ false;
+                // Existing reminder (edit mode)
+                const EXISTING_REMINDER_ID   = /*[[${existingReminder != null ? existingReminder.id() : null}]]*/ null;
+                const EXISTING_REMINDER_DATE = /*[[${existingReminder != null ? existingReminder.taskDate() : null}]]*/ null;
+                const EXISTING_REMINDER_TEXT = /*[[${existingReminder != null ? existingReminder.text() : null}]]*/ null;
+
+                function addDays(n) {
+                    var d = new Date();
+                    d.setDate(d.getDate() + n);
+                    return new Intl.DateTimeFormat('en-CA').format(d);
+                }
+
+                function clearPresets() {
+                    document.querySelectorAll('.reminder-preset').forEach(function(b) {
+                        b.classList.remove('btn-outline-primary');
+                        b.classList.add('btn-outline-secondary');
+                    });
+                    var nb = document.getElementById('reminderNextApptBtn');
+                    if (nb) { nb.classList.remove('btn-outline-primary'); nb.classList.add('btn-outline-secondary'); }
+                }
+
+                function setActivePreset(days) {
+                    clearPresets();
+                    document.querySelectorAll('.reminder-preset').forEach(function(btn) {
+                        if (parseInt(btn.dataset.days) === days) {
+                            btn.classList.add('btn-outline-primary');
+                            btn.classList.remove('btn-outline-secondary');
+                        }
+                    });
+                    document.getElementById('reminderDate').value = addDays(days);
+                }
+
+                document.querySelectorAll('.reminder-preset').forEach(function(btn) {
+                    btn.addEventListener('click', function() { setActivePreset(parseInt(this.dataset.days)); });
+                });
+
+                // "Before next visit" — fixed ISO date, deactivates day-offset presets
+                var nextApptBtn = document.getElementById('reminderNextApptBtn');
+                if (nextApptBtn) {
+                    nextApptBtn.addEventListener('click', function() {
+                        var d = new Date(this.dataset.iso + 'T00:00:00');
+                        d.setDate(d.getDate() - 1);
+                        document.getElementById('reminderDate').value = d.toISOString().slice(0, 10);
+                        clearPresets();
+                        nextApptBtn.classList.remove('btn-outline-secondary');
+                        nextApptBtn.classList.add('btn-outline-primary');
+                    });
+                }
+
+                document.getElementById('reminderDate').addEventListener('change', clearPresets);
+
+                function syncReminderSaveBtn() {
+                    if (!EXISTING_REMINDER_ID) return; // create mode — always enabled
+                    var saveBtn = document.getElementById('saveReminderBtn');
+                    if (!saveBtn) return;
+                    var dateChanged = document.getElementById('reminderDate').value !== (EXISTING_REMINDER_DATE || '');
+                    var textChanged = document.getElementById('reminderText').value.trim() !== (EXISTING_REMINDER_TEXT || '').trim();
+                    saveBtn.disabled = !dateChanged && !textChanged;
+                }
+
+                document.getElementById('reminderDate').addEventListener('change', syncReminderSaveBtn);
+                document.getElementById('reminderText').addEventListener('input',  syncReminderSaveBtn);
+
+                reminderModalEl.addEventListener('show.bs.modal', function() {
+                    var delBtn  = document.getElementById('deleteReminderBtn');
+                    var saveBtn = document.getElementById('saveReminderBtn');
+                    if (EXISTING_REMINDER_ID) {
+                        // Edit mode — pre-fill with existing values, no preset active
+                        document.getElementById('reminderDate').value = EXISTING_REMINDER_DATE || '';
+                        document.getElementById('reminderText').value = EXISTING_REMINDER_TEXT || '';
+                        clearPresets();
+                        if (delBtn)  delBtn.style.display  = '';
+                        if (saveBtn) saveBtn.disabled = true; // disable until user changes something
+                    } else {
+                        // Create mode — default +3 days, pre-fill text
+                        setActivePreset(3);
+                        var text = document.getElementById('reminderText');
+                        if (!text.value) {
+                            var suffix = REMINDER_IS_CANCELLED
+                                ? '\u0441\u043a\u0430\u0441\u0443\u0432\u0430\u0432(\u043b\u0430) '
+                                : '\u043d\u0435 \u043f\u0440\u0438\u0439\u0448\u043e\u0432(\u043b\u0430) ';
+                            text.value = REMINDER_CLIENT && REMINDER_APPT_DATE
+                                ? '\u0417\u0430\u0442\u0435\u043b\u0435\u0444\u043e\u043d\u0443\u0432\u0430\u0442\u0438 ' + REMINDER_CLIENT + ' \u2014 ' + suffix + REMINDER_APPT_DATE
+                                : '';
+                        }
+                        if (delBtn)  delBtn.style.display  = 'none';
+                        if (saveBtn) saveBtn.disabled = false;
+                    }
+                });
+
+                document.getElementById('saveReminderBtn').addEventListener('click', function() {
+                    var btn = this;
+                    btn.disabled = true;
+                    var taskDate = document.getElementById('reminderDate').value;
+                    var text     = document.getElementById('reminderText').value.trim();
+                    if (!taskDate || !text) { btn.disabled = false; return; }
+
+                    var params = new URLSearchParams();
+                    params.append('taskDate', taskDate);
+                    params.append('text', text);
+                    var csrfInput = document.querySelector('input[name="_csrf"]');
+                    if (csrfInput) params.append(csrfInput.name, csrfInput.value);
+
+                    var url, method;
+                    if (EXISTING_REMINDER_ID) {
+                        // Update existing
+                        url    = '/clientcare/calendar-tasks/api/' + EXISTING_REMINDER_ID + '/update';
+                        method = 'POST';
+                    } else {
+                        // Create new
+                        if (REMINDER_CLIENT_ID) params.append('clientId', REMINDER_CLIENT_ID);
+                        if (REMINDER_APPT_ID)   params.append('appointmentId', REMINDER_APPT_ID);
+                        url    = '/clientcare/calendar-tasks/api';
+                        method = 'POST';
+                    }
+
+                    fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
+                    }).then(function(r) {
+                        if (r.ok || r.status === 201) {
+                            bootstrap.Modal.getInstance(reminderModalEl).hide();
+                            window.location.reload();
+                        } else {
+                            btn.disabled = false;
+                        }
+                    }).catch(function() { btn.disabled = false; });
+                });
+
+                document.getElementById('deleteReminderBtn').addEventListener('click', function() {
+                    if (!EXISTING_REMINDER_ID) return;
+                    if (!confirm('\u0412\u0438\u0434\u0430\u043b\u0438\u0442\u0438 \u043d\u0430\u0433\u0430\u0434\u0443\u0432\u0430\u043d\u043d\u044f?')) return;
+                    var btn = this;
+                    btn.disabled = true;
+                    var params = new URLSearchParams();
+                    var csrfInput = document.querySelector('input[name="_csrf"]');
+                    if (csrfInput) params.append(csrfInput.name, csrfInput.value);
+                    fetch('/clientcare/calendar-tasks/api/' + EXISTING_REMINDER_ID + '/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
+                    }).then(function(r) {
+                        if (r.ok) {
+                            bootstrap.Modal.getInstance(reminderModalEl).hide();
+                            window.location.reload();
+                        } else {
+                            btn.disabled = false;
+                        }
+                    }).catch(function() { btn.disabled = false; });
+                });
             }
         });
     </script>

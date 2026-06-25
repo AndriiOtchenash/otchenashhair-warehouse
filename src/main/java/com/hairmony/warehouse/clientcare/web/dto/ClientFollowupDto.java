@@ -16,7 +16,8 @@ public record ClientFollowupDto(
         LocalDate nextVisitDate,
         long daysUntilNextVisit,  // negative = overdue, 0 = today, positive = upcoming
         boolean visitPastToday,   // true when appointment was today but already started (shows as overdue)
-        boolean visitIsNoShow     // true when the overdue signal comes from a NO_SHOW appointment
+        boolean visitIsNoShow,    // true when the overdue signal comes from a NO_SHOW appointment
+        boolean hasNotes          // true when at least one NOTE entry exists for this client
 ) {
     public boolean hasPhone() {
         return clientPhone != null && !clientPhone.isBlank();

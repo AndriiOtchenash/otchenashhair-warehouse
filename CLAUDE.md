@@ -117,7 +117,8 @@ Migrations:
 025-create-salon-services (services table — name, description, duration),
 026-add-telegram-client (telegram_chat_id BIGINT nullable + telegram_link_token VARCHAR(64) unique nullable on clients),
 027-add-appointment-reminders (reminder_48h_sent_at, reminder_24h_sent_at, reminder_2h_sent_at TIMESTAMP nullable on appointments),
-028-remove-guest-appointments (drops guest_name, guest_phone from appointments; sets client_id NOT NULL)
+028-remove-guest-appointments (drops guest_name, guest_phone from appointments; sets client_id NOT NULL),
+029-create-calendar-tasks (calendar_tasks table: id, task_date DATE, client_id FK, appointment_id FK, text VARCHAR(500), is_done BOOL, created_at)
 
 ## Warehouse features
 - **Dashboard** (/) — KPI cards (All/OK/LOW/OUT), status/category/brand/search filters, clickable rows; `.stock-table` with table-layout:fixed
@@ -649,6 +650,12 @@ com.hairmony.warehouse/
 - `returnTo=${currentPageUrl}` on visit edit links — Back returns to finance page with preset preserved
 - Chart: Chart.js 4 combo bar+line (visits=bars right axis, revenue=line left axis)
 
+### Calendar Tasks `/clientcare/calendar-tasks`
+- `CalendarTask` entity: `task_date DATE`, `client_id FK`, `appointment_id FK`, `text VARCHAR(500)`, `is_done BOOL` — all client/appointment links nullable; generic dated-task design
+- `CalendarTaskService.findByDate(date)`: when `date == today` (Warsaw), prepends overdue pending tasks (`task_date < today AND is_done = false`) before today's own tasks; `getCountsByDateRange` adds overdue count to today's map entry — badge is correct without opening the modal
+- Reminder button on NO_SHOW and CANCELLED appointment edit pages; `isNoShow`/`isCancelled` booleans from controller; pre-filled text differs: "не прийшов(ла)" vs "скасував(ла)" (via `REMINDER_IS_CANCELLED` JS constant)
+- **Future Lead flow**: when a `leads` table is added — `ALTER TABLE calendar_tasks ADD COLUMN lead_id BIGINT REFERENCES leads(id) ON DELETE SET NULL`; add `leadId`/`leadName` to `CalendarTaskDto`; service and controller unchanged
+
 ### Thymeleaf 3.1 restrictions
 - `th:onclick` with string concatenation blocked — use `th:data-*` attributes + `onclick="fn(this.dataset.field)"`
 - Dynamic message key lookups `#{__{'prefix.' + var}__}` blocked — use `th:switch` / `th:case` with explicit static keys per enum value
@@ -712,7 +719,7 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
 
 ## TODO
 
-### ClientCare (pending)
+### ClientCare
 - **Wave 4 — Protocol entity** — POSTPONED: treatment type → recommended product list; not relevant at current stage
 
 ### Warehouse
@@ -728,7 +735,7 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
 ### Infrastructure
-- **GitHub Actions cron reliability** — cron для `/internal/reminders` имел задержку ~3 часа (2026-05-29); если задержки продолжатся — мигрировать триггер на **cron-job.org** (бесплатный HTTP cron, задержка < 1 мин); настройка: URL + заголовок `X-Internal-Token`; GitHub Actions workflow оставить как ручной резерв
+- **GitHub Actions cron reliability** — `/internal/reminders` cron had ~3h delay (2026-05-29); if delays recur — migrate trigger to **cron-job.org** (free HTTP cron, delay < 1 min); config: URL + `X-Internal-Token` header; keep GitHub Actions workflow as manual fallback
 - **Google Calendar sync** — OAuth2 two-way sync; main complexity: token storage per user + conflict resolution
 - **PostgreSQL backup** — pg_dump @Scheduled or Neon point-in-time recovery (check if sufficient before custom solution)
 - Spring Session (if scaling beyond 1 machine)

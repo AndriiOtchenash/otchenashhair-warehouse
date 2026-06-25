@@ -83,3 +83,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/migrations/028-remove-guest-appointments.sql
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/migrations/029-create-calendar-tasks.sql
+      relativeToChangelogFile: false

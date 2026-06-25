@@ -291,6 +291,14 @@
             border-color: var(--accent) !important;
             color: var(--accent) !important;
         }
+
+        /* Task inline-edit save button — disabled must not look blue */
+        .cal-task-edit-save:disabled {
+            background-color: transparent;
+            border-color: #6c757d;
+            color: #6c757d;
+            opacity: 0.65;
+        }
     </style>
 
     <!-- Context banner — visible when booking for a specific client -->
@@ -347,15 +355,63 @@
                     </button>
                 </div>
                 <button id="calLegendMobile" class="cal-nav-btn" type="button"
-                        aria-label="Легенда кольорів" style="margin-left:0.15rem; color:var(--accent); border-color:var(--accent);">
+                        aria-label="Легенда кольорів"
+                        style="margin-left:0.15rem; color:var(--accent); border-color:var(--accent); display:none;">
                     <i class="bi bi-info-circle"></i>
                 </button>
+                <button id="calTasksBtn" class="cal-nav-btn" type="button"
+                        th:title="#{calendar.tasks.btn.title}"
+                        style="margin-left:0.15rem; color:var(--accent); border-color:var(--accent); position:relative;"
+                        data-bs-toggle="modal" data-bs-target="#calTasksModal">
+                    <i class="bi bi-list-task"></i>
+                    <span id="calTasksBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                          style="font-size:0.55rem; display:none;"></span>
+                </button>
             </div>
+        </div>
+
+        <!-- ── Today tasks alert (shown only in day view when today has pending tasks) ── -->
+        <div id="todayTasksAlert" class="alert alert-warning py-2 mx-2 mx-md-3 mt-3 mb-0 d-none align-items-center gap-2">
+            <i class="bi bi-exclamation-circle flex-shrink-0"></i>
+            <span class="small" th:text="#{calendar.tasks.today.alert.label}">Незавершених завдань</span>
+            <strong id="todayTasksAlertCount" class="me-auto"></strong>
+            <button type="button" class="btn-close flex-shrink-0" style="font-size:0.65em" aria-label="Close"
+                    onclick="this.closest('#todayTasksAlert').classList.add('d-none');this.closest('#todayTasksAlert').classList.remove('d-flex')"></button>
         </div>
 
         <!-- ── Calendar grid ── -->
         <div class="card-body p-2 p-md-3">
             <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- Calendar Tasks modal -->
+    <div class="modal fade" id="calTasksModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-1">
+                    <h6 class="modal-title fw-semibold" id="calTasksModalTitle" th:text="#{calendar.tasks.btn.title}">Завдання</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-1 pb-2" id="calTasksList">
+                    <div class="text-muted small text-center py-2" id="calTasksEmpty"
+                         th:text="#{calendar.tasks.empty}">Завдань немає</div>
+                </div>
+                <div class="modal-footer border-0 pt-0 flex-column align-items-stretch gap-1">
+                    <div id="calTaskNoteRow" style="display:none">
+                        <textarea id="calTaskText" class="form-control form-control-sm mb-1" rows="2"
+                                  th:placeholder="#{calendar.reminder.note.placeholder}"></textarea>
+                        <div class="d-flex gap-1 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="calTaskCancelAdd"
+                                    th:text="#{btn.cancel}">Скасувати</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="calTaskSaveBtn"
+                                    th:text="#{calendar.tasks.save}">Зберегти</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="calTaskAddBtn"
+                            th:text="#{calendar.tasks.add}">+ Додати завдання</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -635,6 +691,13 @@
                 const btn = document.getElementById(activeId);
                 if (btn) btn.classList.add('active');
             }
+
+            // Day view: tasks button. Week/month: legend button.
+            const isDay = view.type === 'timeGridDay';
+            const legendBtn = document.getElementById('calLegendMobile');
+            const tasksBtn  = document.getElementById('calTasksBtn');
+            if (legendBtn) legendBtn.style.display = isDay ? 'none' : '';
+            if (tasksBtn)  tasksBtn.style.display  = isDay ? '' : 'none';
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -698,6 +761,15 @@
                         } else if (sub) {
                             sub.remove();
                         }
+                    }
+
+                    // Update tasks badge and today alert in day view
+                    if (info.view.type === 'timeGridDay') {
+                        loadTaskCountForDate(info.view.currentStart);
+                    } else {
+                        updateTasksBadge(0);
+                        var alertEl = document.getElementById('todayTasksAlert');
+                        if (alertEl) { alertEl.classList.add('d-none'); alertEl.classList.remove('d-flex'); }
                     }
                 },
 
@@ -812,6 +884,378 @@
                 el('viewDay').onclick     = () => cal.changeView('timeGridDay');
                 el('viewWeek').onclick    = () => cal.changeView('timeGridWeek');
                 el('viewMonth').onclick   = () => cal.changeView('dayGridMonth');
+            }
+
+            // ── Calendar Tasks modal ──────────────────────────────────────────
+            const CAL_TASKS_TITLE_TPL  = /*[[#{calendar.tasks.modal.title}]]*/ 'Tasks for {0}';
+            const CAL_TASKS_EMPTY      = /*[[#{calendar.tasks.empty}]]*/ 'No tasks';
+            const CAL_TASKS_SAVE_LBL   = /*[[#{calendar.tasks.save}]]*/ 'Save';
+            const CAL_TASKS_ADD_LBL    = /*[[#{calendar.tasks.add}]]*/ 'Add task';
+            const CAL_TASKS_EDIT_LBL        = /*[[#{calendar.tasks.edit}]]*/ 'Edit';
+            const CAL_TASKS_CANCEL_LBL      = /*[[#{btn.cancel}]]*/ 'Cancel';
+            const CAL_TASKS_DELETE_CONFIRM  = /*[[#{calendar.tasks.delete.confirm}]]*/ 'Delete this task?';
+
+            let _tasksDate = null; // ISO date string for the currently loaded day
+
+            function todayIso() {
+                return new Intl.DateTimeFormat('en-CA').format(new Date());
+            }
+
+            function dateToLocalIsoDate(dateObj) {
+                return new Intl.DateTimeFormat('en-CA').format(dateObj);
+            }
+
+            function updateTasksBadge(count) {
+                const badge = document.getElementById('calTasksBadge');
+                if (!badge) return;
+                if (count > 0) {
+                    badge.textContent = count > 9 ? '9+' : count;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            function updateTodayAlert(iso, pendingCount) {
+                const alertEl = document.getElementById('todayTasksAlert');
+                if (!alertEl) return;
+                if (pendingCount > 0) {
+                    document.getElementById('todayTasksAlertCount').textContent = pendingCount;
+                    alertEl.classList.remove('d-none');
+                    alertEl.classList.add('d-flex');
+                } else {
+                    alertEl.classList.add('d-none');
+                    alertEl.classList.remove('d-flex');
+                }
+            }
+
+            function loadTaskCountForDate(dateObj) {
+                const iso = dateToLocalIsoDate(dateObj);
+                fetch('/clientcare/calendar-tasks/api/counts?start=' + iso + '&end=' + iso)
+                    .then(r => r.ok ? r.json() : {})
+                    .then(function(data) {
+                        const count = data[iso] || 0;
+                        updateTasksBadge(count);
+                        updateTodayAlert(iso, count);
+                    })
+                    .catch(() => {});
+            }
+
+            function buildTaskRow(t) {
+                var row = document.createElement('div');
+                row.className = 'cal-task-row d-flex align-items-start gap-2 py-1 border-bottom';
+                row.dataset.id = t.id;
+
+                var check = document.createElement('input');
+                check.type = 'checkbox';
+                check.className = 'form-check-input mt-1 flex-shrink-0';
+                check.checked = t.done;
+                check.addEventListener('change', function() { toggleTaskDone(t.id, row, check); });
+
+                // View mode: text + optional client link
+                var viewEl = document.createElement('div');
+                viewEl.className = 'cal-task-view flex-grow-1';
+
+                var textEl = document.createElement('span');
+                textEl.className = 'small d-block';
+                textEl.style.cssText = t.done ? 'text-decoration:line-through;color:#6c757d;' : '';
+                if (t.clientId && t.clientName && t.text.indexOf(t.clientName) !== -1) {
+                    var idx = t.text.indexOf(t.clientName);
+                    textEl.appendChild(document.createTextNode(t.text.slice(0, idx)));
+                    var nameLink = document.createElement('a');
+                    nameLink.href = '/clientcare/clients/' + t.clientId;
+                    nameLink.style.color = 'var(--accent)';
+                    nameLink.textContent = t.clientName;
+                    textEl.appendChild(nameLink);
+                    textEl.appendChild(document.createTextNode(t.text.slice(idx + t.clientName.length)));
+                } else {
+                    textEl.textContent = t.text;
+                }
+                viewEl.appendChild(textEl);
+
+                // Edit mode: date + textarea + save/cancel (hidden initially)
+                var editEl = document.createElement('div');
+                editEl.className = 'cal-task-edit flex-grow-1';
+                editEl.style.display = 'none';
+
+                var dateInput = document.createElement('input');
+                dateInput.type = 'date';
+                dateInput.className = 'form-control form-control-sm mb-1';
+                editEl.appendChild(dateInput);
+
+                var ta = document.createElement('textarea');
+                ta.className = 'form-control form-control-sm mb-1';
+                ta.rows = 2;
+                ta.value = t.text;
+                editEl.appendChild(ta);
+
+                var origDate = _tasksDate; // captured when pencil clicked (see editBtn listener)
+
+                function syncEditSaveBtn() {
+                    var textChanged = ta.value.trim() !== t.text.trim();
+                    var dateChanged = dateInput.value !== origDate;
+                    saveEditBtn.disabled = (!textChanged && !dateChanged) || !ta.value.trim() || !dateInput.value;
+                }
+
+                var editBtns = document.createElement('div');
+                editBtns.className = 'd-flex gap-1 justify-content-end';
+
+                var cancelEditBtn = document.createElement('button');
+                cancelEditBtn.type = 'button';
+                cancelEditBtn.className = 'btn btn-outline-secondary btn-sm';
+                cancelEditBtn.textContent = CAL_TASKS_CANCEL_LBL;
+                cancelEditBtn.addEventListener('click', function() {
+                    ta.value = t.text;
+                    dateInput.value = origDate;
+                    check.style.display   = '';
+                    editEl.style.display  = 'none';
+                    viewEl.style.display  = '';
+                    editBtn.style.display = '';
+                    delBtn.style.display  = '';
+                });
+
+                var saveEditBtn = document.createElement('button');
+                saveEditBtn.type = 'button';
+                saveEditBtn.className = 'btn btn-primary btn-sm cal-task-edit-save';
+                saveEditBtn.textContent = CAL_TASKS_SAVE_LBL;
+                saveEditBtn.disabled = true;
+                ta.addEventListener('input', syncEditSaveBtn);
+                dateInput.addEventListener('change', syncEditSaveBtn);
+
+                saveEditBtn.addEventListener('click', function() {
+                    var newText = ta.value.trim();
+                    var newDate = dateInput.value;
+                    if (!newText || !newDate) return;
+                    saveEditBtn.disabled = true;
+                    var params = new URLSearchParams();
+                    params.append('taskDate', newDate);
+                    params.append('text', newText);
+                    params.append(CSRF_PARAM, CSRF_TOKEN);
+                    fetch('/clientcare/calendar-tasks/api/' + t.id + '/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
+                    }).then(function(r) {
+                        if (r.ok) {
+                            if (newDate !== origDate) {
+                                // Task moved to another day — remove from this list
+                                row.remove();
+                                var remaining = document.querySelectorAll('.cal-task-row').length;
+                                if (remaining === 0) document.getElementById('calTasksEmpty').style.display = '';
+                                var pending = 0;
+                                document.querySelectorAll('.cal-task-row').forEach(function(r2) {
+                                    var cb = r2.querySelector('input[type=checkbox]');
+                                    if (cb && !cb.checked) pending++;
+                                });
+                                updateTasksBadge(pending);
+                                updateTodayAlert(origDate, pending);
+                            } else {
+                                t.text = newText;
+                                // Rebuild textEl content (may include client name link)
+                                while (textEl.firstChild) textEl.removeChild(textEl.firstChild);
+                                if (t.clientId && t.clientName && newText.indexOf(t.clientName) !== -1) {
+                                    var idx = newText.indexOf(t.clientName);
+                                    textEl.appendChild(document.createTextNode(newText.slice(0, idx)));
+                                    var nl = document.createElement('a');
+                                    nl.href = '/clientcare/clients/' + t.clientId;
+                                    nl.style.color = 'var(--accent)';
+                                    nl.textContent = t.clientName;
+                                    textEl.appendChild(nl);
+                                    textEl.appendChild(document.createTextNode(newText.slice(idx + t.clientName.length)));
+                                } else {
+                                    textEl.textContent = newText;
+                                }
+                                ta.value = newText;
+                                check.style.display   = '';
+                                editEl.style.display  = 'none';
+                                viewEl.style.display  = '';
+                                editBtn.style.display = '';
+                                delBtn.style.display  = '';
+                            }
+                        } else {
+                            saveEditBtn.disabled = false;
+                        }
+                    }).catch(function() { saveEditBtn.disabled = false; });
+                });
+
+                editBtns.appendChild(cancelEditBtn);
+                editBtns.appendChild(saveEditBtn);
+                editEl.appendChild(editBtns);
+
+                // Action buttons: edit + delete (shown in view mode)
+                var editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'btn btn-link btn-sm p-0 text-secondary flex-shrink-0';
+                editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+                editBtn.title = CAL_TASKS_EDIT_LBL;
+                editBtn.addEventListener('click', function() {
+                    origDate = _tasksDate; // capture current day at open time
+                    dateInput.value = origDate;
+                    ta.value = t.text;
+                    saveEditBtn.disabled = true;
+                    check.style.display   = 'none';
+                    viewEl.style.display  = 'none';
+                    editBtn.style.display = 'none';
+                    delBtn.style.display  = 'none';
+                    editEl.style.display  = '';
+                    ta.focus();
+                });
+
+                var delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'btn btn-link btn-sm p-0 text-danger flex-shrink-0';
+                delBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+                delBtn.addEventListener('click', function() { deleteTask(t.id, row); });
+
+                row.appendChild(check);
+                row.appendChild(viewEl);
+                row.appendChild(editEl);
+                row.appendChild(editBtn);
+                row.appendChild(delBtn);
+                return row;
+            }
+
+            function renderTasksList(tasks) {
+                const list  = document.getElementById('calTasksList');
+                const empty = document.getElementById('calTasksEmpty');
+                list.querySelectorAll('.cal-task-row').forEach(el => el.remove());
+                if (tasks.length === 0) {
+                    empty.style.display = '';
+                    return;
+                }
+                empty.style.display = 'none';
+                tasks.forEach(function(t) {
+                    list.appendChild(buildTaskRow(t));
+                });
+            }
+
+            function loadTasksForDate(iso) {
+                _tasksDate = iso;
+                fetch('/clientcare/calendar-tasks/api?date=' + iso)
+                    .then(r => r.ok ? r.json() : [])
+                    .then(function(tasks) {
+                        renderTasksList(tasks);
+                        const pending = tasks.filter(t => !t.done).length;
+                        updateTasksBadge(pending);
+                        updateTodayAlert(iso, pending);
+                    })
+                    .catch(() => {});
+            }
+
+            function toggleTaskDone(id, row, check) {
+                var params = new URLSearchParams();
+                params.append(CSRF_PARAM, CSRF_TOKEN);
+                fetch('/clientcare/calendar-tasks/api/' + id + '/done', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString()
+                }).then(function(r) {
+                    if (r.ok) {
+                        var textEl = row.querySelector('span.small');
+                        if (textEl) textEl.style.cssText = check.checked ? 'text-decoration:line-through;color:#6c757d;' : '';
+                        if (_tasksDate) {
+                            var rows = document.querySelectorAll('.cal-task-row');
+                            var pending = 0;
+                            rows.forEach(function(r2) {
+                                var cb = r2.querySelector('input[type=checkbox]');
+                                if (cb && !cb.checked) pending++;
+                            });
+                            updateTasksBadge(pending);
+                            updateTodayAlert(_tasksDate, pending);
+                        }
+                    } else {
+                        check.checked = !check.checked;
+                    }
+                }).catch(function() { check.checked = !check.checked; });
+            }
+
+            function deleteTask(id, row) {
+                if (!confirm(CAL_TASKS_DELETE_CONFIRM)) return;
+                var params = new URLSearchParams();
+                params.append(CSRF_PARAM, CSRF_TOKEN);
+                fetch('/clientcare/calendar-tasks/api/' + id + '/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString()
+                }).then(function(r) {
+                    if (r.ok) {
+                        row.remove();
+                        var remaining = document.querySelectorAll('.cal-task-row').length;
+                        if (remaining === 0) document.getElementById('calTasksEmpty').style.display = '';
+                        if (_tasksDate) {
+                            var rows = document.querySelectorAll('.cal-task-row');
+                            var pending = 0;
+                            rows.forEach(function(r2) {
+                                var cb = r2.querySelector('input[type=checkbox]');
+                                if (cb && !cb.checked) pending++;
+                            });
+                            updateTasksBadge(pending);
+                            updateTodayAlert(_tasksDate, pending);
+                        }
+                    }
+                }).catch(() => {});
+            }
+
+            const calTasksModalEl = document.getElementById('calTasksModal');
+            if (calTasksModalEl) {
+                calTasksModalEl.addEventListener('show.bs.modal', function() {
+                    // Determine current day view date from FullCalendar
+                    if (typeof cal !== 'undefined' && cal.view.type === 'timeGridDay') {
+                        const d = cal.view.currentStart;
+                        const iso = dateToLocalIsoDate(d);
+                        const formatted = d.toLocaleDateString(
+                            FC_LOCALE === 'uk' ? 'uk-UA' : FC_LOCALE === 'pl' ? 'pl-PL' : 'en-US',
+                            { day: 'numeric', month: 'long', year: 'numeric' }
+                        );
+                        document.getElementById('calTasksModalTitle').textContent =
+                            CAL_TASKS_TITLE_TPL.replace('{0}', formatted);
+                        loadTasksForDate(iso);
+                    }
+                    // Reset add form
+                    document.getElementById('calTaskNoteRow').style.display = 'none';
+                    document.getElementById('calTaskAddBtn').style.display = '';
+                    document.getElementById('calTaskText').value = '';
+                });
+
+                document.getElementById('calTaskAddBtn').addEventListener('click', function() {
+                    this.style.display = 'none';
+                    document.getElementById('calTaskNoteRow').style.display = '';
+                    document.getElementById('calTaskText').focus();
+                });
+
+                document.getElementById('calTaskCancelAdd').addEventListener('click', function() {
+                    document.getElementById('calTaskNoteRow').style.display = 'none';
+                    document.getElementById('calTaskAddBtn').style.display = '';
+                    document.getElementById('calTaskText').value = '';
+                });
+
+                document.getElementById('calTaskSaveBtn').addEventListener('click', function() {
+                    var btn = this;
+                    var text = document.getElementById('calTaskText').value.trim();
+                    if (!text || !_tasksDate) return;
+                    btn.disabled = true;
+
+                    var params = new URLSearchParams();
+                    params.append('taskDate', _tasksDate);
+                    params.append('text', text);
+                    params.append(CSRF_PARAM, CSRF_TOKEN);
+
+                    fetch('/clientcare/calendar-tasks/api', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
+                    }).then(function(r) {
+                        if (r.ok || r.status === 201) {
+                            return r.json().then(function(task) {
+                                document.getElementById('calTaskText').value = '';
+                                document.getElementById('calTaskNoteRow').style.display = 'none';
+                                document.getElementById('calTaskAddBtn').style.display = '';
+                                loadTasksForDate(_tasksDate);
+                            });
+                        }
+                        btn.disabled = false;
+                    }).catch(function() { btn.disabled = false; });
+                });
             }
         });
         /*]]>*/
