@@ -47,4 +47,8 @@ public interface FollowUpRepository extends JpaRepository<FollowUp, Long> {
     /** Returns all distinct client IDs that have any follow-up record. */
     @Query("SELECT DISTINCT f.client.id FROM FollowUp f")
     Set<Long> findAllDistinctClientIds();
+
+    /** Returns client IDs that have at least one NOTE entry. */
+    @Query("SELECT DISTINCT f.client.id FROM FollowUp f WHERE f.action = com.hairmony.warehouse.domain.followup.FollowUpAction.NOTE")
+    Set<Long> findClientIdsWithNotes();
 }

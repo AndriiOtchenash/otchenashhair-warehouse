@@ -1,6 +1,7 @@
 package com.hairmony.warehouse.clientcare.web.controller;
 
 import com.hairmony.warehouse.clientcare.service.AppointmentService;
+import com.hairmony.warehouse.clientcare.service.CalendarTaskService;
 import com.hairmony.warehouse.clientcare.service.FollowUpService;
 import com.hairmony.warehouse.clientcare.service.SalonServiceService;
 import com.hairmony.warehouse.clientcare.service.VisitService;
@@ -37,6 +38,7 @@ public class AppointmentController {
     private final VisitService visitService;
     private final SalonServiceService salonServiceService;
     private final FollowUpService followUpService;
+    private final CalendarTaskService calendarTaskService;
 
     @GetMapping
     public String calendarView(@RequestParam(required = false)
@@ -233,14 +235,27 @@ public class AppointmentController {
         boolean isOverdue = canComplete
                 && dto.getEndAt() != null
                 && dto.getEndAt().isBefore(now);
-        boolean isNoShow = dto.getClientId() != null
-                && dto.getStatus() == AppointmentStatus.NO_SHOW;
+        boolean isNoShow    = dto.getClientId() != null && dto.getStatus() == AppointmentStatus.NO_SHOW;
+        boolean isCancelled = dto.getClientId() != null && dto.getStatus() == AppointmentStatus.CANCELLED;
         model.addAttribute("canComplete", canComplete);
         model.addAttribute("isInProgress", isInProgress);
         model.addAttribute("isOverdue", isOverdue);
         model.addAttribute("isNoShow", isNoShow);
+        model.addAttribute("isCancelled", isCancelled);
+        if (isNoShow || isCancelled) {
+            calendarTaskService.findByAppointmentId(id).ifPresentOrElse(
+                    task -> {
+                        model.addAttribute("reminderAdded", true);
+                        model.addAttribute("existingReminder", task);
+                    },
+                    () -> model.addAttribute("reminderAdded", false)
+            );
+        }
         if (isNoShow) {
             model.addAttribute("followupAdded", followUpService.hasActivity(dto.getClientId()));
+            appointmentService.getNextUpcomingForClient(dto.getClientId())
+                    .ifPresent(next -> model.addAttribute("nextApptDate",
+                            next.getStartAt() != null ? next.getStartAt().toLocalDate() : null));
         }
         lockClientForEdit(dto, model);
         if (returnTo != null) model.addAttribute("returnTo", returnTo);

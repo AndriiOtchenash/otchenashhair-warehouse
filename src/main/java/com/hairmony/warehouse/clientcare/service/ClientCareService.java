@@ -55,6 +55,9 @@ public class ClientCareService {
         LocalDateTime now   = LocalDateTime.now(ZoneId.of("Europe/Warsaw"));
         LocalDate today     = now.toLocalDate();
 
+        // 0. Load client IDs that have at least one NOTE (used for sorting and DTO flag)
+        Set<Long> noteClientIds = followUpRepository.findClientIdsWithNotes();
+
         // 1. Purchase-based signals
         Map<Long, ClientFollowupDto> byClientId = new LinkedHashMap<>();
         movementRepository.findClientSaleStats().stream()
@@ -106,25 +109,26 @@ public class ClientCareService {
             boolean pastToday  = apptPastToday.getOrDefault(clientId, false);
             boolean isNoShow   = apptIsNoShow.getOrDefault(clientId, false);
             Client c           = apptClient.get(clientId);
+            boolean hasNotes   = noteClientIds.contains(clientId);
 
             ClientFollowupDto existing = byClientId.get(clientId);
             if (existing != null) {
                 byClientId.put(clientId, new ClientFollowupDto(
                         existing.clientId(), existing.clientName(), existing.clientPhone(),
                         existing.lastPurchaseAt(), existing.daysSinceLastPurchase(), existing.totalSpent(),
-                        apptDate, daysUntil, pastToday, isNoShow
+                        apptDate, daysUntil, pastToday, isNoShow, hasNotes
                 ));
             } else {
                 // Appointment-only client (no purchases yet)
                 byClientId.put(clientId, new ClientFollowupDto(
                         clientId, c.getName(), c.getPhone(),
                         null, 0, BigDecimal.ZERO,
-                        apptDate, daysUntil, pastToday, isNoShow
+                        apptDate, daysUntil, pastToday, isNoShow, hasNotes
                 ));
             }
         }
 
-        // 3. Follow-up-only clients: have a NOTE entry but no purchase or appointment signal
+        // 3. Follow-up-only clients: have a follow-up record but no purchase or appointment signal
         //    (e.g. client whose only appointment was CANCELLED — they disappear from queue otherwise)
         Set<Long> followupOnlyIds = new HashSet<>(followUpRepository.findAllDistinctClientIds());
         followupOnlyIds.removeAll(byClientId.keySet());
@@ -133,15 +137,32 @@ public class ClientCareService {
                 byClientId.put(c.getId(), new ClientFollowupDto(
                         c.getId(), c.getName(), c.getPhone(),
                         null, 0, BigDecimal.ZERO,
-                        null, 0, false, false
+                        null, 0, false, false, noteClientIds.contains(c.getId())
                 ))
             );
         }
 
-        // 4. Sort: overdue → today → upcoming → purchase-only (by days desc)
+        // 4. Also stamp hasNotes on the purchase-only clients built in step 1
+        //    (they were built before noteClientIds was applied)
+        noteClientIds.stream()
+                .filter(byClientId::containsKey)
+                .forEach(id -> {
+                    ClientFollowupDto d = byClientId.get(id);
+                    if (!d.hasNotes()) {
+                        byClientId.put(id, new ClientFollowupDto(
+                                d.clientId(), d.clientName(), d.clientPhone(),
+                                d.lastPurchaseAt(), d.daysSinceLastPurchase(), d.totalSpent(),
+                                d.nextVisitDate(), d.daysUntilNextVisit(), d.visitPastToday(), d.visitIsNoShow(),
+                                true
+                        ));
+                    }
+                });
+
+        // 5. Sort: has notes first, then overdue → today → upcoming → purchase-only (by days desc)
         return byClientId.values().stream()
                 .sorted(Comparator
-                        .comparingInt(ClientFollowupDto::signalPriority)
+                        .comparing(ClientFollowupDto::hasNotes).reversed()
+                        .thenComparingInt(ClientFollowupDto::signalPriority)
                         .thenComparingLong((ClientFollowupDto c) -> {
                             if (c.hasVisitSignal()) return c.daysUntilNextVisit(); // overdue first = most negative
                             return -c.daysSinceLastPurchase(); // purchase: most days = most urgent
@@ -232,6 +253,6 @@ public class ClientCareService {
         LocalDateTime lastPurchase = (LocalDateTime) row[3];
         BigDecimal totalSpent  = row[4] != null ? (BigDecimal) row[4] : BigDecimal.ZERO;
         long days = ChronoUnit.DAYS.between(lastPurchase, now);
-        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0, false, false);
+        return new ClientFollowupDto(clientId, name, phone, lastPurchase, days, totalSpent, null, 0, false, false, false);
     }
 }

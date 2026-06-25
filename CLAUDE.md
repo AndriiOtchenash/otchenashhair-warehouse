@@ -117,7 +117,8 @@ Migrations:
 025-create-salon-services (services table — name, description, duration),
 026-add-telegram-client (telegram_chat_id BIGINT nullable + telegram_link_token VARCHAR(64) unique nullable on clients),
 027-add-appointment-reminders (reminder_48h_sent_at, reminder_24h_sent_at, reminder_2h_sent_at TIMESTAMP nullable on appointments),
-028-remove-guest-appointments (drops guest_name, guest_phone from appointments; sets client_id NOT NULL)
+028-remove-guest-appointments (drops guest_name, guest_phone from appointments; sets client_id NOT NULL),
+029-create-calendar-tasks (calendar_tasks table: id, task_date DATE, client_id FK, appointment_id FK, text VARCHAR(500), is_done BOOL, created_at)
 
 ## Warehouse features
 - **Dashboard** (/) — KPI cards (All/OK/LOW/OUT), status/category/brand/search filters, clickable rows; `.stock-table` with table-layout:fixed
@@ -334,6 +335,41 @@ to avoid `.fc-daygrid-dot-event` transparent-background issue.
   `syncScannerLink()` builds href as `/scan?mode=expense` + `clientId`/`returnTo` from hidden inputs —
   called on `DOMContentLoaded`; scan.html reads these params via `URLSearchParams` and appends them
   to the post-scan redirect (`getStockUrl()`) and manual link (`updateManualLink()`).
+
+## iOS WebKit patterns (apply consistently)
+
+All iOS browsers (Safari and Chrome) use WebKit. These bugs recur — apply the patterns below whenever adding modals or async form submissions.
+
+- **Modals inside scroll containers freeze:** Never place Bootstrap modals inside an element with `overflow: auto/scroll` or `-webkit-overflow-scrolling: touch`. iOS traps `position: fixed` children, causing the modal to appear dimmed and freeze the page. Always place modals AFTER the closing `</div>` of `.card` / `.card-body`. Already fixed in `appointments/form.html`.
+
+- **`fetch()` + server redirect stalls Promise:** Do not use `fetch()` for form submissions where the server returns a `redirect:`. On iOS WebKit the Promise never resolves, so `.then()` never fires — the UI freezes while the request already succeeded on the server. Use `document.createElement('form')` + `form.submit()` instead (same pattern as `submitUnsnooze()` in `followups.html`):
+  ```javascript
+  const form = document.createElement('form');
+  form.method = 'POST'; form.action = '/some/endpoint';
+  const addField = (name, value) => {
+      const i = document.createElement('input');
+      i.type = 'hidden'; i.name = name; i.value = value;
+      form.appendChild(i);
+  };
+  addField('field', value);
+  addField(csrfParam, csrfToken);
+  document.body.appendChild(form);
+  form.submit();
+  ```
+  **Thymeleaf gotcha inside `th:inline="javascript"`:** Never use nested array literals `[['key', val], ...]` — Thymeleaf's `[[...]]` inline expression syntax conflicts and throws `TemplateProcessingException`. Use the `addField()` helper pattern above instead.
+
+- **`modal-fullscreen-sm-down` breaks width when keyboard opens:** Bootstrap sets `width: 100vw` on `.modal-dialog`. When the keyboard opens, Bootstrap adds `padding-right` to `<body>` for scrollbar compensation — `100vw` includes that padding → horizontal overflow → broken layout. Fix: override with `width: 100%` (percentage is relative to parent, unaffected by body padding) and add `overflow-x: hidden`. Also use `max-height: 90dvh` (`dvh` = dynamic viewport height, shrinks with keyboard; iOS 15.4+) with `90vh` fallback:
+  ```css
+  @media (max-width: 575.98px) {
+      #myModal .modal-dialog { width: 100%; max-width: 100%; }
+      #myModal .modal-content { overflow-x: hidden; }
+  }
+  ```
+  ```html
+  <div class="modal-content" style="max-height:90vh; max-height:90dvh;">
+  ```
+
+- **Two-step modal chaining freezes page:** Never hide one Bootstrap modal and immediately show another on iOS — the second modal appears but freezes. Use a single modal with two `<div>` steps swapped via `style.display`, plus `overflow-hidden` on `.modal-content`. Reset to step 1 on `hidden.bs.modal`. Applied in `appointments/form.html` cancel modal.
 
 ## Stock expense validation
 - unitPrice required and > 0 for SALE — validated in StockExpenseDto via @AssertTrue isUnitPriceValidForSale()
@@ -614,6 +650,12 @@ com.hairmony.warehouse/
 - `returnTo=${currentPageUrl}` on visit edit links — Back returns to finance page with preset preserved
 - Chart: Chart.js 4 combo bar+line (visits=bars right axis, revenue=line left axis)
 
+### Calendar Tasks `/clientcare/calendar-tasks`
+- `CalendarTask` entity: `task_date DATE`, `client_id FK`, `appointment_id FK`, `text VARCHAR(500)`, `is_done BOOL` — all client/appointment links nullable; generic dated-task design
+- `CalendarTaskService.findByDate(date)`: when `date == today` (Warsaw), prepends overdue pending tasks (`task_date < today AND is_done = false`) before today's own tasks; `getCountsByDateRange` adds overdue count to today's map entry — badge is correct without opening the modal
+- Reminder button on NO_SHOW and CANCELLED appointment edit pages; `isNoShow`/`isCancelled` booleans from controller; pre-filled text differs: "не прийшов(ла)" vs "скасував(ла)" (via `REMINDER_IS_CANCELLED` JS constant)
+- **Future Lead flow**: when a `leads` table is added — `ALTER TABLE calendar_tasks ADD COLUMN lead_id BIGINT REFERENCES leads(id) ON DELETE SET NULL`; add `leadId`/`leadName` to `CalendarTaskDto`; service and controller unchanged
+
 ### Thymeleaf 3.1 restrictions
 - `th:onclick` with string concatenation blocked — use `th:data-*` attributes + `onclick="fn(this.dataset.field)"`
 - Dynamic message key lookups `#{__{'prefix.' + var}__}` blocked — use `th:switch` / `th:case` with explicit static keys per enum value
@@ -677,7 +719,7 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
 
 ## TODO
 
-### ClientCare (pending)
+### ClientCare
 - **Wave 4 — Protocol entity** — POSTPONED: treatment type → recommended product list; not relevant at current stage
 
 ### Warehouse
@@ -693,7 +735,7 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
 ### Infrastructure
-- **GitHub Actions cron reliability** — cron для `/internal/reminders` имел задержку ~3 часа (2026-05-29); если задержки продолжатся — мигрировать триггер на **cron-job.org** (бесплатный HTTP cron, задержка < 1 мин); настройка: URL + заголовок `X-Internal-Token`; GitHub Actions workflow оставить как ручной резерв
+- **GitHub Actions cron reliability** — `/internal/reminders` cron had ~3h delay (2026-05-29); if delays recur — migrate trigger to **cron-job.org** (free HTTP cron, delay < 1 min); config: URL + `X-Internal-Token` header; keep GitHub Actions workflow as manual fallback
 - **Google Calendar sync** — OAuth2 two-way sync; main complexity: token storage per user + conflict resolution
 - **PostgreSQL backup** — pg_dump @Scheduled or Neon point-in-time recovery (check if sufficient before custom solution)
 - Spring Session (if scaling beyond 1 machine)
