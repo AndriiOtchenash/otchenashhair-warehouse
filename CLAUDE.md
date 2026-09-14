@@ -433,6 +433,11 @@ If `OutOfMemoryError: Metaspace` appears in logs → raise `-XX:MaxMetaspaceSize
   - test.yml — triggers on push to develop and PRs to master; runs ./mvnw test (unit tests only, no DB required)
   - deploy.yml — triggers on push to master; runs unit tests first, then builds Docker image and deploys to Fly.io
   - deploy-on-comment.yml — triggers on PR comment "/deploy" by repo owner, same deploy flow
+  - gitleaks.yml — triggers on every push and every PR to any branch; runs gitleaks/gitleaks-action@v2
+    with full git history (fetch-depth: 0) against the ruleset in `gitleaks.toml` (repo root);
+    a red ✗ on a PR means a secret was detected — the PR cannot merge until the secret is removed
+    from history or added to the `[allowlist]` in `gitleaks.toml`. No local binary or license key
+    required; scanning runs on GitHub's servers.
 - Secrets managed via Fly.io secrets:
   | Secret | Description |
   |--------|-------------|

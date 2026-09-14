@@ -1,0 +1,25 @@
+# gitleaks.toml — secret scanning config for OtchenashHair Warehouse
+# Used by the GitHub Actions workflow at .github/workflows/gitleaks.yml
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+title = "OtchenashHair Warehouse — gitleaks config"
+useDefault = true
+
+[[rules]]
+id          = "gemini-api-key"
+description = "Google Gemini / Google AI API key (AIzaSy…)"
+regex       = '''AIzaSy[0-9A-Za-z_-]{33}'''
+tags        = ["google", "gemini", "api-key"]
+
+[[rules]]
+id          = "telegram-bot-token"
+description = "Telegram Bot API token (<bot_id>:AA…)"
+regex       = '''\b[0-9]{8,10}:AA[0-9A-Za-z_-]{33}\b'''
+tags        = ["telegram", "bot-token"]
+
+[allowlist]
+paths = [
+  '''gitleaks\.toml''',
+  '''target/''',
+]
+commits = []
