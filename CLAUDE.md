@@ -411,7 +411,7 @@ All iOS browsers (Safari and Chrome) use WebKit. These bugs recur — apply the 
 - Open redirect protection on all `returnTo` params: `safeRedirect()` accepts only `/[^/].*`
 
 ## Deploy
-- Production: https://otchenashhair-warehouse.fly.dev/
+- Production: deployed on Fly.io
 - Platform: Fly.io (Amsterdam region, 1 shared machine, 512MB RAM)
 - Database: Neon PostgreSQL (eu-central-1, Frankfurt)
 
