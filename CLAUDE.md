@@ -406,7 +406,7 @@ All iOS browsers (Safari and Chrome) use WebKit. These bugs recur — apply the 
 - All routes protected except /login, /logout, static resources (/favicon.svg, /css/**, /js/**, /images/**, /webjars/**)
 - `/error` in permitAll — correct error page instead of redirect loop
 - `/telegram/webhook` in permitAll — secured by `X-Telegram-Bot-Api-Secret-Token` header in controller (not Spring Security)
-- `/internal/reminders` in permitAll — secured by `X-Internal-Token` header in controller (not Spring Security)
+- `/internal/reminders` in permitAll — secured by `X-Internal-Token` header in controller (not Spring Security); `X-Internal-Token` is checked in `ReminderController` against `internal.secret`; wrong token → 403 and WARN "unauthorized attempt" in log
 - Default user: admin (change password after first login)
 - Open redirect protection on all `returnTo` params: `safeRedirect()` accepts only `/[^/].*`
 
@@ -450,10 +450,10 @@ If `OutOfMemoryError: Metaspace` appears in logs → raise `-XX:MaxMetaspaceSize
   | `TELEGRAM_BOT_USERNAME` | Bot username without @ |
   | `TELEGRAM_MASTER_CHAT_ID` | Master's personal Telegram chat_id (receives manual reminder alerts) |
   | `TELEGRAM_WEBHOOK_SECRET` | Random string; validated via `X-Telegram-Bot-Api-Secret-Token` header |
-  | `INTERNAL_SECRET` | Shared token for `/internal/reminders`; validated via `X-Internal-Token` header |
+  | `INTERNAL_SECRET` | Token for `/internal/reminders` (`X-Internal-Token` header); stored in: Fly.io secrets (prod), cron-job.org job header, GitHub Secret (manual workflow fallback), password manager. When rotating — update all four; value never stored in the repo. |
   | `TELEGRAM_HOW_TO_FIND_VIDEO_ID` | Telegram file_id of "how to find us" video (permanent, free hosting) |
   | `TELEGRAM_CHECKLIST_PHOTO_ID` | Telegram file_id of pre-consultation checklist photo |
-- GitHub Secrets: `INTERNAL_SECRET` (used by reminders.yml cron to call `/internal/reminders`; must match Fly.io value)
+- GitHub Secrets: `INTERNAL_SECRET` — used only by manual `reminders.yml` (workflow_dispatch fallback); primary trigger is cron-job.org
 
 ## Timezone
 - Fly.io runs in **UTC** by default; all appointment `LocalDateTime` values are stored in **Europe/Warsaw** (CEST/CET)
@@ -689,9 +689,12 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
    - `POST /clientcare/clients/{id}/telegram/remove` → clears chatId + token (`@Transactional` required for dirty checking)
 
 ### Reminder flow (day-based)
-- **Trigger:** GitHub Actions cron (`reminders.yml`, `0 7 * * *` + `0 8 * * *`) calls `GET /internal/reminders`
-  with `X-Internal-Token` header. Two schedules = 09:00 Wrocław year-round (CEST/CET). `reminder24hSentAt IS NULL` guard prevents duplicates.
-  Fly.io uses `auto_stop_machines = 'suspend'` — `@Scheduled` won't fire.
+- **Trigger:** cron-job.org, two tasks:
+  - **Warm-up 08:58** — `GET https://otchenashhair-warehouse.fly.dev/login` (public page, 200 OK); no auth header; failure notifications off. Ensures JVM is running before the reminder call (cold start after suspend/deploy takes ~28 s; cron-job.org free-tier timeout = 30 s).
+  - **Reminders 09:00** — `GET /internal/reminders` with `X-Internal-Token` header; daily, timezone Europe/Warsaw; failure notification after 1 failure.
+  - `reminders.yml` (GitHub Actions): `workflow_dispatch` only — manual fallback via Actions → Run workflow.
+  - Fly.io uses `auto_stop_machines = 'suspend'` — `@Scheduled` won't fire.
+  - `reminder24hSentAt IS NULL` guard prevents duplicates.
 - **Window:** all appointments tomorrow (dayStart..dayEnd), status IN (PLANNED, CONFIRMED), `reminder24hSentAt IS NULL`
 - **With chatId:** sends message with ✅/❌ inline buttons; sets `reminder24hSentAt = now()`
 - **Without chatId:** notifies master to remind manually
@@ -740,7 +743,7 @@ Webhook registered automatically on `ApplicationReadyEvent` (prod profile only).
 - AI: conversation history / multi-turn chat (currently stateless per request)
 
 ### Infrastructure
-- **GitHub Actions cron reliability** — `/internal/reminders` cron had ~3h delay (2026-05-29); if delays recur — migrate trigger to **cron-job.org** (free HTTP cron, delay < 1 min); config: URL + `X-Internal-Token` header; keep GitHub Actions workflow as manual fallback
+- **Remove `:dev-secret` fallback** — `application.properties` has `internal.secret=${INTERNAL_SECRET:dev-secret}`; remove the `:dev-secret` fallback so a missing secret fails startup instead of silently opening the endpoint. Keep `internal.secret=dev-secret` in `application-dev.properties` only. Optionally compare token via `MessageDigest.isEqual` to prevent timing attacks.
 - **Google Calendar sync** — OAuth2 two-way sync; main complexity: token storage per user + conflict resolution
 - **PostgreSQL backup** — pg_dump @Scheduled or Neon point-in-time recovery (check if sufficient before custom solution)
 - Spring Session (if scaling beyond 1 machine)
